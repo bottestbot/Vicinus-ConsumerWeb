@@ -1,0 +1,15 @@
+import { Module } from '@nestjs/common'
+import { HttpModule } from '@nestjs/axios'
+import { DdfSyncService } from './ddf-sync.service'
+import { DdfAuthService } from './ddf-auth.service'
+import { DdfPropertySync } from './ddf-property.sync'
+import { DdfMemberSync } from './ddf-member.sync'
+import { DdfOfficeSync } from './ddf-office.sync'
+import { DdfOpenHouseSync } from './ddf-openhouse.sync'
+
+@Module({
+  imports: [HttpModule],
+  providers: [DdfSyncService, DdfAuthService, DdfPropertySync, DdfMemberSync, DdfOfficeSync, DdfOpenHouseSync],
+  exports: [DdfAuthService],
+})
+export class DdfSyncModule {}

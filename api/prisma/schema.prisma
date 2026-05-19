@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique
+  email     String   @unique
+  fullName  String?
+  role      String   @default("buyer")
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  savedProperties   SavedProperty[]
+  visitedProperties VisitedProperty[]
+  savedSearches     SavedSearch[]
+}
+
+model Property {
+  id                String  @id @default(uuid())
+  ddfListingKey     String  @unique
+  ddfListingId      String?
+  realtorUrl        String
+  status            String  @default("Active")
+  displayOnInternet Boolean @default(true)
+
+  price           Float?
+  leaseAmount     Float?
+  leaseFrequency  String?
+  propertySubType String?
+  beds            Int?
+  baths           Float?
+  bathsPartial    Int?
+  sqft            Int?
+  lotSize         Float?
+  yearBuilt       Int?
+  parkingTotal    Int?
+  stories         Int?
+
+  address      String?
+  streetNumber String?
+  streetName   String?
+  city         String?
+  province     String?
+  postalCode   String?
+  country      String  @default("Canada")
+  lat          Float?
+  lng          Float?
+
+  description String?
+  images      Json?
+  photosCount Int?
+
+  heating          Json?
+  cooling          Json?
+  basement         Json?
+  parkingFeatures  Json?
+  exteriorFeatures Json?
+
+  taxAnnual Float?
+  taxYear   Int?
+
+  ddfAgentKey     String?
+  ddfOfficeKey    String?
+  neighbourhoodId String?
+
+  isCuratorPick Boolean @default(false)
+  editorialTag  String?
+
+  listedAt      DateTime?
+  ddfModifiedAt DateTime?
+  syncedAt      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  agent         Agent?         @relation(fields: [ddfAgentKey], references: [ddfMemberKey])
+  office        Office?        @relation(fields: [ddfOfficeKey], references: [ddfOfficeKey])
+  neighbourhood Neighbourhood? @relation(fields: [neighbourhoodId], references: [id])
+  savedBy       SavedProperty[]
+  visitedBy     VisitedProperty[]
+  openHouses    OpenHouse[]
+}
+
+model Agent {
+  id            String    @id @default(uuid())
+  ddfMemberKey  String    @unique
+  fullName      String?
+  jobTitle      String?
+  phone         String?
+  emailVisible  Boolean   @default(false)
+  province      String?
+  avatarUrl     String?
+  socialMedia   Json?
+  ddfOfficeKey  String?
+  ddfModifiedAt DateTime?
+  syncedAt      DateTime  @default(now())
+
+  office     Office?    @relation(fields: [ddfOfficeKey], references: [ddfOfficeKey])
+  properties Property[]
+}
+
+model Office {
+  id            String    @id @default(uuid())
+  ddfOfficeKey  String    @unique
+  name          String
+  phone         String?
+  address       String?
+  city          String?
+  province      String?
+  logoUrl       String?
+  ddfModifiedAt DateTime?
+  syncedAt      DateTime  @default(now())
+
+  agents     Agent[]
+  properties Property[]
+}
+
+model OpenHouse {
+  id              String    @id @default(uuid())
+  ddfOpenHouseKey String    @unique
+  ddfListingKey   String?
+  openHouseDate   DateTime?
+  startTime       String?
+  endTime         String?
+  openHouseType   String?
+  status          String?
+  remarks         String?
+
+  property Property? @relation(fields: [ddfListingKey], references: [ddfListingKey])
+}
+
+model Neighbourhood {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  city         String?
+  province     String?
+  bio          String?
+  medianPrice  Float?
+  walkScore    Int?
+  transitScore Int?
+  livingGrade  String?
+  videoUrl     String?
+  createdAt    DateTime @default(now())
+
+  properties      Property[]
+  localEssentials LocalEssential[]
+}
+
+model LocalEssential {
+  id              String  @id @default(uuid())
+  neighbourhoodId String
+  category        String
+  name            String?
+  rating          Float?
+  distanceKm      Float?
+
+  neighbourhood Neighbourhood @relation(fields: [neighbourhoodId], references: [id])
+}
+
+model SavedProperty {
+  id         String   @id @default(uuid())
+  userId     String
+  propertyId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id])
+
+  @@unique([userId, propertyId])
+}
+
+model VisitedProperty {
+  id         String   @id @default(uuid())
+  userId     String
+  propertyId String
+  visitedAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id])
+}
+
+model SavedSearch {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String?
+  filters   Json
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model EditorialCuration {
+  id          String    @id @default(uuid())
+  title       String?
+  description String?
+  imageUrl    String?
+  tag         String?
+  propertyIds String[]
+  publishedAt DateTime?
+}
+
+model DdfSyncLog {
+  id                    String    @id @default(uuid())
+  entity                String
+  syncedAt              DateTime  @default(now())
+  recordsSynced         Int       @default(0)
+  lastModifiedTimestamp DateTime?
+  status                String    @default("success")
+  errorMessage          String?
+}
