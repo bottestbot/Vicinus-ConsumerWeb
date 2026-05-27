@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
+import { CreateSavedSearchDto } from '../search/dto/create-saved-search.dto'
 
 @Injectable()
 export class UsersService {
@@ -33,6 +34,8 @@ export class UsersService {
     return user
   }
 
+  // ─── Saved Properties ────────────────────────────────────────────────────
+
   async getSavedProperties(clerkId: string) {
     const user = await this.getMe(clerkId)
     return this.prisma.savedProperty.findMany({
@@ -58,6 +61,8 @@ export class UsersService {
     })
   }
 
+  // ─── Visited Properties ──────────────────────────────────────────────────
+
   async getVisitedProperties(clerkId: string) {
     const user = await this.getMe(clerkId)
     return this.prisma.visitedProperty.findMany({
@@ -74,6 +79,46 @@ export class UsersService {
       data: { userId: user.id, propertyId },
     })
   }
+
+  // ─── Saved Searches (BE-306) ─────────────────────────────────────────────
+
+  /**
+   * List all saved searches for the authenticated user, newest first.
+   */
+  async getSavedSearches(clerkId: string) {
+    const user = await this.getMe(clerkId)
+    return this.prisma.savedSearch.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
+  /**
+   * Persist a new saved search (name + serialised filter JSON).
+   */
+  async createSavedSearch(clerkId: string, dto: CreateSavedSearchDto) {
+    const user = await this.getMe(clerkId)
+    return this.prisma.savedSearch.create({
+      data: {
+        userId: user.id,
+        name: dto.name ?? null,
+        filters: dto.filters,
+      },
+    })
+  }
+
+  /**
+   * Delete a saved search — verifies ownership before deleting.
+   */
+  async deleteSavedSearch(clerkId: string, searchId: string) {
+    const user = await this.getMe(clerkId)
+    const saved = await this.prisma.savedSearch.findUnique({ where: { id: searchId } })
+    if (!saved) throw new NotFoundException('Saved search not found')
+    if (saved.userId !== user.id) throw new ForbiddenException()
+    return this.prisma.savedSearch.delete({ where: { id: searchId } })
+  }
+
+  // ─── Dashboard aggregate ─────────────────────────────────────────────────
 
   async getDashboard(clerkId: string) {
     const user = await this.getMe(clerkId)
