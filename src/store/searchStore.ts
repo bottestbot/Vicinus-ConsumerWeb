@@ -1,15 +1,5 @@
 import { create } from 'zustand'
-
-interface SearchFilters {
-  minPrice: number | null
-  maxPrice: number | null
-  beds: number | null
-  baths: number | null
-  propertyType: string[]
-  status: string
-  minSqft: number | null
-  maxSqft: number | null
-}
+import type { SearchFiltersExtended, SavedSearch, ViewMode } from '@/types/search'
 
 interface MapBounds {
   west: number
@@ -19,36 +9,107 @@ interface MapBounds {
 }
 
 interface SearchStore {
+  // Query & filters
   query: string
-  filters: SearchFilters
-  viewMode: 'list' | 'map' | 'both'
+  filters: SearchFiltersExtended
+  viewMode: ViewMode
+
+  // Map state
   mapBounds: MapBounds | null
+  mapCenter: { longitude: number; latitude: number; zoom: number }
+
+  // UI state
+  hoveredPropertyId: string | null
+  selectedPropertyId: string | null
+
+  // Saved searches
+  savedSearches: SavedSearch[]
+
+  // Actions
   setQuery: (q: string) => void
-  setFilter: (key: keyof SearchFilters, value: unknown) => void
+  setFilter: <K extends keyof SearchFiltersExtended>(key: K, value: SearchFiltersExtended[K]) => void
   resetFilters: () => void
-  setViewMode: (m: 'list' | 'map' | 'both') => void
+  setViewMode: (m: ViewMode) => void
   setMapBounds: (b: MapBounds) => void
+  setMapCenter: (c: { longitude: number; latitude: number; zoom: number }) => void
+  setHoveredProperty: (id: string | null) => void
+  setSelectedProperty: (id: string | null) => void
+  saveSearch: (name: string) => void
+  removeSavedSearch: (id: string) => void
 }
 
-const defaultFilters: SearchFilters = {
+const defaultFilters: SearchFiltersExtended = {
+  // Basic
   minPrice: null,
   maxPrice: null,
   beds: null,
   baths: null,
   propertyType: [],
   status: 'Active',
+  listingType: 'For Sale',
   minSqft: null,
   maxSqft: null,
+  // Advanced
+  minYearBuilt: null,
+  maxYearBuilt: null,
+  basement: null,
+  minStories: null,
+  parking: null,
+  // Listing status
+  maxDaysListed: null,
+  hasOpenHouse: false,
+  comingSoon: false,
+  // Financial
+  maxMonthlyPayment: null,
+  maxHoaFee: null,
+  // Rental
+  petFriendly: false,
+  laundry: false,
+  utilitiesIncluded: false,
+  furnished: false,
+  shortTerm: false,
 }
 
-export const useSearchStore = create<SearchStore>((set) => ({
+export const useSearchStore = create<SearchStore>((set, get) => ({
   query: '',
   filters: defaultFilters,
   viewMode: 'both',
   mapBounds: null,
+  mapCenter: { longitude: -122.431, latitude: 37.773, zoom: 13 },
+  hoveredPropertyId: null,
+  selectedPropertyId: null,
+  savedSearches: [],
+
   setQuery: (q) => set({ query: q }),
-  setFilter: (key, value) => set((s) => ({ filters: { ...s.filters, [key]: value } })),
+
+  setFilter: (key, value) =>
+    set((s) => ({ filters: { ...s.filters, [key]: value } })),
+
   resetFilters: () => set({ filters: defaultFilters }),
+
   setViewMode: (m) => set({ viewMode: m }),
+
   setMapBounds: (b) => set({ mapBounds: b }),
+
+  setMapCenter: (c) => set({ mapCenter: c }),
+
+  setHoveredProperty: (id) => set({ hoveredPropertyId: id }),
+
+  setSelectedProperty: (id) => set({ selectedPropertyId: id }),
+
+  saveSearch: (name) => {
+    const state = get()
+    const search: SavedSearch = {
+      id: Date.now().toString(),
+      name,
+      query: state.query,
+      filters: state.filters,
+      mapBounds: state.mapBounds ?? undefined,
+      createdAt: new Date().toISOString(),
+    }
+    set((s) => ({ savedSearches: [...s.savedSearches, search] }))
+  },
+
+  removeSavedSearch: (id) =>
+    set((s) => ({ savedSearches: s.savedSearches.filter((ss) => ss.id !== id) })),
 }))
