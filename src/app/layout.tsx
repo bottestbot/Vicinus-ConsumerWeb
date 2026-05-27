@@ -1,10 +1,20 @@
 import type { Metadata } from 'next'
-import { Geist } from 'next/font/google'
+import { Inter, Playfair_Display } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import QueryProvider from '@/components/providers/QueryProvider'
 import './globals.css'
 
-const geist = Geist({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-playfair',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Vicinus — The Intelligent Curator',
@@ -14,8 +24,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body className={geist.className}>
+      <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+        <body className="font-sans">
           <QueryProvider>{children}</QueryProvider>
         </body>
       </html>

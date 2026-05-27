@@ -123,8 +123,57 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter), system-ui, sans-serif;
   }
   html {
-    @apply font-sans;
+    font-family: var(--font-inter), system-ui, sans-serif;
   }
 }
+
+/* Design system tokens */
+:root {
+  --cream: #FAF9F6;
+  --card-white: #FFFFFF;
+  --heading: #111111;
+  --body: #6B6B6B;
+  --accent: #1C3829;
+  --accent-light: #2D5A3D;
+  --border-light: #E8E6E1;
+}
+
+/* Typography utilities */
+.font-heading {
+  font-family: var(--font-playfair), Georgia, serif;
+}
+.font-ui {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Mapbox price pin */
+.price-pin {
+  background: white;
+  border: 1.5px solid rgba(0,0,0,0.15);
+  border-radius: 20px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #111111;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.price-pin:hover,
+.price-pin.active {
+  background: #1C3829;
+  color: white;
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 10;
+}
+
+/* Mapbox overrides */
+.mapboxgl-ctrl-logo { display: none !important; }
+.mapboxgl-ctrl-bottom-right { bottom: 8px !important; right: 8px !important; }
+.mapboxgl-ctrl-group { background: white !important; border-radius: 8px !important; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.12) !important; }
