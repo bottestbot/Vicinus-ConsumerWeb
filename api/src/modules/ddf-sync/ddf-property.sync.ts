@@ -4,6 +4,7 @@ import { HttpService } from '@nestjs/axios'
 import { firstValueFrom } from 'rxjs'
 import { PrismaService } from '../../prisma/prisma.service'
 import { DdfAuthService } from './ddf-auth.service'
+import { AlgoliaService } from '../search/algolia.service'
 
 @Injectable()
 export class DdfPropertySync {
@@ -14,6 +15,7 @@ export class DdfPropertySync {
     private http: HttpService,
     private prisma: PrismaService,
     private config: ConfigService,
+    private algolia: AlgoliaService,
   ) {}
 
   async sync(since?: Date): Promise<number> {
@@ -23,6 +25,9 @@ export class DdfPropertySync {
     if (since) url += `&$filter=ModificationTimestamp gt ${since.toISOString()}`
 
     let count = 0
+    /** Track listing keys upserted in this run so we can batch-index to Algolia */
+    const syncedListingKeys: string[] = []
+
     while (url) {
       const response = await firstValueFrom(
         this.http.get(url, {
@@ -40,6 +45,7 @@ export class DdfPropertySync {
           create: data,
           update: data,
         })
+        syncedListingKeys.push(data.ddfListingKey as string)
         count++
       }
 
@@ -47,8 +53,39 @@ export class DdfPropertySync {
     }
 
     this.logger.log(`Synced ${count} properties`)
+
+    // BE-303: push upserted properties to Algolia in batches of 100
+    if (syncedListingKeys.length > 0) {
+      await this.indexToAlgolia(syncedListingKeys)
+    }
+
     return count
   }
+
+  // ─── Algolia sync (BE-303) ───────────────────────────────────────────────
+
+  /**
+   * Fetch upserted properties (with agent + office) from Prisma and push them
+   * to the `vicinus_properties` Algolia index.  Processes in chunks of 100 to
+   * keep memory usage low.
+   */
+  private async indexToAlgolia(ddfListingKeys: string[]): Promise<void> {
+    const CHUNK = 100
+    for (let i = 0; i < ddfListingKeys.length; i += CHUNK) {
+      const batch = ddfListingKeys.slice(i, i + CHUNK)
+      try {
+        const properties = await this.prisma.property.findMany({
+          where: { ddfListingKey: { in: batch } },
+          include: { agent: true, office: true },
+        })
+        await this.algolia.indexFromPrisma(properties)
+      } catch (err) {
+        this.logger.error(`Algolia batch index failed (offset ${i}): ${(err as Error).message}`)
+      }
+    }
+  }
+
+  // ─── DDF → Prisma field mapping ─────────────────────────────────────────
 
   private mapProperty(p: Record<string, unknown>) {
     const media = (p['Media'] as Record<string, unknown>[]) || []
