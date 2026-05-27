@@ -6,24 +6,24 @@ export default function Navbar() {
   const { isSignedIn } = useUser()
 
   return (
-    <header className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-sm border-b border-white/10">
+    <header className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-sm border-b border-[var(--border-light)]">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="text-white font-semibold tracking-widest text-sm uppercase">
+        <Link href="/" className="text-[var(--accent)] font-semibold tracking-widest text-sm uppercase">
           Vicinus
         </Link>
-        <nav className="hidden md:flex items-center gap-8 text-white/70 text-sm">
-          <Link href="/search" className="hover:text-white transition-colors">Properties</Link>
-          <Link href="/neighbourhoods" className="hover:text-white transition-colors">Neighbourhoods</Link>
+        <nav className="hidden md:flex items-center gap-8 text-[var(--body)] text-sm">
+          <Link href="/search" className="hover:text-[var(--heading)] transition-colors">Properties</Link>
+          <Link href="/neighbourhoods" className="hover:text-[var(--heading)] transition-colors">Neighbourhoods</Link>
         </nav>
         <div className="flex items-center gap-4">
           {isSignedIn ? (
             <>
-              <Link href="/dashboard" className="text-sm text-white/70 hover:text-white transition-colors">Dashboard</Link>
+              <Link href="/dashboard" className="text-sm text-[var(--body)] hover:text-[var(--heading)] transition-colors">Dashboard</Link>
               <UserButton />
             </>
           ) : (
             <SignInButton>
-              <button className="text-sm text-white/70 hover:text-white transition-colors">Sign In</button>
+              <button className="text-sm text-[var(--body)] hover:text-[var(--heading)] transition-colors">Sign In</button>
             </SignInButton>
           )}
         </div>
