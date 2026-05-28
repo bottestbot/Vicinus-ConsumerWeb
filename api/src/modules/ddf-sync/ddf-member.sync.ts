@@ -19,7 +19,7 @@ export class DdfMemberSync {
   async sync(since?: Date): Promise<number> {
     const token = await this.auth.getToken()
     const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
-    let url = `${baseUrl}/Member?$top=100&$orderby=ModificationTimestamp asc`
+    let url = `${baseUrl}/Member?$top=100&$orderby=ModificationTimestamp%20asc`
     if (since) url += `&$filter=ModificationTimestamp gt ${since.toISOString()}`
 
     let count = 0
@@ -29,7 +29,20 @@ export class DdfMemberSync {
       )
       for (const m of (response.data.value as Record<string, unknown>[]) || []) {
         const data = this.mapMember(m)
-        await this.prisma.agent.upsert({ where: { ddfMemberKey: data.ddfMemberKey }, create: data, update: data })
+        try {
+          await this.prisma.agent.upsert({ where: { ddfMemberKey: data.ddfMemberKey }, create: data, update: data })
+        } catch (err: unknown) {
+          // Office FK may not exist yet — retry without the office reference
+          if ((err as { code?: string }).code === 'P2003') {
+            await this.prisma.agent.upsert({
+              where: { ddfMemberKey: data.ddfMemberKey },
+              create: { ...data, ddfOfficeKey: null },
+              update: { ...data, ddfOfficeKey: null },
+            })
+          } else {
+            throw err
+          }
+        }
         count++
       }
       url = (response.data['@odata.nextLink'] as string) || ''

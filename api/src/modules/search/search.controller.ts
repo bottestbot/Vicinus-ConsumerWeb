@@ -6,7 +6,7 @@ import { SearchQueryDto } from './dto/search-query.dto'
 @ApiTags('search')
 @Controller('search')
 export class SearchController {
-  constructor(private readonly search: SearchService) {}
+  constructor(private readonly searchService: SearchService) {}
 
   /**
    * BE-301: Full property search with all filter params.
@@ -16,7 +16,7 @@ export class SearchController {
   @Get()
   @ApiOperation({ summary: 'Search properties with filters (+ optional PostGIS bbox)' })
   search(@Query() query: SearchQueryDto) {
-    return this.search.search(query)
+    return this.searchService.search(query)
   }
 
   /**
@@ -28,6 +28,6 @@ export class SearchController {
   @ApiOperation({ summary: 'Lightweight geo + price pins for the map viewport' })
   @ApiQuery({ name: 'bbox', required: true, example: '-79.63,43.58,-79.27,43.85', description: 'west,south,east,north' })
   mapPins(@Query('bbox') bbox: string) {
-    return this.search.getMapPins(bbox ?? '')
+    return this.searchService.getMapPins(bbox ?? '')
   }
 }

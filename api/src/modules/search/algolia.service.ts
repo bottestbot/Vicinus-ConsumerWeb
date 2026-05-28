@@ -62,7 +62,7 @@ export class AlgoliaService {
     for (let i = 0; i < records.length; i += CHUNK) {
       const chunk = records.slice(i, i + CHUNK)
       try {
-        await client.saveObjects({ indexName: AlgoliaService.INDEX_NAME, objects: chunk })
+        await client.saveObjects({ indexName: AlgoliaService.INDEX_NAME, objects: chunk as unknown as Record<string, unknown>[] })
         this.logger.log(`Algolia: indexed ${chunk.length} properties (offset ${i})`)
       } catch (err) {
         this.logger.error(`Algolia indexing failed at offset ${i}: ${(err as Error).message}`)

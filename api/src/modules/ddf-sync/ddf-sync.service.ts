@@ -44,8 +44,8 @@ export class DdfSyncService {
     this.logger.log('Starting member/office sync...')
     const lastSync = await this.getLastSync('Member')
     try {
-      await this.memberSync.sync(lastSync ?? undefined)
       await this.officeSync.sync(lastSync ?? undefined)
+      await this.memberSync.sync(lastSync ?? undefined)
       await this.openHouseSync.sync()
     } catch (err) {
       this.logger.error('Member/office sync failed', err)

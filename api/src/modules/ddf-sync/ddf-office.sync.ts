@@ -19,7 +19,7 @@ export class DdfOfficeSync {
   async sync(since?: Date): Promise<number> {
     const token = await this.auth.getToken()
     const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
-    let url = `${baseUrl}/Office?$top=100&$orderby=ModificationTimestamp asc`
+    let url = `${baseUrl}/Office?$top=100&$orderby=ModificationTimestamp%20asc`
     if (since) url += `&$filter=ModificationTimestamp gt ${since.toISOString()}`
 
     let count = 0

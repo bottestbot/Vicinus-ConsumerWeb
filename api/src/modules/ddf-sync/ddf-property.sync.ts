@@ -21,7 +21,7 @@ export class DdfPropertySync {
   async sync(since?: Date): Promise<number> {
     const token = await this.auth.getToken()
     const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
-    let url = `${baseUrl}/Property?$top=100&$orderby=ModificationTimestamp asc`
+    let url = `${baseUrl}/Property?$top=100&$orderby=ModificationTimestamp%20asc`
     if (since) url += `&$filter=ModificationTimestamp gt ${since.toISOString()}`
 
     let count = 0
@@ -40,11 +40,24 @@ export class DdfPropertySync {
         if (!p['InternetEntireListingDisplayYN']) continue
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = this.mapProperty(p) as any
-        await this.prisma.property.upsert({
-          where: { ddfListingKey: data.ddfListingKey },
-          create: data,
-          update: data,
-        })
+        try {
+          await this.prisma.property.upsert({
+            where: { ddfListingKey: data.ddfListingKey },
+            create: data,
+            update: data,
+          })
+        } catch (err: unknown) {
+          // Agent/office FK may not exist — retry without the relation keys
+          if ((err as { code?: string }).code === 'P2003') {
+            await this.prisma.property.upsert({
+              where: { ddfListingKey: data.ddfListingKey },
+              create: { ...data, ddfAgentKey: null, ddfOfficeKey: null },
+              update: { ...data, ddfAgentKey: null, ddfOfficeKey: null },
+            })
+          } else {
+            throw err
+          }
+        }
         syncedListingKeys.push(data.ddfListingKey as string)
         count++
       }
