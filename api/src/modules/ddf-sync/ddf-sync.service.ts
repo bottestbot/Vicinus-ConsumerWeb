@@ -1,11 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Cron, CronExpression } from '@nestjs/schedule'
 import { PrismaService } from '../../prisma/prisma.service'
 import { DdfPropertySync } from './ddf-property.sync'
 import { DdfMemberSync } from './ddf-member.sync'
 import { DdfOfficeSync } from './ddf-office.sync'
 import { DdfOpenHouseSync } from './ddf-openhouse.sync'
 
+/**
+ * Bulk sync crons are intentionally disabled — search now calls the DDF API
+ * directly on demand.  The sync methods are kept so they can be triggered
+ * manually (e.g. an admin endpoint) if a one-time backfill is ever needed.
+ */
 @Injectable()
 export class DdfSyncService {
   private readonly logger = new Logger(DdfSyncService.name)
@@ -18,7 +22,6 @@ export class DdfSyncService {
     private openHouseSync: DdfOpenHouseSync,
   ) {}
 
-  @Cron('*/15 * * * *')
   async syncProperties() {
     this.logger.log('Starting property sync...')
     const lastSync = await this.getLastSync('Property')
@@ -39,7 +42,6 @@ export class DdfSyncService {
     })
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
   async syncMembersAndOffices() {
     this.logger.log('Starting member/office sync...')
     const lastSync = await this.getLastSync('Member')
