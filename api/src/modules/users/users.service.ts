@@ -102,7 +102,7 @@ export class UsersService {
       data: {
         userId: user.id,
         name: dto.name ?? null,
-        filters: dto.filters,
+        filters: dto.filters as object,
       },
     })
   }
