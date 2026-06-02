@@ -1,4 +1,5 @@
 // FE-601: Dashboard page — protected, server component
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import type { DashboardData } from '@/types/dashboard'
@@ -8,6 +9,11 @@ import VecinusPanel from '@/components/dashboard/VecinusPanel'
 import SavedProperties from '@/components/dashboard/SavedProperties'
 import VisitedProperties from '@/components/dashboard/VisitedProperties'
 import EditorialCurations from '@/components/dashboard/EditorialCurations'
+
+export const metadata: Metadata = {
+  title: 'My Dashboard',
+  description: 'Your saved properties, recent visits, and curated recommendations.',
+}
 
 async function fetchDashboard(token: string): Promise<DashboardData | null> {
   try {

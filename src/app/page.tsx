@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+
+export const metadata: Metadata = {
+  title: 'Vicinus | Luxury Canadian Real Estate',
+  description: 'Beyond data. The Vicinus standard — intelligent curation of Canada\'s finest properties.',
+}
 
 export default function LandingPage() {
   return (

@@ -56,7 +56,7 @@ export default function ResultsList({
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
         ) : properties.length === 0 ? (
-          <EmptyState />
+          <EmptyState locationLabel={locationLabel} />
         ) : (
           <>
             {/* Regular listings first */}
@@ -77,16 +77,16 @@ export default function ResultsList({
   )
 }
 
-function EmptyState() {
+function EmptyState({ locationLabel }: { locationLabel: string }) {
   const { resetFilters } = useSearchStore()
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-12 h-12 bg-[#F2F0EB] rounded-full flex items-center justify-center mb-4">
         <span className="text-2xl">🏡</span>
       </div>
-      <h3 className="font-heading text-lg font-semibold text-[#111111] mb-1">No listings found</h3>
+      <h3 className="font-heading text-lg font-semibold text-[#111111] mb-1">No properties found</h3>
       <p className="text-sm text-[#6B6B6B] mb-4 max-w-xs">
-        Try adjusting your filters or expanding the map view to see more results.
+        No properties found in <span className="font-medium text-[#111111]">{locationLabel}</span> — try a different city or adjust your filters.
       </p>
       <button
         onClick={resetFilters}

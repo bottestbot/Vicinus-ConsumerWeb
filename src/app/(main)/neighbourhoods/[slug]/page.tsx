@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params
   const neighbourhood = await getNeighbourhood(slug)
   return {
-    title: `${neighbourhood.name} — Vicinus`,
+    title: neighbourhood.name,
     description: neighbourhood.bio?.slice(0, 155) ?? `Explore luxury real estate in ${neighbourhood.name}, ${neighbourhood.city}.`,
   }
 }

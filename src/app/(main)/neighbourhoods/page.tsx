@@ -7,7 +7,7 @@ import { formatPrice } from '@/types/search'
 import type { Neighbourhood } from '@/types/neighbourhood'
 
 export const metadata: Metadata = {
-  title: 'Neighbourhoods — Vicinus',
+  title: 'Explore Neighbourhoods',
   description: 'Explore Canada\'s most prestigious neighbourhoods — curated for discerning buyers.',
 }
 
@@ -70,8 +70,14 @@ export default async function NeighbourhoodsPage() {
 
         {/* Grid */}
         {neighbourhoods.length === 0 ? (
-          <div className="py-20 text-center">
-            <p className="text-[#6B6B6B] text-sm">No neighbourhoods available at this time.</p>
+          <div className="py-24 text-center">
+            <div className="w-12 h-12 rounded-full bg-[#F2F0EB] flex items-center justify-center mx-auto mb-4">
+              <span className="text-xl">🏘</span>
+            </div>
+            <p className="font-heading text-lg font-semibold text-[#111111] mb-1">No neighbourhoods available yet</p>
+            <p className="text-sm text-[#6B6B6B] max-w-xs mx-auto">
+              We're curating Canada's finest enclaves — check back soon.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

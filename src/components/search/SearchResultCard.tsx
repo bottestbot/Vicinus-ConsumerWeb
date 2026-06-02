@@ -92,21 +92,24 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
           </div>
 
           {/* Agent / CREA compliance footer */}
-          <div className="mt-3 pt-2.5 border-t border-[#F2F0EB] flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-semibold text-[#111111]">{property.agentName}</p>
-              <p className="text-[10px] text-[#6B6B6B]">{property.brokerageName}</p>
+          <div className="mt-3 pt-2.5 border-t border-[#F2F0EB]">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-semibold text-[#111111]">{property.agentName}</p>
+                <p className="text-[10px] text-[#6B6B6B]">{property.brokerageName}</p>
+              </div>
+              <a
+                href="https://www.realtor.ca"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[9px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors text-right shrink-0"
+              >
+                Powered by<br />
+                <span className="font-semibold">REALTOR.ca</span>
+              </a>
             </div>
-            <a
-              href="https://www.realtor.ca"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-[9px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors text-right"
-            >
-              Powered by<br />
-              <span className="font-semibold">REALTOR.ca</span>
-            </a>
+            <p className="text-xs text-[#6B6B6B] mt-1">Data provided by CREA</p>
           </div>
         </div>
       </article>

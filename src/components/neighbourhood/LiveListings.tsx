@@ -50,17 +50,27 @@ function ListingCard({ listing }: { listing: NeighbourhoodListing }) {
             </span>
           </div>
           {/* CREA DDF compliance */}
-          <div className="mt-2.5 pt-2 border-t border-[#F2F0EB] flex items-center justify-between">
-            <p className="text-[9px] text-[#6B6B6B] truncate">{listing.agentName}</p>
-            <a
-              href="https://www.realtor.ca"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-[9px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors shrink-0"
-            >
-              REALTOR.ca
-            </a>
+          <div className="mt-2.5 pt-2 border-t border-[#F2F0EB]">
+            <div className="flex items-center justify-between gap-1">
+              <div className="min-w-0">
+                {listing.agentName && (
+                  <p className="text-[9px] font-semibold text-[#111111] truncate">{listing.agentName}</p>
+                )}
+                {listing.brokerageName && (
+                  <p className="text-[9px] text-[#6B6B6B] truncate">{listing.brokerageName}</p>
+                )}
+              </div>
+              <a
+                href="https://www.realtor.ca"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[9px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors shrink-0"
+              >
+                REALTOR.ca
+              </a>
+            </div>
+            <p className="text-xs text-[#6B6B6B] mt-0.5">Data provided by CREA</p>
           </div>
         </div>
       </article>

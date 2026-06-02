@@ -86,15 +86,15 @@ function EmptyState() {
       <div className="w-12 h-12 rounded-full bg-[#F2F0EB] flex items-center justify-center mb-3">
         <Bookmark size={22} className="text-[#6B6B6B]" />
       </div>
-      <p className="font-semibold text-[#111111] mb-1">No saved properties yet</p>
+      <p className="font-semibold text-[#111111] mb-1">You haven't saved any properties yet</p>
       <p className="text-sm text-[#6B6B6B] max-w-xs">
-        Browse listings and save the ones you love — they'll appear here.
+        Start exploring and save the listings you love — they'll appear here.
       </p>
       <Link
         href="/search"
         className="mt-4 text-sm font-semibold text-[#1C3829] hover:underline"
       >
-        Browse properties →
+        Start exploring →
       </Link>
     </div>
   )

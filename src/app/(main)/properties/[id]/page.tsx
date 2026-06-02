@@ -1,5 +1,6 @@
 // FE-401: Property Detail Page
 // NOTE: params is a Promise<{ id }> in Next.js 15/16 App Router — must be awaited
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getMockPropertyDetail } from '@/types/property'
@@ -15,6 +16,27 @@ import ListingActivityMap from '@/components/property/ListingActivityMap'
 import ActionBar from '@/components/property/ActionBar'
 import AgentCard from '@/components/property/AgentCard'
 import TrackVisited from '@/components/property/TrackVisited'
+
+// ─── Metadata ─────────────────────────────────────────────────────────────────
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const property = getMockPropertyDetail(id)
+  const price = property.price
+    ? `$${(property.price / 1_000_000).toFixed(2)}M`
+    : null
+  const title = price
+    ? `${property.address} — ${price}`
+    : property.address
+  return {
+    title,
+    description: `${property.beds} bed · ${property.baths} bath · ${property.sqft.toLocaleString()} sqft — ${property.city}. Listed by ${property.brokerageName}.`,
+  }
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
