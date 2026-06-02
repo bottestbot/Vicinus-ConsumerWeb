@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
-import { RedisService } from '../../redis/redis.service'
+import { RedisService } from '../../common/redis/redis.service'
 
 /** 10-minute TTL for full property detail (BE-408) */
 const PROPERTY_DETAIL_TTL = 10 * 60
@@ -39,7 +39,7 @@ export class PropertiesService {
   async findById(id: string) {
     const cacheKey = `property:${id}`
     const cached = await this.redis.get(cacheKey)
-    if (cached) return cached
+    if (cached) return JSON.parse(cached)
 
     const property = await this.prisma.property.findUnique({
       where: { id },
@@ -58,7 +58,7 @@ export class PropertiesService {
 
     if (!property) throw new NotFoundException(`Property ${id} not found`)
 
-    await this.redis.set(cacheKey, property, PROPERTY_DETAIL_TTL)
+    await this.redis.set(cacheKey, JSON.stringify(property), PROPERTY_DETAIL_TTL)
     return property
   }
 

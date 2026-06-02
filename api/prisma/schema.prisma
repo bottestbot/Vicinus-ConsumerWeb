@@ -198,9 +198,13 @@ model SavedSearch {
 model EditorialCuration {
   id          String    @id @default(uuid())
   title       String?
+  subtitle    String?
   description String?
   imageUrl    String?
+  category    String?
   tag         String?
+  ctaUrl      String?
+  position    Int       @default(0)
   propertyIds String[]
   publishedAt DateTime?
 }
