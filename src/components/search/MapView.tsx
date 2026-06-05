@@ -52,6 +52,14 @@ export default function MapView({ properties }: MapViewProps) {
 
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''
 
+  if (!token) {
+    return (
+      <div className="w-full h-full bg-[#1C2020] flex items-center justify-center">
+        <p className="text-white/40 text-sm">Map unavailable — Mapbox token not configured</p>
+      </div>
+    )
+  }
+
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/* Warm amber overlay — CSS filter on a pseudo-element for the amber tint */}
@@ -79,8 +87,8 @@ export default function MapView({ properties }: MapViewProps) {
         {/* Navigation controls */}
         <NavigationControl position="bottom-right" showCompass={false} />
 
-        {/* Price pins — FE-307 */}
-        {properties.map((property) => (
+        {/* Price pins — FE-307: skip properties without valid coordinates */}
+        {properties.filter((p) => p.latitude !== 0 || p.longitude !== 0).map((property) => (
           <Marker
             key={property.id}
             longitude={property.longitude}
