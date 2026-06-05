@@ -13,7 +13,7 @@ const MOCK_CURATIONS: EditorialCuration[] = [
   {
     id: 'ec2',
     title: 'Rosedale, Reimagined',
-    description: 'Toronto's most storied enclave finds its footing in the modern era.',
+    description: "Toronto's most storied enclave finds its footing in the modern era.",
     imageUrl: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&q=80',
     tag: 'Neighbourhood',
     publishedAt: null,

@@ -45,7 +45,7 @@ const MOCK_AGENTS: Agent[] = [
     id: 'a1',
     name: 'Sophie Tremblay',
     title: 'REALTOR®',
-    brokerageName: 'Sotheby's International Realty',
+    brokerageName: "Sotheby's International Realty",
   },
   {
     id: 'a2',

@@ -1,12 +1,28 @@
 import apiClient from './client'
 import type { SearchFiltersExtended } from '@/types/search'
 
-export const searchProperties = (params: Partial<SearchFiltersExtended> & {
+export interface SearchParams {
   q?: string
+  city?: string
+  province?: string
+  minPrice?: number
+  maxPrice?: number
+  beds?: number
+  baths?: number
+  /** Comma-separated property sub-types, e.g. "Single Family,Condo" */
+  propertyType?: string
+  status?: string
+  minSqft?: number
+  maxSqft?: number
+  yearBuiltMin?: number
+  parkingMin?: number
   bbox?: string
   page?: number
   limit?: number
-}) => apiClient.get('/search', { params })
+}
+
+export const searchProperties = (params: SearchParams) =>
+  apiClient.get('/search', { params })
 
 export const getMapPins = (bbox: string) =>
   apiClient.get('/search/map-pins', { params: { bbox } })

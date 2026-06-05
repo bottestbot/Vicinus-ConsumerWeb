@@ -1,10 +1,12 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { SignInButton, UserButton, useUser } from '@clerk/nextjs'
 import { useSearchStore } from '@/store/searchStore'
-import { MOCK_PROPERTIES } from '@/types/search'
+import type { Property } from '@/types/search'
+import { searchProperties } from '@/lib/api/search'
 import SearchBar from '@/components/search/SearchBar'
 import FilterPanel from '@/components/search/FilterPanel'
 import ViewToggle from '@/components/search/ViewToggle'
@@ -20,39 +22,79 @@ const MapView = dynamic(() => import('@/components/search/MapView'), {
   ),
 })
 
+type ApiProperty = Record<string, unknown>
+
+function toFrontendProperty(p: ApiProperty): Property {
+  const mediaArr = (p.images as Array<{ url: string }> | null) ?? []
+  const listedAt = p.listedAt ? new Date(p.listedAt as string) : null
+  const daysOnMarket = listedAt
+    ? Math.max(0, Math.floor((Date.now() - listedAt.getTime()) / 86_400_000))
+    : 0
+  const agent = p.agent as { fullName: string } | null
+  const office = p.office as { name: string } | null
+
+  return {
+    id: String(p.id),
+    address: (p.address as string | null) ?? '',
+    city: (p.city as string | null) ?? '',
+    province: (p.province as string | null) ?? '',
+    postalCode: (p.postalCode as string | null) ?? '',
+    price: (p.price as number | null) ?? 0,
+    beds: (p.beds as number | null) ?? 0,
+    baths: (p.baths as number | null) ?? 0,
+    sqft: (p.sqft as number | null) ?? 0,
+    propertyType: (p.propertySubType as string | null) ?? '',
+    status: ((p.status as string | null) ?? 'Active') as Property['status'],
+    daysOnMarket,
+    listingType: p.leaseAmount != null ? 'For Rent' : 'For Sale',
+    latitude: (p.lat as number | null) ?? 0,
+    longitude: (p.lng as number | null) ?? 0,
+    imageUrl: mediaArr[0]?.url ?? '',
+    images: mediaArr.map((m) => m.url),
+    agentName: agent?.fullName ?? '',
+    agentTitle: 'REALTOR®',
+    brokerageName: office?.name ?? '',
+    mlsNumber: (p.ddfListingId as string | null) ?? String(p.id),
+    yearBuilt: (p.yearBuilt as number | null) ?? undefined,
+    parking: (p.parkingTotal as number | null) ?? undefined,
+    stories: (p.stories as number | null) ?? undefined,
+    description: (p.description as string | null) ?? undefined,
+  }
+}
+
 export default function SearchPageClient() {
   const { viewMode, filters, query, mapBounds } = useSearchStore()
   const { isSignedIn } = useUser()
 
-  // Filter properties based on current state
-  // In production this calls the backend API via React Query
-  const filteredProperties = MOCK_PROPERTIES.filter((p) => {
-    if (filters.minPrice !== null && p.price < filters.minPrice) return false
-    if (filters.maxPrice !== null && p.price > filters.maxPrice) return false
-    if (filters.beds !== null && p.beds < filters.beds) return false
-    if (filters.baths !== null && p.baths < filters.baths) return false
-    if (filters.propertyType.length > 0 && !filters.propertyType.includes(p.propertyType)) return false
-    if (filters.minSqft !== null && p.sqft < filters.minSqft) return false
-    if (filters.maxSqft !== null && p.sqft > filters.maxSqft) return false
-    if (filters.listingType && p.listingType !== filters.listingType) return false
-    if (mapBounds) {
-      if (
-        p.longitude < mapBounds.west ||
-        p.longitude > mapBounds.east ||
-        p.latitude < mapBounds.south ||
-        p.latitude > mapBounds.north
-      ) return false
-    }
-    if (query) {
-      const q = query.toLowerCase()
-      if (
-        !p.city.toLowerCase().includes(q) &&
-        !p.address.toLowerCase().includes(q) &&
-        !p.postalCode.toLowerCase().includes(q)
-      ) return false
-    }
-    return true
+  const queryParams = {
+    q: query || undefined,
+    minPrice: filters.minPrice ?? undefined,
+    maxPrice: filters.maxPrice ?? undefined,
+    beds: filters.beds ?? undefined,
+    baths: filters.baths ?? undefined,
+    propertyType: filters.propertyType.length > 0 ? filters.propertyType.join(',') : undefined,
+    status: filters.status || undefined,
+    minSqft: filters.minSqft ?? undefined,
+    maxSqft: filters.maxSqft ?? undefined,
+    parkingMin: filters.parking ?? undefined,
+    yearBuiltMin: filters.minYearBuilt ?? undefined,
+    bbox: mapBounds
+      ? `${mapBounds.west},${mapBounds.south},${mapBounds.east},${mapBounds.north}`
+      : undefined,
+  }
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['search', queryParams],
+    queryFn: () => searchProperties(queryParams).then((r) => r.data),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   })
+
+  const properties: Property[] = (
+    (data?.data ?? []) as ApiProperty[]
+  ).map(toFrontendProperty)
+
+  const totalCount: number = data?.total ?? 0
 
   return (
     // Full-viewport overlay — sits above the main layout's Navbar
@@ -109,7 +151,7 @@ export default function SearchPageClient() {
             className="relative overflow-hidden"
             style={{ width: viewMode === 'map' ? '100%' : '58%' }}
           >
-            <MapView properties={filteredProperties} />
+            <MapView properties={properties} />
           </div>
         )}
 
@@ -120,9 +162,10 @@ export default function SearchPageClient() {
             style={{ width: viewMode === 'list' ? '100%' : '42%' }}
           >
             <ResultsList
-              properties={filteredProperties}
-              totalCount={filteredProperties.length}
+              properties={properties}
+              totalCount={totalCount}
               locationLabel={query || 'All Properties'}
+              isLoading={isLoading}
             />
           </div>
         )}
