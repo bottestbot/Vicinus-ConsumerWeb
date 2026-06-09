@@ -3,9 +3,10 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import type { DashboardData } from '@/types/dashboard'
+import DashboardNavbar from '@/components/dashboard/DashboardNavbar'
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner'
 import FeaturedProperty from '@/components/dashboard/FeaturedProperty'
-import VecinusPanel from '@/components/dashboard/VecinusPanel'
+import IntelligencePanel from '@/components/dashboard/IntelligencePanel'
 import SavedProperties from '@/components/dashboard/SavedProperties'
 import VisitedProperties from '@/components/dashboard/VisitedProperties'
 import EditorialCurations from '@/components/dashboard/EditorialCurations'
@@ -52,46 +53,47 @@ export default async function DashboardPage() {
     editorial: [],
   }
 
-  // Pick first saved property as featured recommendation, else first visited
   const featuredProperty =
     safeData.saved[0]?.property ?? safeData.visited[0]?.property ?? null
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-20">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-12">
+    <div className="min-h-screen bg-[#FAF9F6]">
+      {/* Dashboard-specific navbar (no main site nav) */}
+      <DashboardNavbar />
 
-        {/* Welcome banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-12">
+
+        {/* Welcome banner + recent searches */}
         <WelcomeBanner data={safeData} />
 
-        {/* Two-column: featured property + agent panel */}
-        {featuredProperty ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <div className="lg:col-span-2">
-              <p className="text-[11px] font-semibold text-[#1C3829] uppercase tracking-widest mb-3">
-                Featured Listing
-              </p>
+        {/* Two-column hero: Featured property (2/3) + Intelligence panel (1/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="lg:col-span-2">
+            {featuredProperty ? (
               <FeaturedProperty property={featuredProperty} />
-            </div>
-            <div className="lg:col-span-1">
-              <VecinusPanel />
-            </div>
+            ) : (
+              <div className="rounded-2xl border border-[#E8E6E1] bg-white flex items-center justify-center h-72 text-sm text-[#6B6B6B]">
+                No featured property yet — save a listing to get started.
+              </div>
+            )}
           </div>
-        ) : (
-          <VecinusPanel />
-        )}
+          <div className="lg:col-span-1">
+            <IntelligencePanel />
+          </div>
+        </div>
 
-        {/* Saved properties grid */}
+        {/* Saved properties carousel */}
         <div className="border-t border-[#E8E6E1] pt-10">
           <SavedProperties saved={safeData.saved} />
         </div>
 
-        {/* Recently visited horizontal scroll */}
+        {/* Visited properties */}
         <div className="border-t border-[#E8E6E1] pt-10">
           <VisitedProperties visited={safeData.visited} />
         </div>
 
         {/* Editorial curations — dark section */}
-        <div className="border-t border-[#E8E6E1] pt-10">
+        <div className="border-t border-[#E8E6E1] pt-10 pb-16">
           <EditorialCurations editorial={safeData.editorial} />
         </div>
 

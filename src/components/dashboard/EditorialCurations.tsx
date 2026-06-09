@@ -1,5 +1,10 @@
+'use client'
+
+import { useState } from 'react'
 import Image from 'next/image'
 import type { EditorialCuration } from '@/types/dashboard'
+
+type EditorialTab = 'Neighborhoods' | 'Feeds'
 
 const MOCK_CURATIONS: EditorialCuration[] = [
   {
@@ -26,6 +31,14 @@ const MOCK_CURATIONS: EditorialCuration[] = [
     tag: 'Curated',
     publishedAt: null,
   },
+  {
+    id: 'ec4',
+    title: 'Forest Hill Revival',
+    description: 'Heritage architecture meets contemporary design in this storied neighbourhood.',
+    imageUrl: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80',
+    tag: 'Nature',
+    publishedAt: null,
+  },
 ]
 
 function EditorialCard({ item }: { item: EditorialCuration }) {
@@ -34,30 +47,29 @@ function EditorialCard({ item }: { item: EditorialCuration }) {
     'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80'
 
   return (
-    <div className="group relative rounded-2xl overflow-hidden border border-[#E8E6E1] bg-white cursor-pointer hover:shadow-md transition-all duration-200 shrink-0 w-72 sm:w-auto">
-      <div className="relative h-44 overflow-hidden bg-[#F2F0EB]">
-        <Image
-          src={imageUrl}
-          alt={item.title ?? 'Editorial'}
-          fill
-          sizes="(max-width: 768px) 288px, 400px"
-          className="object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+    <div className="group relative rounded-2xl overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 shrink-0 w-64 sm:w-auto aspect-[3/4] sm:aspect-auto sm:h-64">
+      <Image
+        src={imageUrl}
+        alt={item.title ?? 'Editorial'}
+        fill
+        sizes="(max-width: 768px) 256px, 25vw"
+        className="object-cover group-hover:scale-105 transition-transform duration-700"
+      />
+      {/* Dark gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+      {/* Content at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 p-4">
         {item.tag && (
-          <div className="absolute top-3 left-3">
-            <span className="bg-[#1C3829] text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-widest">
-              {item.tag}
-            </span>
-          </div>
+          <span className="inline-block text-[10px] font-bold text-[#A3E635] uppercase tracking-widest mb-1.5">
+            {item.tag}
+          </span>
         )}
-      </div>
-      <div className="p-4">
-        <p className="font-heading text-lg font-semibold text-[#111111] mb-1 leading-tight">
+        <p className="font-heading text-base font-semibold text-white leading-snug">
           {item.title ?? 'Untitled'}
         </p>
         {item.description && (
-          <p className="text-xs text-[#6B6B6B] line-clamp-2">{item.description}</p>
+          <p className="text-xs text-white/60 mt-1 line-clamp-2">{item.description}</p>
         )}
       </div>
     </div>
@@ -69,22 +81,42 @@ interface Props {
 }
 
 export default function EditorialCurations({ editorial }: Props) {
-  const items = editorial.length > 0 ? editorial.slice(0, 3) : MOCK_CURATIONS
+  const [activeTab, setActiveTab] = useState<EditorialTab>('Neighborhoods')
+  const items = editorial.length > 0 ? editorial.slice(0, 4) : MOCK_CURATIONS
 
   return (
     <section className="bg-[#111111] rounded-2xl p-6 sm:p-8">
-      <div className="flex items-end justify-between mb-6">
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <p className="text-[11px] font-semibold text-[#A8C5B5] uppercase tracking-widest mb-1">
-            Curated For You
+          <p className="text-[11px] font-bold text-[#A3E635] uppercase tracking-widest mb-1">
+            Intelligence Hub
           </p>
-          <h2 className="font-heading text-2xl font-semibold text-white">
+          <h2 className="font-heading text-3xl font-semibold text-white">
             Editorial Curations
           </h2>
         </div>
-        <span className="text-xs text-white/40 hidden sm:block">By the Vicinus team</span>
+
+        {/* Tab toggle */}
+        <div className="flex gap-1 shrink-0 bg-white/10 rounded-full p-1 mt-1">
+          {(['Neighborhoods', 'Feeds'] as EditorialTab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                activeTab === tab
+                  ? 'bg-white text-[#111111]'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="flex gap-4 overflow-x-auto pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:overflow-visible scrollbar-none">
+
+      {/* Cards row */}
+      <div className="flex gap-4 overflow-x-auto pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 sm:overflow-visible scrollbar-none">
         {items.map((item) => (
           <EditorialCard key={item.id} item={item} />
         ))}
