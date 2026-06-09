@@ -1,5 +1,7 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { Prisma } from '@prisma/client'
+import { createClerkClient } from '@clerk/backend'
 import { PrismaService } from '../../prisma/prisma.service'
 import { EditorialService } from '../editorial/editorial.service'
 import { CreateSavedSearchDto } from '../search/dto/create-saved-search.dto'
@@ -43,9 +45,12 @@ function mapPropertyCard(p: PropertyRow, savedAt: Date | undefined) {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name)
+
   constructor(
     private prisma: PrismaService,
     private editorial: EditorialService,
+    private config: ConfigService,
   ) {}
 
   async findByClerkId(clerkId: string) {
@@ -71,9 +76,31 @@ export class UsersService {
   }
 
   async getMe(clerkId: string) {
-    const user = await this.prisma.user.findUnique({ where: { clerkId } })
-    if (!user) throw new NotFoundException('User not found')
-    return user
+    const existing = await this.prisma.user.findUnique({ where: { clerkId } })
+    if (existing) return existing
+
+    // JIT provisioning — user signed up via Clerk but webhook hasn't fired yet
+    // (common in dev where localhost isn't reachable by Clerk's webhook service)
+    this.logger.log(`JIT provisioning user ${clerkId}`)
+    try {
+      const clerk = createClerkClient({
+        secretKey: this.config.get<string>('CLERK_SECRET_KEY') ?? '',
+      })
+      const clerkUser = await clerk.users.getUser(clerkId)
+      const email = clerkUser.emailAddresses[0]?.emailAddress
+      if (!email) throw new NotFoundException('User not found and no email on Clerk account')
+      const fullName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || undefined
+      return this.upsertFromClerk({
+        clerkId,
+        email,
+        fullName,
+        avatarUrl: clerkUser.imageUrl ?? undefined,
+        role: (clerkUser.unsafeMetadata as { role?: string })?.role ?? 'buyer',
+      })
+    } catch (err) {
+      this.logger.error(`JIT provisioning failed for ${clerkId}: ${(err as Error).message}`)
+      throw new NotFoundException('User not found')
+    }
   }
 
   // ─── Saved Properties (BE-601) ────────────────────────────────────────────
