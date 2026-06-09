@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { SignInButton, UserButton, useUser } from '@clerk/nextjs'
+import { UserButton, useUser } from '@clerk/nextjs'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property } from '@/types/search'
 import { searchProperties } from '@/lib/api/search'
@@ -129,11 +129,12 @@ export default function SearchPageClient() {
           {isSignedIn ? (
             <UserButton />
           ) : (
-            <SignInButton>
-              <button className="bg-[#1C3829] text-white text-xs font-medium px-3.5 py-2 rounded-lg hover:bg-[#2D5A3D] transition-colors">
-                Sign In
-              </button>
-            </SignInButton>
+            <Link
+              href="/sign-in"
+              className="bg-[#1C3829] text-white text-xs font-medium px-3.5 py-2 rounded-lg hover:bg-[#2D5A3D] transition-colors"
+            >
+              Sign In
+            </Link>
           )}
         </div>
       </header>

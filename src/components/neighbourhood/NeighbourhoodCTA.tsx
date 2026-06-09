@@ -22,7 +22,7 @@ export default function NeighbourhoodCTA({ name, slug }: Props) {
           Explore Listings
         </Link>
         <Link
-          href="/contact"
+          href={`/sign-up?intent=tour&neighbourhood=${slug}`}
           className="inline-flex items-center justify-center px-7 py-3 border border-white/40 text-white text-sm font-semibold rounded-xl hover:border-white/70 hover:bg-white/5 transition-colors"
         >
           Book a Tour

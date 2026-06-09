@@ -2,6 +2,7 @@
 
 // FE-411: ActionBar — Save / Share / Contact Agent (forest green background, fixed bottom)
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Heart, Share2, Phone, Check, X } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
 import { useUserStore } from '@/store/userStore'
@@ -100,13 +101,14 @@ export default function ActionBar({
   const { savedPropertyIds, toggleSaved } = useUserStore()
   const [shareOpen, setShareOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const router = useRouter()
 
   const isSaved = savedPropertyIds.has(propertyId)
   const url = typeof window !== 'undefined' ? window.location.href : ''
 
   async function handleSave() {
     if (!isSignedIn) {
-      // Redirect to sign-in or show nudge
+      router.push(`/sign-in?redirect=/properties/${propertyId}`)
       return
     }
     setSaving(true)
