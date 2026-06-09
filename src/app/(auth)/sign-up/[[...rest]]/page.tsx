@@ -48,26 +48,32 @@ function SignUpForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!isLoaded || !agreed) return
+    if (!isLoaded || !agreed || !signUp) return
     setLoading(true)
     setError('')
 
-    const [firstName, ...rest] = fullName.trim().split(' ')
-    const lastName = rest.join(' ') || ''
+    const [firstName, ...restName] = fullName.trim().split(' ')
+    const lastName = restName.join(' ') || ''
 
     try {
-      await signUp.create({
+      const result = await signUp.create({
         firstName,
         lastName,
         emailAddress: email,
         password,
         unsafeMetadata: { role },
       })
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
-      setPendingVerification(true)
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId })
+        router.push('/dashboard')
+      } else {
+        // Email verification required
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+        setPendingVerification(true)
+      }
     } catch (err: unknown) {
-      const ce = err as { errors?: { message: string }[] }
-      setError(ce.errors?.[0]?.message ?? 'Sign up failed. Please try again.')
+      const ce = err as { errors?: { longMessage?: string; message: string }[] }
+      setError(ce.errors?.[0]?.longMessage ?? ce.errors?.[0]?.message ?? 'Sign up failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -75,7 +81,7 @@ function SignUpForm() {
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault()
-    if (!isLoaded) return
+    if (!isLoaded || !signUp) return
     setLoading(true)
     setError('')
     try {
@@ -85,10 +91,12 @@ function SignUpForm() {
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId })
         router.push('/dashboard')
+      } else {
+        setError('Verification incomplete. Please try again.')
       }
     } catch (err: unknown) {
-      const ce = err as { errors?: { message: string }[] }
-      setError(ce.errors?.[0]?.message ?? 'Invalid code. Please try again.')
+      const ce = err as { errors?: { longMessage?: string; message: string }[] }
+      setError(ce.errors?.[0]?.longMessage ?? ce.errors?.[0]?.message ?? 'Invalid code. Please try again.')
     } finally {
       setLoading(false)
     }

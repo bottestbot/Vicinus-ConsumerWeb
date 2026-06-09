@@ -61,7 +61,7 @@ function SignInForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!isLoaded) return
+    if (!isLoaded || !signIn) return
     setLoading(true)
     setError('')
     try {
@@ -69,10 +69,22 @@ function SignInForm() {
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId })
         router.push('/dashboard')
+      } else if (result.status === 'needs_first_factor') {
+        const attempt = await signIn.attemptFirstFactor({ strategy: 'password', password })
+        if (attempt.status === 'complete') {
+          await setActive({ session: attempt.createdSessionId })
+          router.push('/dashboard')
+        } else {
+          setError('Additional verification required. Please use the sign-in link sent to your email.')
+        }
+      } else if (result.status === 'needs_second_factor') {
+        setError('Two-factor authentication is required. Please check your authenticator app.')
+      } else {
+        setError('Sign in incomplete. Please try again or contact support.')
       }
     } catch (err: unknown) {
-      const ce = err as { errors?: { message: string }[] }
-      setError(ce.errors?.[0]?.message ?? 'Sign in failed. Please try again.')
+      const ce = err as { errors?: { longMessage?: string; message: string }[] }
+      setError(ce.errors?.[0]?.longMessage ?? ce.errors?.[0]?.message ?? 'Sign in failed. Please check your credentials.')
     } finally {
       setLoading(false)
     }
