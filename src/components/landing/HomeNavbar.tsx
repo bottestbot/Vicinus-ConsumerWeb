@@ -45,9 +45,6 @@ export default function HomeNavbar() {
           <Link href="/search?listingType=For+Sale" className={`${navLink} transition-colors`}>
             Buy
           </Link>
-          <Link href="/search?listingType=For+Rent" className={`${navLink} transition-colors`}>
-            Rent
-          </Link>
           <Link href="/neighbourhoods" className={`${navLink} transition-colors`}>
             Neighbourhoods
           </Link>
@@ -64,7 +61,7 @@ export default function HomeNavbar() {
                 href="/dashboard"
                 className={`text-sm transition-colors ${navLink}`}
               >
-                Saved Homes
+                Dashboard
               </Link>
               <UserButton />
             </>
@@ -106,7 +103,6 @@ export default function HomeNavbar() {
         <div className="md:hidden bg-white border-t border-[#E8E6E1] px-6 py-4 flex flex-col gap-0">
           {[
             { label: 'Buy', href: '/search?listingType=For+Sale' },
-            { label: 'Rent', href: '/search?listingType=For+Rent' },
             { label: 'Neighbourhoods', href: '/neighbourhoods' },
             { label: 'Agent Finder', href: '/search' },
           ].map((item) => (
@@ -121,7 +117,7 @@ export default function HomeNavbar() {
           ))}
           {isSignedIn ? (
             <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="text-sm text-[#6B6B6B] py-3 border-b border-[#F2F0EB]">
-              Saved Homes
+              Dashboard
             </Link>
           ) : (
             <>
