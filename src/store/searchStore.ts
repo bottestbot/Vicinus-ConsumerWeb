@@ -75,7 +75,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   filters: defaultFilters,
   viewMode: 'both',
   mapBounds: null,
-  mapCenter: { longitude: -122.431, latitude: 37.773, zoom: 13 },
+  mapCenter: { longitude: -79.3832, latitude: 43.6532, zoom: 11 },
   hoveredPropertyId: null,
   selectedPropertyId: null,
   savedSearches: [],

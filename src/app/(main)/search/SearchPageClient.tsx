@@ -148,7 +148,7 @@ export default function SearchPageClient() {
         {/* Map pane */}
         {(viewMode === 'map' || viewMode === 'both') && (
           <div
-            className="relative overflow-hidden"
+            className="relative overflow-hidden h-full"
             style={{ width: viewMode === 'map' ? '100%' : '58%' }}
           >
             <MapView properties={properties} />
