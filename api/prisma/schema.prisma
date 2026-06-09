@@ -78,9 +78,9 @@ model Property {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  agent         Agent?         @relation(fields: [ddfAgentKey], references: [ddfMemberKey])
-  office        Office?        @relation(fields: [ddfOfficeKey], references: [ddfOfficeKey])
-  neighbourhood Neighbourhood? @relation(fields: [neighbourhoodId], references: [id])
+  agent         Agent?            @relation(fields: [ddfAgentKey], references: [ddfMemberKey])
+  office        Office?           @relation(fields: [ddfOfficeKey], references: [ddfOfficeKey])
+  neighbourhood Neighbourhood?    @relation(fields: [neighbourhoodId], references: [id])
   savedBy       SavedProperty[]
   visitedBy     VisitedProperty[]
   openHouses    OpenHouse[]

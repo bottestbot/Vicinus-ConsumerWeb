@@ -29,15 +29,21 @@ export class DdfAuthService {
       scope: 'DDFApi_Read',
     })
 
-    const response = await firstValueFrom(
-      this.http.post(this.config.get<string>('DDF_AUTH_URL') ?? '', params.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      }),
-    )
+    try {
+      const response = await firstValueFrom(
+        this.http.post(this.config.get<string>('DDF_AUTH_URL') ?? '', params.toString(), {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        }),
+      )
 
-    this.token = response.data.access_token as string
-    this.expiresAt = new Date(Date.now() + (response.data.expires_in as number) * 1000)
-    this.logger.log('DDF OAuth token refreshed')
-    return this.token
+      this.token = response.data.access_token as string
+      this.expiresAt = new Date(Date.now() + (response.data.expires_in as number) * 1000)
+      this.logger.log('DDF OAuth token refreshed')
+      return this.token
+    } catch (err) {
+      const body = (err as { response?: { data?: unknown } }).response?.data
+      this.logger.error(`DDF token fetch failed — ${JSON.stringify(body) ?? (err as Error).message}`)
+      throw err
+    }
   }
 }

@@ -188,7 +188,7 @@ export class NeighbourhoodsService {
 
 // ── response shapes ─────────────────────────────────────────────────────────
 
-interface NeighbourhoodSummary {
+export interface NeighbourhoodSummary {
   id: string
   slug: string
   name: string
@@ -202,7 +202,7 @@ interface NeighbourhoodSummary {
   heroImageUrl: null
 }
 
-interface ListingSummary {
+export interface ListingSummary {
   id: string
   listingKey: string
   address: string | null
@@ -213,14 +213,14 @@ interface ListingSummary {
   mainPhotoUrl: string | null
 }
 
-interface EssentialSummary {
+export interface EssentialSummary {
   id: string
   name: string | null
   category: string
   distanceKm: number | null
 }
 
-interface AgentSummary {
+export interface AgentSummary {
   id: string
   firstName: string
   lastName: string

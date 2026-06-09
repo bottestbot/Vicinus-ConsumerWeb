@@ -13,7 +13,7 @@ interface MapViewProps {
 }
 
 // Warm amber aerial style — Mapbox satellite-streets with a custom warm tint applied via CSS
-const MAPBOX_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12'
+const MAPBOX_STYLE = 'mapbox://styles/mapbox/light-v11'
 
 export default function MapView({ properties }: MapViewProps) {
   const mapRef = useRef<MapRef>(null)
@@ -61,7 +61,7 @@ export default function MapView({ properties }: MapViewProps) {
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden" style={{ minHeight: '500px' }}>
       {/* Warm amber overlay — CSS filter on a pseudo-element for the amber tint */}
       <div
         className="absolute inset-0 pointer-events-none z-10 mix-blend-multiply"

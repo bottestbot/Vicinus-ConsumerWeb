@@ -105,7 +105,8 @@ export class DdfQueryService {
 
       return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
     } catch (err) {
-      this.logger.error(`DDF search failed: ${(err as Error).message}`)
+      const body = (err as { response?: { data?: unknown } }).response?.data
+      this.logger.error(`DDF search failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`)
       return { data: [], total: 0, page: dto.page ?? 1, limit, totalPages: 0 }
     }
   }
@@ -145,7 +146,8 @@ export class DdfQueryService {
         price: (p['ListPrice'] as number | null) ?? null,
       }))
     } catch (err) {
-      this.logger.error(`DDF map-pins failed: ${(err as Error).message}`)
+      const body = (err as { response?: { data?: unknown } }).response?.data
+      this.logger.error(`DDF map-pins failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`)
       return []
     }
   }
