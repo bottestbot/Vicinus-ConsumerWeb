@@ -26,7 +26,7 @@ const CURATED_HIGHLIGHTS = [
     baths: 5,
     sqft: 4_800,
     image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80',
-    href: '/search',
+    href: '/properties/1',
   },
   {
     id: '2',
@@ -38,7 +38,7 @@ const CURATED_HIGHLIGHTS = [
     baths: 8,
     sqft: 7_200,
     image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&q=80',
-    href: '/search',
+    href: '/properties/2',
   },
   {
     id: '3',
@@ -50,7 +50,7 @@ const CURATED_HIGHLIGHTS = [
     baths: 3,
     sqft: 3_100,
     image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
-    href: '/search',
+    href: '/properties/3',
   },
 ]
 

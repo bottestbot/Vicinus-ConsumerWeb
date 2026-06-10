@@ -72,14 +72,79 @@ export async function getNeighbourhood(slug: string): Promise<Neighbourhood> {
   return { ...MOCK_NEIGHBOURHOOD, slug, ...data }
 }
 
+// ─── Backend → frontend shape mappers ─────────────────────────────────────────
+// The NestJS API returns a different field layout than the FE types expect
+// (listPrice vs price, mainPhotoUrl vs imageUrl, distanceKm vs distance, etc.).
+// These mappers normalise the backend response so components never receive
+// undefined where they expect a value.
+
+const LISTING_FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80'
+
+interface ApiListing {
+  id: string
+  listingKey?: string
+  address?: string | null
+  city?: string | null
+  listPrice?: number | null
+  bedrooms?: number | null
+  bathrooms?: number | null
+  mainPhotoUrl?: string | null
+  agentName?: string | null
+  brokerageName?: string | null
+}
+
+function mapListing(l: ApiListing): NeighbourhoodListing {
+  return {
+    id: l.id,
+    address: l.address ?? l.city ?? 'Address unavailable',
+    price: l.listPrice ?? 0,
+    beds: l.bedrooms ?? 0,
+    baths: l.bathrooms ?? 0,
+    imageUrl: l.mainPhotoUrl || LISTING_FALLBACK_IMAGE,
+    agentName: l.agentName ?? undefined,
+    brokerageName: l.brokerageName ?? undefined,
+    mlsNumber: l.listingKey ?? undefined,
+  }
+}
+
+const CATEGORY_MAP: Record<string, Essential['category']> = {
+  education: 'education',
+  school: 'education',
+  healthcare: 'healthcare',
+  health: 'healthcare',
+  park: 'parks',
+  parks: 'parks',
+  childcare: 'childcare',
+}
+
+interface ApiEssential {
+  id: string
+  name?: string | null
+  category?: string | null
+  distanceKm?: number | null
+  distance?: string | null
+}
+
+function mapEssential(e: ApiEssential): Essential | null {
+  const category = CATEGORY_MAP[(e.category ?? '').toLowerCase()]
+  if (!category) return null // FE only renders the four known categories
+  const distance =
+    e.distance ?? (e.distanceKm != null ? `${e.distanceKm.toFixed(1)} km` : '—')
+  return { id: e.id, name: e.name ?? 'Unnamed', category, distance }
+}
+
 export async function getNeighbourhoodListings(slug: string): Promise<NeighbourhoodListing[]> {
-  const data = await apiFetch<NeighbourhoodListing[]>(`/neighbourhoods/${slug}/listings`, [])
-  return data.length > 0 ? data : MOCK_LISTINGS
+  const data = await apiFetch<ApiListing[]>(`/neighbourhoods/${slug}/listings`, [])
+  if (data.length === 0) return MOCK_LISTINGS
+  return data.map(mapListing)
 }
 
 export async function getNeighbourhoodEssentials(slug: string): Promise<Essential[]> {
-  const data = await apiFetch<Essential[]>(`/neighbourhoods/${slug}/essentials`, [])
-  return data.length > 0 ? data : MOCK_ESSENTIALS
+  const data = await apiFetch<ApiEssential[]>(`/neighbourhoods/${slug}/essentials`, [])
+  if (data.length === 0) return MOCK_ESSENTIALS
+  const mapped = data.map(mapEssential).filter((e): e is Essential => e !== null)
+  return mapped.length > 0 ? mapped : MOCK_ESSENTIALS
 }
 
 export async function getNeighbourhoodAgents(slug: string): Promise<NeighbourhoodAgent[]> {

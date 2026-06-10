@@ -241,7 +241,8 @@ export const MOCK_AUTOCOMPLETE: AutocompleteSuggestion[] = [
   { id: '9', label: 'Toronto', type: 'city', subtitle: 'Ontario' },
 ]
 
-export function formatPrice(price: number): string {
+export function formatPrice(price: number | null | undefined): string {
+  if (price == null || Number.isNaN(price)) return 'Price on request'
   if (price >= 1_000_000) {
     const m = price / 1_000_000
     return `$${m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)}M`

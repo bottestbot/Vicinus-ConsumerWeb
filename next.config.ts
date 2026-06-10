@@ -14,6 +14,18 @@ const nextConfig: NextConfig = {
         hostname: '*.ddf.ca',
         pathname: '/**',
       },
+      {
+        // CREA DDF / REALTOR.ca image CDN (actual host returned by the API)
+        protocol: 'https',
+        hostname: 'ddfcdn.realtor.ca',
+        pathname: '/**',
+      },
+      {
+        // REALTOR.ca media subdomains
+        protocol: 'https',
+        hostname: '*.realtor.ca',
+        pathname: '/**',
+      },
     ],
   },
 }
