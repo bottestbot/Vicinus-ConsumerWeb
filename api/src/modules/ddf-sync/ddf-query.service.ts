@@ -37,10 +37,15 @@ export class DdfQueryService {
     filterParts.push(`StandardStatus eq '${this.sanitize(dto.status ?? 'Active')}'`)
 
     if (dto.city) {
-      filterParts.push(`tolower(City) eq '${this.sanitize(dto.city.toLowerCase())}'`)
+      // DDF OData does not support tolower() — match on canonical (title) case
+      filterParts.push(`City eq '${this.sanitize(this.toTitleCase(dto.city))}'`)
     }
     if (dto.province) {
-      filterParts.push(`tolower(StateOrProvince) eq '${this.sanitize(dto.province.toLowerCase())}'`)
+      // DDF stores the full province name in title case ("Ontario"), so map
+      // 2-letter codes to names and title-case anything else
+      filterParts.push(
+        `StateOrProvince eq '${this.sanitize(this.normalizeProvince(dto.province))}'`,
+      )
     }
     if (dto.minPrice !== undefined) filterParts.push(`ListPrice ge ${dto.minPrice}`)
     if (dto.maxPrice !== undefined) filterParts.push(`ListPrice le ${dto.maxPrice}`)
@@ -75,9 +80,12 @@ export class DdfQueryService {
     }
 
     if (dto.q) {
-      const q = this.sanitize(dto.q.toLowerCase())
+      // DDF OData does not support tolower() — search with title-cased value
+      // (matches how addresses/cities are stored) plus raw postal-code match
+      const q = this.sanitize(this.toTitleCase(dto.q))
+      const postal = this.sanitize(dto.q.toUpperCase())
       filterParts.push(
-        `(contains(tolower(UnparsedAddress),'${q}') or contains(tolower(City),'${q}') or contains(PostalCode,'${this.sanitize(dto.q)}'))`,
+        `(contains(UnparsedAddress,'${q}') or contains(City,'${q}') or contains(PostalCode,'${postal}'))`,
       )
     }
 
@@ -205,5 +213,37 @@ export class DdfQueryService {
   /** Escape single quotes to prevent OData filter injection. */
   private sanitize(value: string): string {
     return value.replace(/'/g, "''")
+  }
+
+  /**
+   * Title-case a value to match CREA DDF's canonical casing.
+   * DDF's OData endpoint does not support tolower(), so we must send
+   * city/address values in the case the data is stored (title case).
+   */
+  private toTitleCase(value: string): string {
+    return value
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+  }
+
+  /** Map a province code or name to DDF's canonical full title-case name. */
+  private normalizeProvince(value: string): string {
+    const codes: Record<string, string> = {
+      AB: 'Alberta',
+      BC: 'British Columbia',
+      MB: 'Manitoba',
+      NB: 'New Brunswick',
+      NL: 'Newfoundland and Labrador',
+      NS: 'Nova Scotia',
+      NT: 'Northwest Territories',
+      NU: 'Nunavut',
+      ON: 'Ontario',
+      PE: 'Prince Edward Island',
+      QC: 'Quebec',
+      SK: 'Saskatchewan',
+      YT: 'Yukon',
+    }
+    const trimmed = value.trim()
+    return codes[trimmed.toUpperCase()] ?? this.toTitleCase(trimmed)
   }
 }
