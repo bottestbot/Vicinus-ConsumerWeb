@@ -11,6 +11,9 @@ interface SearchResultCardProps {
   property: Property
 }
 
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80'
+
 export default function SearchResultCard({ property }: SearchResultCardProps) {
   const router = useRouter()
   const { hoveredPropertyId, setHoveredProperty, setSelectedProperty } = useSearchStore()
@@ -38,7 +41,7 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
         {/* Image */}
         <div className="relative h-44 overflow-hidden bg-[#F2F0EB]">
           <Image
-            src={property.imageUrl}
+            src={property.imageUrl || FALLBACK_IMAGE}
             alt={property.address}
             fill
             sizes="(max-width: 768px) 100vw, 400px"

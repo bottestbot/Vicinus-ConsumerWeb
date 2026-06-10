@@ -2,6 +2,13 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   images: {
+    // CREA DDF listing media is hosted on unbounded third-party hosts (agent
+    // sites, realtyninja, onikon, youtube thumbnails, etc.) that can't be
+    // enumerated in remotePatterns — a non-whitelisted host makes next/image
+    // throw and crashes the result list. Disable optimization so any external
+    // listing image renders. (A production setup should proxy DDF media
+    // through an image CDN and re-enable optimization.)
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
