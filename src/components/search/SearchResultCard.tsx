@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Bed, Bath, Maximize2, Star } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property } from '@/types/search'
@@ -12,15 +12,22 @@ interface SearchResultCardProps {
 }
 
 export default function SearchResultCard({ property }: SearchResultCardProps) {
+  const router = useRouter()
   const { hoveredPropertyId, setHoveredProperty, setSelectedProperty } = useSearchStore()
   const isHovered = hoveredPropertyId === property.id
 
+  const openDetail = () => {
+    setSelectedProperty(property.id)
+    router.push(`/properties/${property.id}`)
+  }
+
   return (
-    <Link href={`/properties/${property.id}`}>
+    // div + router.push instead of <Link> to avoid nested <a> (REALTOR.ca link
+    // lives inside this card, and nested anchors break click navigation)
+    <div role="link" tabIndex={0} className="block cursor-pointer" onClick={openDetail} onKeyDown={(e) => e.key === 'Enter' && openDetail()}>
       <article
         onMouseEnter={() => setHoveredProperty(property.id)}
         onMouseLeave={() => setHoveredProperty(null)}
-        onClick={() => setSelectedProperty(property.id)}
         className={[
           'group bg-white rounded-xl overflow-hidden border transition-all duration-200 cursor-pointer',
           isHovered
@@ -113,6 +120,6 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
           </div>
         </div>
       </article>
-    </Link>
+    </div>
   )
 }

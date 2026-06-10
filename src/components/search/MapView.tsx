@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import Map, { Marker, NavigationControl } from 'react-map-gl/mapbox'
 import type { MapRef, ViewStateChangeEvent } from 'react-map-gl/mapbox'
 import 'mapbox-gl/dist/mapbox-gl.css'
@@ -10,13 +10,17 @@ import PricePin from './PricePin'
 
 interface MapViewProps {
   properties: Property[]
+  /** When this value changes (e.g. a new city search), the map flies to fit
+   *  the returned results. Empty string = browsing, no auto-fit. */
+  fitSignal?: string
 }
 
 // Warm amber aerial style — Mapbox satellite-streets with a custom warm tint applied via CSS
 const MAPBOX_STYLE = 'mapbox://styles/mapbox/light-v11'
 
-export default function MapView({ properties }: MapViewProps) {
+export default function MapView({ properties, fitSignal = '' }: MapViewProps) {
   const mapRef = useRef<MapRef>(null)
+  const lastFitSignal = useRef<string | null>(null)
   const {
     mapCenter,
     setMapCenter,
@@ -25,6 +29,36 @@ export default function MapView({ properties }: MapViewProps) {
     setHoveredProperty,
     setSelectedProperty,
   } = useSearchStore()
+
+  // Recenter the map to the result set whenever a new text search runs.
+  // Keyed on fitSignal so it fires once per search, not on map pans.
+  useEffect(() => {
+    if (!fitSignal || fitSignal === lastFitSignal.current) return
+    const map = mapRef.current
+    if (!map) return
+
+    const valid = properties.filter((p) => p.latitude !== 0 || p.longitude !== 0)
+    if (valid.length === 0) return
+
+    lastFitSignal.current = fitSignal
+
+    if (valid.length === 1) {
+      map.flyTo({ center: [valid[0].longitude, valid[0].latitude], zoom: 13, duration: 1200 })
+      return
+    }
+
+    let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity
+    for (const p of valid) {
+      west = Math.min(west, p.longitude)
+      east = Math.max(east, p.longitude)
+      south = Math.min(south, p.latitude)
+      north = Math.max(north, p.latitude)
+    }
+    map.fitBounds(
+      [[west, south], [east, north]],
+      { padding: 60, duration: 1200, maxZoom: 15 },
+    )
+  }, [fitSignal, properties])
 
   const handleMoveEnd = useCallback(
     (e: ViewStateChangeEvent) => {

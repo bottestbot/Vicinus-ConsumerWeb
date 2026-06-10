@@ -74,7 +74,10 @@ export default function SearchPageClient() {
     maxSqft: filters.maxSqft ?? undefined,
     parkingMin: filters.parking ?? undefined,
     yearBuiltMin: filters.minYearBuilt ?? undefined,
-    bbox: mapBounds
+    // Only constrain by the visible map area when the user is browsing the map
+    // (no text query). A text search should return that city's listings
+    // regardless of where the map currently sits, then the map flies to them.
+    bbox: !query && mapBounds
       ? `${mapBounds.west},${mapBounds.south},${mapBounds.east},${mapBounds.north}`
       : undefined,
   }
@@ -110,7 +113,7 @@ export default function SearchPageClient() {
             className="relative overflow-hidden h-full"
             style={{ width: viewMode === 'map' ? '100%' : '58%' }}
           >
-            <MapView properties={properties} />
+            <MapView properties={properties} fitSignal={query} />
           </div>
         )}
 
