@@ -8,6 +8,7 @@ import { useUser } from '@clerk/nextjs'
 const NAV_LINKS = [
   { label: 'Home', href: '/dashboard' },
   { label: 'Search', href: '/search' },
+  { label: 'Neighbourhoods', href: '/neighbourhoods' },
   { label: 'Saved', href: '/dashboard#saved' },
   { label: 'Messages', href: '/dashboard#messages' },
 ]

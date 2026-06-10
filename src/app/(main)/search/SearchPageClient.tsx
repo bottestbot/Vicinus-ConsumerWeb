@@ -2,15 +2,12 @@
 
 import { useQuery } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
-import { UserButton, useUser } from '@clerk/nextjs'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property } from '@/types/search'
 import { searchProperties } from '@/lib/api/search'
-import SearchBar from '@/components/search/SearchBar'
 import FilterPanel from '@/components/search/FilterPanel'
-import ViewToggle from '@/components/search/ViewToggle'
 import ResultsList from '@/components/search/ResultsList'
+import DashboardNavbar from '@/components/dashboard/DashboardNavbar'
 
 // Dynamically import map to avoid SSR issues with mapbox-gl
 const MapView = dynamic(() => import('@/components/search/MapView'), {
@@ -64,7 +61,6 @@ function toFrontendProperty(p: ApiProperty): Property {
 
 export default function SearchPageClient() {
   const { viewMode, filters, query, mapBounds } = useSearchStore()
-  const { isSignedIn } = useUser()
 
   const queryParams = {
     q: query || undefined,
@@ -97,49 +93,11 @@ export default function SearchPageClient() {
   const totalCount: number = data?.total ?? 0
 
   return (
-    // Full-viewport overlay — sits above the main layout's Navbar
     <div className="fixed inset-0 z-[60] flex flex-col bg-[#FAF9F6] font-ui">
-      {/* ── Search Navbar ─────────────────────────────────────────────────── */}
-      <header className="h-14 bg-white border-b border-[#E8E6E1] flex items-center gap-3 px-4 shrink-0 z-10">
-        {/* Brand */}
-        <Link
-          href="/"
-          className="font-heading text-[#111111] text-sm font-semibold tracking-widest uppercase whitespace-nowrap mr-2"
-        >
-          The Intelligent Curator
-        </Link>
+      {/* ── Shared Navbar ─────────────────────────────────────────────────── */}
+      <DashboardNavbar />
 
-        {/* Search bar — grows to fill available space */}
-        <div className="flex-1 max-w-xl">
-          <SearchBar />
-        </div>
-
-        {/* Nav links */}
-        <nav className="hidden lg:flex items-center gap-5 text-xs text-[#6B6B6B] whitespace-nowrap">
-          <Link href="/search" className="hover:text-[#111111] transition-colors">Properties</Link>
-          <Link href="/neighbourhoods" className="hover:text-[#111111] transition-colors">Neighbourhoods</Link>
-          <Link href="/search" className="hover:text-[#111111] transition-colors">Data</Link>
-        </nav>
-
-        {/* View toggle */}
-        <ViewToggle />
-
-        {/* Auth */}
-        <div className="ml-2 shrink-0">
-          {isSignedIn ? (
-            <UserButton />
-          ) : (
-            <Link
-              href="/sign-in"
-              className="bg-[#1C3829] text-white text-xs font-medium px-3.5 py-2 rounded-lg hover:bg-[#2D5A3D] transition-colors"
-            >
-              Sign In
-            </Link>
-          )}
-        </div>
-      </header>
-
-      {/* ── Filter Bar (includes SaveSearch at right via FilterPanel) ──── */}
+      {/* ── Filter Bar: SearchBar + filter chips + ViewToggle ────────────── */}
       <div className="shrink-0 z-10">
         <FilterPanel />
       </div>

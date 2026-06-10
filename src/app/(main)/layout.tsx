@@ -1,10 +1,10 @@
-import Navbar from '@/components/layout/Navbar'
+import DashboardNavbar from '@/components/dashboard/DashboardNavbar'
 import Footer from '@/components/layout/Footer'
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Navbar />
+      <DashboardNavbar />
       <main>{children}</main>
       <Footer />
     </>

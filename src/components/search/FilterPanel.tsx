@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, X, SlidersHorizontal } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import SaveSearch from './SaveSearch'
+import SearchBar from './SearchBar'
+import ViewToggle from './ViewToggle'
 
 // ─── Popover (generic) ────────────────────────────────────────────────────────
 
@@ -545,11 +547,19 @@ export default function FilterPanel() {
     filters.maxSqft !== null
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 bg-[#FAF9F6] border-b border-[#E8E6E1]">
+    <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-[#E8E6E1]">
+      {/* Search bar — left side */}
+      <div className="w-56 shrink-0">
+        <SearchBar placeholder="Search city, address…" className="h-8 text-xs" />
+      </div>
+
+      {/* Divider */}
+      <div className="w-px h-5 bg-[#E8E6E1] shrink-0" />
+
       {/* Scrollable filter chips */}
       <div
         ref={scrollRef}
-        className="flex items-center gap-2 overflow-x-auto scrollbar-hide flex-1 min-w-0"
+        className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0"
         style={{ scrollbarWidth: 'none' }}
       >
         <ListingTypeFilter />
@@ -571,6 +581,14 @@ export default function FilterPanel() {
             Clear
           </button>
         )}
+      </div>
+
+      {/* Divider */}
+      <div className="w-px h-5 bg-[#E8E6E1] shrink-0" />
+
+      {/* View toggle — right side */}
+      <div className="shrink-0">
+        <ViewToggle />
       </div>
     </div>
   )
