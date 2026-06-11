@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getMockPropertyDetail } from '@/types/property'
+import { getPropertyDetail } from '@/lib/api/properties'
 import PropertyGallery from '@/components/property/PropertyGallery'
 import PropertyStats from '@/components/property/PropertyStats'
 import NeighbourhoodContextScore from '@/components/property/NeighbourhoodContextScore'
@@ -25,7 +26,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const property = getMockPropertyDetail(id)
+  const property = (await getPropertyDetail(id)) ?? getMockPropertyDetail(id)
   const price = property.price
     ? `$${(property.price / 1_000_000).toFixed(2)}M`
     : null
@@ -48,8 +49,9 @@ export default async function PropertyDetailPage({
   // Next.js 16: params is a Promise — must be awaited
   const { id } = await params
 
-  // TODO: replace with real API call: getProperty(id)
-  const property = getMockPropertyDetail(id)
+  // Live DDF listing detail; fall back to mock/demo data (ids 1-3, or if the
+  // listing is no longer available on DDF) so the page never 404s.
+  const property = (await getPropertyDetail(id)) ?? getMockPropertyDetail(id)
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-32 font-ui">

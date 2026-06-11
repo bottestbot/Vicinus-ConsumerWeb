@@ -43,6 +43,18 @@ export class SearchService {
     return pins
   }
 
+  async getListing(listingKey: string): Promise<Record<string, unknown> | null> {
+    const cacheKey = `listing:${listingKey}`
+    const cached = await this.redis.get(cacheKey)
+    if (cached) return JSON.parse(cached) as Record<string, unknown>
+
+    const listing = await this.ddfQuery.getListingByKey(listingKey)
+    if (listing) {
+      await this.redis.set(cacheKey, JSON.stringify(listing), SEARCH_TTL)
+    }
+    return listing
+  }
+
   private hashQuery(obj: Record<string, unknown>): string {
     return createHash('md5').update(JSON.stringify(obj)).digest('hex')
   }

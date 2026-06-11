@@ -160,6 +160,39 @@ export class DdfQueryService {
     }
   }
 
+  /**
+   * Fetch a single live listing by its DDF ListingKey, with full detail fields
+   * and media. Returns the same mapped shape as search results, or null if the
+   * listing is not found / no longer available on DDF.
+   */
+  async getListingByKey(listingKey: string): Promise<Record<string, unknown> | null> {
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
+    const key = this.sanitize(listingKey)
+    // Media is returned inline on this DDF feed — $expand=Media is rejected
+    const url =
+      `${baseUrl}/Property` +
+      `?$filter=${encodeURIComponent(`ListingKey eq '${key}'`)}` +
+      `&$top=1`
+
+    try {
+      const token = await this.auth.getToken()
+      const response = await firstValueFrom(
+        this.http.get(url, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        }),
+      )
+      const rows = (response.data.value as Record<string, unknown>[]) ?? []
+      if (rows.length === 0) return null
+      return this.mapProperty(rows[0])
+    } catch (err) {
+      const body = (err as { response?: { data?: unknown } }).response?.data
+      this.logger.error(
+        `DDF listing fetch failed for ${listingKey}: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
+      )
+      return null
+    }
+  }
+
   private mapProperty(p: Record<string, unknown>): Record<string, unknown> {
     const media = (p['Media'] as Record<string, unknown>[]) ?? []
     return {
