@@ -113,3 +113,29 @@ export async function getPropertyDetail(id: string): Promise<PropertyDetail | nu
     return null
   }
 }
+
+// ─── Open houses ──────────────────────────────────────────────────────────────
+
+export interface OpenHouseSlot {
+  id: string
+  date: string | null
+  startTime: string | null
+  endTime: string | null
+  type: string | null
+  remarks: string | null
+  livestreamUrl: string | null
+}
+
+/** Upcoming open houses for a live DDF listing (empty array if none). */
+export async function getListingOpenHouses(id: string): Promise<OpenHouseSlot[]> {
+  try {
+    const res = await fetch(`${API_BASE}/search/listing/${encodeURIComponent(id)}/open-houses`, {
+      next: { revalidate: 300 },
+    })
+    if (!res.ok) return []
+    const data = (await res.json()) as OpenHouseSlot[]
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}

@@ -20,6 +20,17 @@ export interface SearchResult {
   totalPages: number
 }
 
+export interface OpenHouseSlot {
+  id: string
+  listingKey: string
+  date: string | null
+  startTime: string | null
+  endTime: string | null
+  type: string | null
+  remarks: string | null
+  livestreamUrl: string | null
+}
+
 @Injectable()
 export class DdfQueryService {
   private readonly logger = new Logger(DdfQueryService.name)
@@ -190,6 +201,51 @@ export class DdfQueryService {
         `DDF listing fetch failed for ${listingKey}: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
       )
       return null
+    }
+  }
+
+  /**
+   * Upcoming open houses for a single listing, fetched live from the DDF
+   * OpenHouse resource and joined by ListingKey. Returns only Active, future
+   * dated slots, sorted soonest-first.
+   */
+  async getOpenHousesByKey(listingKey: string): Promise<OpenHouseSlot[]> {
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
+    const key = this.sanitize(listingKey)
+    const url =
+      `${baseUrl}/OpenHouse` +
+      `?$filter=${encodeURIComponent(`ListingKey eq '${key}' and OpenHouseStatus eq 'Active'`)}` +
+      `&$top=25`
+
+    try {
+      const token = await this.auth.getToken()
+      const response = await firstValueFrom(
+        this.http.get(url, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        }),
+      )
+      const rows = (response.data.value as Record<string, unknown>[]) ?? []
+      const todayStr = new Date().toISOString().slice(0, 10)
+
+      return rows
+        .map((oh) => ({
+          id: String(oh['OpenHouseKey']),
+          listingKey: String(oh['ListingKey']),
+          date: (oh['OpenHouseDate'] as string | null) ?? null,
+          startTime: (oh['OpenHouseStartTime'] as string | null) ?? null,
+          endTime: (oh['OpenHouseEndTime'] as string | null) ?? null,
+          type: (oh['OpenHouseType'] as string | null) ?? null,
+          remarks: (oh['OpenHouseRemarks'] as string | null) ?? null,
+          livestreamUrl: (oh['LivestreamOpenHouseURL'] as string | null) ?? null,
+        }))
+        .filter((oh) => oh.date !== null && oh.date >= todayStr)
+        .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '') || (a.startTime ?? '').localeCompare(b.startTime ?? ''))
+    } catch (err) {
+      const body = (err as { response?: { data?: unknown } }).response?.data
+      this.logger.error(
+        `DDF open-house fetch failed for ${listingKey}: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
+      )
+      return []
     }
   }
 

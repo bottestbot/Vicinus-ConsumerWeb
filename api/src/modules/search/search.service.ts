@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { createHash } from 'crypto'
 import { RedisService } from '../../common/redis/redis.service'
-import { DdfQueryService, MapPin, SearchResult } from '../ddf-sync/ddf-query.service'
+import { DdfQueryService, MapPin, OpenHouseSlot, SearchResult } from '../ddf-sync/ddf-query.service'
 import { SearchQueryDto } from './dto/search-query.dto'
 
 /** 5 minutes — on-demand DDF results are fresh enough at this TTL */
@@ -53,6 +53,16 @@ export class SearchService {
       await this.redis.set(cacheKey, JSON.stringify(listing), SEARCH_TTL)
     }
     return listing
+  }
+
+  async getListingOpenHouses(listingKey: string): Promise<OpenHouseSlot[]> {
+    const cacheKey = `listing-oh:${listingKey}`
+    const cached = await this.redis.get(cacheKey)
+    if (cached) return JSON.parse(cached) as OpenHouseSlot[]
+
+    const slots = await this.ddfQuery.getOpenHousesByKey(listingKey)
+    await this.redis.set(cacheKey, JSON.stringify(slots), SEARCH_TTL)
+    return slots
   }
 
   private hashQuery(obj: Record<string, unknown>): string {

@@ -29,4 +29,11 @@ export class SearchController {
     if (!listing) throw new NotFoundException(`Listing ${key} not found`)
     return listing
   }
+
+  @Get('listing/:key/open-houses')
+  @ApiOperation({ summary: 'Upcoming open houses for a single live DDF listing' })
+  @ApiParam({ name: 'key', description: 'DDF ListingKey' })
+  openHouses(@Param('key') key: string) {
+    return this.searchService.getListingOpenHouses(key)
+  }
 }

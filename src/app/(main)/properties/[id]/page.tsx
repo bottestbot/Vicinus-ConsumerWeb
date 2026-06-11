@@ -4,7 +4,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getMockPropertyDetail } from '@/types/property'
-import { getPropertyDetail } from '@/lib/api/properties'
+import { getPropertyDetail, getListingOpenHouses } from '@/lib/api/properties'
+import OpenHouseSchedule from '@/components/property/OpenHouseSchedule'
 import PropertyGallery from '@/components/property/PropertyGallery'
 import PropertyStats from '@/components/property/PropertyStats'
 import NeighbourhoodContextScore from '@/components/property/NeighbourhoodContextScore'
@@ -51,7 +52,11 @@ export default async function PropertyDetailPage({
 
   // Live DDF listing detail; fall back to mock/demo data (ids 1-3, or if the
   // listing is no longer available on DDF) so the page never 404s.
-  const property = (await getPropertyDetail(id)) ?? getMockPropertyDetail(id)
+  const [liveProperty, openHouseSlots] = await Promise.all([
+    getPropertyDetail(id),
+    getListingOpenHouses(id),
+  ])
+  const property = liveProperty ?? getMockPropertyDetail(id)
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-32 font-ui">
@@ -88,6 +93,9 @@ export default async function PropertyDetailPage({
             <AgentCard property={property} />
           </div>
         </div>
+
+        {/* ── Open House schedule (live DDF, only if upcoming) ──────────── */}
+        {openHouseSlots.length > 0 && <OpenHouseSchedule slots={openHouseSlots} />}
 
         {/* ── Divider ───────────────────────────────────────────────────── */}
         <div className="border-t border-[#E8E6E1]" />
