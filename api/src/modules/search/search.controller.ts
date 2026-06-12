@@ -36,4 +36,13 @@ export class SearchController {
   openHouses(@Param('key') key: string) {
     return this.searchService.getListingOpenHouses(key)
   }
+
+  @Get('listing/:key/nearby-open-houses')
+  @ApiOperation({
+    summary: 'Nearby listings (~5–10km) with an upcoming open house. Returns [] when none.',
+  })
+  @ApiParam({ name: 'key', description: 'DDF ListingKey' })
+  nearbyOpenHouses(@Param('key') key: string) {
+    return this.searchService.getListingNearbyOpenHouses(key)
+  }
 }

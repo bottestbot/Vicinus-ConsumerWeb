@@ -4,10 +4,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getMockPropertyDetail } from '@/types/property'
-import { getPropertyDetail, getListingOpenHouses } from '@/lib/api/properties'
+import { getPropertyDetail, getListingOpenHouses, getNearbyOpenHouses } from '@/lib/api/properties'
 import OpenHouseSchedule from '@/components/property/OpenHouseSchedule'
 import PropertyGallery from '@/components/property/PropertyGallery'
 import PropertyStats from '@/components/property/PropertyStats'
+import PropertyFacts from '@/components/property/PropertyFacts'
 import NeighbourhoodContextScore from '@/components/property/NeighbourhoodContextScore'
 import MortgageAnalysis from '@/components/property/MortgageAnalysis'
 import NearbyOpenHouses from '@/components/property/NearbyOpenHouses'
@@ -52,11 +53,16 @@ export default async function PropertyDetailPage({
 
   // Live DDF listing detail; fall back to mock/demo data (ids 1-3, or if the
   // listing is no longer available on DDF) so the page never 404s.
-  const [liveProperty, openHouseSlots] = await Promise.all([
+  const [liveProperty, openHouseSlots, liveNearby] = await Promise.all([
     getPropertyDetail(id),
     getListingOpenHouses(id),
+    getNearbyOpenHouses(id),
   ])
   const property = liveProperty ?? getMockPropertyDetail(id)
+
+  // Prefer live nearby open houses; fall back to mock so demo ids (1–3) keep
+  // their carousel.
+  const nearby = liveNearby.length ? liveNearby : property.nearbyOpenHouses ?? []
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-32 font-ui">
@@ -94,6 +100,9 @@ export default async function PropertyDetailPage({
           </div>
         </div>
 
+        {/* ── Facts & features (live DDF only; mock data lacks it) ──────── */}
+        {property.details && <PropertyFacts details={property.details} />}
+
         {/* ── Open House schedule (live DDF, only if upcoming) ──────────── */}
         {openHouseSlots.length > 0 && <OpenHouseSchedule slots={openHouseSlots} />}
 
@@ -106,10 +115,8 @@ export default async function PropertyDetailPage({
         {/* ── Mortgage Analysis (dark green) ────────────────────────────── */}
         <MortgageAnalysis price={property.price} />
 
-        {/* ── Nearby Open Houses ────────────────────────────────────────── */}
-        {property.nearbyOpenHouses && property.nearbyOpenHouses.length > 0 && (
-          <NearbyOpenHouses openHouses={property.nearbyOpenHouses} />
-        )}
+        {/* ── Nearby Open Houses (live DDF, falls back to mock for demo) ── */}
+        {nearby.length > 0 && <NearbyOpenHouses openHouses={nearby} />}
 
         {/* ── Market Context ────────────────────────────────────────────── */}
         <MarketContext property={property} />

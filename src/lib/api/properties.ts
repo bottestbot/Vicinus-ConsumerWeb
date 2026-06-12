@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { PropertyDetail } from '@/types/property'
+import type { OpenHouseProperty, PropertyDetail, PropertyFactsDetails } from '@/types/property'
 
 export const getProperty = (id: string) => apiClient.get(`/properties/${id}`)
 export const getProperties = (params?: Record<string, unknown>) => apiClient.get('/properties', { params })
@@ -38,6 +38,7 @@ interface ApiListing {
   listedAt?: string | null
   agent?: { fullName?: string | null } | null
   office?: { name?: string | null } | null
+  details?: PropertyFactsDetails | null
 }
 
 function mapImages(images: ApiListingImage[] | null | undefined): string[] {
@@ -92,6 +93,7 @@ function toPropertyDetail(l: ApiListing): PropertyDetail {
     stories: l.stories ?? undefined,
     description: l.description ?? undefined,
     pricePerSqft: price > 0 && sqft > 0 ? Math.round(price / sqft) : undefined,
+    details: l.details ?? undefined,
   }
 }
 
@@ -135,6 +137,43 @@ export async function getListingOpenHouses(id: string): Promise<OpenHouseSlot[]>
     if (!res.ok) return []
     const data = (await res.json()) as OpenHouseSlot[]
     return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+
+// ─── Nearby open houses ─────────────────────────────────────────────────────────
+
+/**
+ * Open houses at nearby listings for a live DDF listing (empty array if none).
+ * Shape matches OpenHouseProperty so the NearbyOpenHouses carousel can consume
+ * it directly. Defensive: returns [] on error and coerces missing fields.
+ */
+export async function getNearbyOpenHouses(id: string): Promise<OpenHouseProperty[]> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/search/listing/${encodeURIComponent(id)}/nearby-open-houses`,
+      { next: { revalidate: 300 } },
+    )
+    if (!res.ok) return []
+    const data = (await res.json()) as Partial<OpenHouseProperty>[]
+    if (!Array.isArray(data)) return []
+    return data.map((oh) => ({
+      id: String(oh.id ?? ''),
+      address: oh.address ?? '',
+      city: oh.city ?? '',
+      province: oh.province ?? '',
+      price: oh.price ?? 0,
+      beds: oh.beds ?? 0,
+      baths: oh.baths ?? 0,
+      sqft: oh.sqft ?? 0,
+      imageUrl: oh.imageUrl ?? '',
+      openHouseDate: oh.openHouseDate ?? '',
+      openHouseStartTime: oh.openHouseStartTime ?? '',
+      openHouseEndTime: oh.openHouseEndTime ?? '',
+      agentName: oh.agentName ?? '',
+      brokerageName: oh.brokerageName ?? '',
+    }))
   } catch {
     return []
   }
