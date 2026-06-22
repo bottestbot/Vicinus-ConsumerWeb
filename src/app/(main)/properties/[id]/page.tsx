@@ -2,9 +2,9 @@
 // NOTE: params is a Promise<{ id }> in Next.js 15/16 App Router — must be awaited
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
-import { getMockPropertyDetail } from '@/types/property'
-import { getPropertyDetail, getListingOpenHouses, getNearbyOpenHouses } from '@/lib/api/properties'
+import { getPropertyDetail, getListingOpenHouses, getNearbyOpenHouses, getPropertyAiSummary, getMarketContext } from '@/lib/api/properties'
 import OpenHouseSchedule from '@/components/property/OpenHouseSchedule'
 import PropertyGallery from '@/components/property/PropertyGallery'
 import PropertyStats from '@/components/property/PropertyStats'
@@ -19,6 +19,7 @@ import ListingActivityMap from '@/components/property/ListingActivityMap'
 import ActionBar from '@/components/property/ActionBar'
 import AgentCard from '@/components/property/AgentCard'
 import TrackVisited from '@/components/property/TrackVisited'
+import PropertySummary from '@/components/property/PropertySummary'
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const property = (await getPropertyDetail(id)) ?? getMockPropertyDetail(id)
+  const property = await getPropertyDetail(id)
+  if (!property) return { title: 'Property not found' }
   const price = property.price
     ? `$${(property.price / 1_000_000).toFixed(2)}M`
     : null
@@ -51,18 +53,17 @@ export default async function PropertyDetailPage({
   // Next.js 16: params is a Promise — must be awaited
   const { id } = await params
 
-  // Live DDF listing detail; fall back to mock/demo data (ids 1-3, or if the
-  // listing is no longer available on DDF) so the page never 404s.
-  const [liveProperty, openHouseSlots, liveNearby] = await Promise.all([
+  const [liveProperty, openHouseSlots, liveNearby, aiSummary, marketContext] = await Promise.all([
     getPropertyDetail(id),
     getListingOpenHouses(id),
     getNearbyOpenHouses(id),
+    getPropertyAiSummary(id),
+    getMarketContext(id),
   ])
-  const property = liveProperty ?? getMockPropertyDetail(id)
 
-  // Prefer live nearby open houses; fall back to mock so demo ids (1–3) keep
-  // their carousel.
-  const nearby = liveNearby.length ? liveNearby : property.nearbyOpenHouses ?? []
+  if (!liveProperty) notFound()
+  const property = liveProperty
+  const nearby = liveNearby
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-32 font-ui">
@@ -106,6 +107,9 @@ export default async function PropertyDetailPage({
         {/* ── Open House schedule (live DDF, only if upcoming) ──────────── */}
         {openHouseSlots.length > 0 && <OpenHouseSchedule slots={openHouseSlots} />}
 
+        {/* ── AI Property Summary ───────────────────────────────────────── */}
+        {aiSummary && <PropertySummary summary={aiSummary} />}
+
         {/* ── Divider ───────────────────────────────────────────────────── */}
         <div className="border-t border-[#E8E6E1]" />
 
@@ -119,7 +123,7 @@ export default async function PropertyDetailPage({
         {nearby.length > 0 && <NearbyOpenHouses openHouses={nearby} />}
 
         {/* ── Market Context ────────────────────────────────────────────── */}
-        <MarketContext property={property} />
+        <MarketContext property={property} data={marketContext} />
 
         {/* ── Assessment History ────────────────────────────────────────── */}
         {property.assessmentHistory && property.assessmentHistory.length > 0 && (
