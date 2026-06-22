@@ -7,6 +7,11 @@ import {
   getNeighbourhoodEssentials,
   getNeighbourhoodAgents,
 } from '@/lib/api/neighbourhoods'
+import {
+  geocodeNeighbourhood,
+  getNeighbourhoodMapImageUrl,
+  getUnsplashPhotos,
+} from '@/lib/neighbourhood-images'
 import NeighbourhoodHero from '@/components/neighbourhood/NeighbourhoodHero'
 import NeighbourhoodMetrics from '@/components/neighbourhood/NeighbourhoodMetrics'
 import NeighbourhoodBio from '@/components/neighbourhood/NeighbourhoodBio'
@@ -39,12 +44,18 @@ export default async function NeighbourhoodDetailPage({ params }: PageProps) {
     getNeighbourhoodAgents(slug),
   ])
 
+  const [coords, photos] = await Promise.all([
+    geocodeNeighbourhood(neighbourhood.name, neighbourhood.city),
+    getUnsplashPhotos(`${neighbourhood.name} ${neighbourhood.city}`),
+  ])
+  const mapImageUrl = coords ? getNeighbourhoodMapImageUrl(coords.lat, coords.lng) : undefined
+
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-16 font-ui">
       {/* ── Hero + Metrics ──────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
         <div className="grid lg:grid-cols-[1fr_340px] gap-5 h-[520px]">
-          <NeighbourhoodHero neighbourhood={neighbourhood} />
+          <NeighbourhoodHero neighbourhood={neighbourhood} mapImageUrl={mapImageUrl} />
           <NeighbourhoodMetrics neighbourhood={neighbourhood} />
         </div>
       </div>
@@ -54,7 +65,7 @@ export default async function NeighbourhoodDetailPage({ params }: PageProps) {
         <NeighbourhoodBio neighbourhood={neighbourhood} />
         <LocalEssentials essentials={essentials} />
         <LiveListings listings={listings} slug={slug} />
-        <NeighbourhoodFlavors name={neighbourhood.name} />
+        <NeighbourhoodFlavors name={neighbourhood.name} photos={photos} />
         <AreaSpecialists agents={agents} neighbourhoodName={neighbourhood.name} />
         <NeighbourhoodCTA name={neighbourhood.name} slug={slug} />
       </div>

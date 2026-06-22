@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import type { UnsplashPhoto } from '@/lib/neighbourhood-images'
 
 const FLAVORS = [
   {
@@ -15,15 +16,22 @@ const FLAVORS = [
   },
 ]
 
-export default function NeighbourhoodFlavors({ name }: { name: string }) {
+interface Props {
+  name: string
+  photos?: UnsplashPhoto[]
+}
+
+export default function NeighbourhoodFlavors({ name, photos }: Props) {
+  const img0 = photos?.[0] ?? { url: FLAVORS[0].imageUrl, alt: FLAVORS[0].tag }
+  const img1 = photos?.[1] ?? { url: FLAVORS[1].imageUrl, alt: FLAVORS[1].tag }
   return (
     <section className="py-10 border-b border-[#E8E6E1]">
       <div className="grid lg:grid-cols-2 gap-8 items-center">
         {/* Large image left */}
         <div className="relative h-80 lg:h-96 rounded-2xl overflow-hidden">
           <Image
-            src={FLAVORS[0].imageUrl}
-            alt="Dining in the neighbourhood"
+            src={img0.url}
+            alt={img0.alt}
             fill
             sizes="(max-width: 1024px) 100vw, 50vw"
             className="object-cover"
@@ -50,8 +58,8 @@ export default function NeighbourhoodFlavors({ name }: { name: string }) {
 
           <div className="relative h-44 rounded-xl overflow-hidden">
             <Image
-              src={FLAVORS[1].imageUrl}
-              alt="Lifestyle"
+              src={img1.url}
+              alt={img1.alt}
               fill
               sizes="(max-width: 1024px) 100vw, 25vw"
               className="object-cover"

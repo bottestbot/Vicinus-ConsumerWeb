@@ -5,13 +5,15 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1548656848-c80e1d02d05
 
 interface Props {
   neighbourhood: Neighbourhood
+  mapImageUrl?: string
 }
 
-export default function NeighbourhoodHero({ neighbourhood }: Props) {
+export default function NeighbourhoodHero({ neighbourhood, mapImageUrl }: Props) {
+  const imageSrc = mapImageUrl ?? neighbourhood.imageUrl ?? FALLBACK_IMAGE
   return (
     <div className="relative h-full min-h-[480px] w-full overflow-hidden rounded-2xl">
       <Image
-        src={neighbourhood.imageUrl ?? FALLBACK_IMAGE}
+        src={imageSrc}
         alt={neighbourhood.name}
         fill
         priority
