@@ -16,6 +16,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  loginCount           Int      @default(0)
+  onboardingCompleted  Boolean  @default(false)
+  onboardingData       Json?
+
   savedProperties   SavedProperty[]
   visitedProperties VisitedProperty[]
   savedSearches     SavedSearch[]
@@ -78,11 +82,9 @@ model Property {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  agent         Agent?            @relation(fields: [ddfAgentKey], references: [ddfMemberKey])
-  office        Office?           @relation(fields: [ddfOfficeKey], references: [ddfOfficeKey])
-  neighbourhood Neighbourhood?    @relation(fields: [neighbourhoodId], references: [id])
-  savedBy       SavedProperty[]
-  visitedBy     VisitedProperty[]
+  agent         Agent?         @relation(fields: [ddfAgentKey], references: [ddfMemberKey])
+  office        Office?        @relation(fields: [ddfOfficeKey], references: [ddfOfficeKey])
+  neighbourhood Neighbourhood? @relation(fields: [neighbourhoodId], references: [id])
   openHouses    OpenHouse[]
 }
 
@@ -146,6 +148,7 @@ model Neighbourhood {
   transitScore Int?
   livingGrade  String?
   videoUrl     String?
+  photos       Json?
   createdAt    DateTime @default(now())
 
   properties      Property[]
@@ -166,11 +169,13 @@ model LocalEssential {
 model SavedProperty {
   id         String   @id @default(uuid())
   userId     String
+  // Stores the DDF ListingKey (not a Property.id FK). The listing is resolved
+  // on read against the synced Property table, with a live DDF fallback, so a
+  // user can save any listing without it being persisted locally first.
   propertyId String
   createdAt  DateTime @default(now())
 
-  user     User     @relation(fields: [userId], references: [id])
-  property Property @relation(fields: [propertyId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, propertyId])
 }
@@ -178,11 +183,11 @@ model SavedProperty {
 model VisitedProperty {
   id         String   @id @default(uuid())
   userId     String
+  // DDF ListingKey — see note on SavedProperty.propertyId
   propertyId String
   visitedAt  DateTime @default(now())
 
-  user     User     @relation(fields: [userId], references: [id])
-  property Property @relation(fields: [propertyId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model SavedSearch {
@@ -207,6 +212,21 @@ model EditorialCuration {
   position    Int       @default(0)
   propertyIds String[]
   publishedAt DateTime?
+}
+
+model SellerLead {
+  id                 String   @id @default(uuid())
+  address            String
+  sellingPriority    String?
+  biggestHurdle      String?
+  advisoryPreference String?
+  firstName          String?
+  lastName           String?
+  email              String?
+  phone              String?
+  // Cached Gemini-generated valuation returned to the seller.
+  valuation          Json?
+  createdAt          DateTime @default(now())
 }
 
 model DdfSyncLog {

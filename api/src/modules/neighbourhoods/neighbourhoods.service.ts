@@ -30,6 +30,7 @@ export class NeighbourhoodsService {
         walkScore: true,
         transitScore: true,
         livingGrade: true,
+        photos: true,
       },
       orderBy: { name: 'asc' },
     })
@@ -58,6 +59,7 @@ export class NeighbourhoodsService {
         walkScore: true,
         transitScore: true,
         livingGrade: true,
+        photos: true,
       },
     })
 
@@ -200,6 +202,7 @@ export interface NeighbourhoodSummary {
   transitScore: number | null
   schoolGrade: string | null
   heroImageUrl: null
+  photos: string[]
 }
 
 export interface ListingSummary {
@@ -242,6 +245,7 @@ function toSummary(row: {
   walkScore: number | null
   transitScore: number | null
   livingGrade: string | null
+  photos?: Prisma.JsonValue
 }): NeighbourhoodSummary {
   return {
     id: row.id,
@@ -255,6 +259,7 @@ function toSummary(row: {
     transitScore: row.transitScore,
     schoolGrade: row.livingGrade,
     heroImageUrl: null,
+    photos: Array.isArray(row.photos) ? (row.photos as string[]) : [],
   }
 }
 

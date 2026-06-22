@@ -7,6 +7,7 @@ export interface Neighbourhood {
   province: string
   bio?: string
   imageUrl?: string
+  photos?: string[]
   medianPrice?: number
   walkScore?: number
   transitScore?: number

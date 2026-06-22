@@ -66,10 +66,10 @@ const MOCK_NEIGHBOURHOODS: Neighbourhood[] = [
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 export async function getNeighbourhood(slug: string): Promise<Neighbourhood> {
-  const data = await apiFetch<Partial<Neighbourhood>>(`/neighbourhoods/${slug}`, {})
+  const data = await apiFetch<Partial<Neighbourhood> & { photos?: string[] }>(`/neighbourhoods/${slug}`, {})
   // Backend stub returns {slug} only — fall through to mock when name is absent
   if (!data.name) return { ...MOCK_NEIGHBOURHOOD, slug }
-  return { ...MOCK_NEIGHBOURHOOD, slug, ...data }
+  return { ...MOCK_NEIGHBOURHOOD, slug, ...data, photos: data.photos ?? [] }
 }
 
 // ─── Backend → frontend shape mappers ─────────────────────────────────────────

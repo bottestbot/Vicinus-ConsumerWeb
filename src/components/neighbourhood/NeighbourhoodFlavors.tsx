@@ -1,37 +1,31 @@
 import Image from 'next/image'
-import type { UnsplashPhoto } from '@/lib/neighbourhood-images'
+
+const FALLBACK_PHOTOS = [
+  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80',
+  'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&q=80',
+]
 
 const FLAVORS = [
-  {
-    id: 'dining',
-    imageUrl: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80',
-    tag: 'Dining District',
-    description:
-      'Award-winning restaurants and intimate wine bars line the neighbourhood\'s heritage streets — from modern French bistros to Japanese omakase.',
-  },
-  {
-    id: 'lifestyle',
-    imageUrl: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&q=80',
-    tag: 'The Art Scene',
-  },
+  { tag: 'Dining District', description: 'Award-winning restaurants and intimate wine bars line the neighbourhood\'s heritage streets — from modern French bistros to Japanese omakase.' },
+  { tag: 'The Art Scene' },
 ]
 
 interface Props {
   name: string
-  photos?: UnsplashPhoto[]
+  photos?: string[]
 }
 
 export default function NeighbourhoodFlavors({ name, photos }: Props) {
-  const img0 = photos?.[0] ?? { url: FLAVORS[0].imageUrl, alt: FLAVORS[0].tag }
-  const img1 = photos?.[1] ?? { url: FLAVORS[1].imageUrl, alt: FLAVORS[1].tag }
+  const src0 = photos?.[0] ?? FALLBACK_PHOTOS[0]
+  const src1 = photos?.[1] ?? FALLBACK_PHOTOS[1]
   return (
     <section className="py-10 border-b border-[#E8E6E1]">
       <div className="grid lg:grid-cols-2 gap-8 items-center">
         {/* Large image left */}
         <div className="relative h-80 lg:h-96 rounded-2xl overflow-hidden">
           <Image
-            src={img0.url}
-            alt={img0.alt}
+            src={src0}
+            alt={FLAVORS[0].tag}
             fill
             sizes="(max-width: 1024px) 100vw, 50vw"
             className="object-cover"
@@ -58,8 +52,8 @@ export default function NeighbourhoodFlavors({ name, photos }: Props) {
 
           <div className="relative h-44 rounded-xl overflow-hidden">
             <Image
-              src={img1.url}
-              alt={img1.alt}
+              src={src1}
+              alt={FLAVORS[1].tag}
               fill
               sizes="(max-width: 1024px) 100vw, 25vw"
               className="object-cover"

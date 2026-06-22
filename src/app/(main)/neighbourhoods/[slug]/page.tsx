@@ -10,7 +10,6 @@ import {
 import {
   geocodeNeighbourhood,
   getNeighbourhoodMapImageUrl,
-  getUnsplashPhotos,
 } from '@/lib/neighbourhood-images'
 import NeighbourhoodHero from '@/components/neighbourhood/NeighbourhoodHero'
 import NeighbourhoodMetrics from '@/components/neighbourhood/NeighbourhoodMetrics'
@@ -44,11 +43,9 @@ export default async function NeighbourhoodDetailPage({ params }: PageProps) {
     getNeighbourhoodAgents(slug),
   ])
 
-  const [coords, photos] = await Promise.all([
-    geocodeNeighbourhood(neighbourhood.name, neighbourhood.city),
-    getUnsplashPhotos(`${neighbourhood.name} ${neighbourhood.city}`),
-  ])
+  const coords = await geocodeNeighbourhood(neighbourhood.name, neighbourhood.city)
   const mapImageUrl = coords ? getNeighbourhoodMapImageUrl(coords.lat, coords.lng) : undefined
+  const photos = neighbourhood.photos ?? []
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-16 font-ui">
