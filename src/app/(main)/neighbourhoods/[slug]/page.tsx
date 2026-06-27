@@ -11,12 +11,13 @@ import {
   geocodeNeighbourhood,
   getNeighbourhoodMapImageUrl,
 } from '@/lib/neighbourhood-images'
+import { getNeighbourhoodGooglePhotos } from '@/lib/neighbourhood-images-google'
 import NeighbourhoodHero from '@/components/neighbourhood/NeighbourhoodHero'
+import NeighbourhoodHeroCarousel from '@/components/neighbourhood/NeighbourhoodHeroCarousel'
 import NeighbourhoodMetrics from '@/components/neighbourhood/NeighbourhoodMetrics'
-import NeighbourhoodBio from '@/components/neighbourhood/NeighbourhoodBio'
+import NeighbourhoodAiSummary from '@/components/neighbourhood/NeighbourhoodAiSummary'
 import LocalEssentials from '@/components/neighbourhood/LocalEssentials'
 import LiveListings from '@/components/neighbourhood/LiveListings'
-import NeighbourhoodFlavors from '@/components/neighbourhood/NeighbourhoodFlavors'
 import AreaSpecialists from '@/components/neighbourhood/AreaSpecialists'
 import NeighbourhoodCTA from '@/components/neighbourhood/NeighbourhoodCTA'
 
@@ -43,26 +44,35 @@ export default async function NeighbourhoodDetailPage({ params }: PageProps) {
     getNeighbourhoodAgents(slug),
   ])
 
-  const coords = await geocodeNeighbourhood(neighbourhood.name, neighbourhood.city)
+  const [coords, googlePhotos] = await Promise.all([
+    geocodeNeighbourhood(neighbourhood.name, neighbourhood.city),
+    getNeighbourhoodGooglePhotos(neighbourhood.name, neighbourhood.city),
+  ])
   const mapImageUrl = coords ? getNeighbourhoodMapImageUrl(coords.lat, coords.lng) : undefined
-  const photos = neighbourhood.photos ?? []
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-16 font-ui">
       {/* ── Hero + Metrics ──────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
-        <div className="grid lg:grid-cols-[1fr_340px] gap-5 h-[520px]">
-          <NeighbourhoodHero neighbourhood={neighbourhood} mapImageUrl={mapImageUrl} />
+        <div className="grid lg:grid-cols-[1fr_340px] gap-5 h-[480px] lg:h-[600px]">
+          {googlePhotos.length > 0 ? (
+            <NeighbourhoodHeroCarousel
+              images={googlePhotos}
+              altPrefix={neighbourhood.name}
+              subtitle={`${neighbourhood.city}, ${neighbourhood.province}`}
+            />
+          ) : (
+            <NeighbourhoodHero neighbourhood={neighbourhood} mapImageUrl={mapImageUrl} />
+          )}
           <NeighbourhoodMetrics neighbourhood={neighbourhood} />
         </div>
       </div>
 
       {/* ── Content sections ────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <NeighbourhoodBio neighbourhood={neighbourhood} />
+        <NeighbourhoodAiSummary slug={slug} name={neighbourhood.name} city={neighbourhood.city} />
         <LocalEssentials essentials={essentials} />
         <LiveListings listings={listings} slug={slug} />
-        <NeighbourhoodFlavors name={neighbourhood.name} photos={photos} />
         <AreaSpecialists agents={agents} neighbourhoodName={neighbourhood.name} />
         <NeighbourhoodCTA name={neighbourhood.name} slug={slug} />
       </div>

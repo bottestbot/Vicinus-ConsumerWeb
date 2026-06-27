@@ -2,6 +2,30 @@ import type { Neighbourhood, Essential, NeighbourhoodAgent, NeighbourhoodListing
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'
 
+export interface NeighbourhoodSummarySection {
+  heading: string
+  points: string[]
+}
+
+export interface NeighbourhoodAiSummaryData {
+  safety: NeighbourhoodSummarySection
+  dailyLife: NeighbourhoodSummarySection
+  schools: NeighbourhoodSummarySection
+  growth: NeighbourhoodSummarySection
+}
+
+export async function getNeighbourhoodAiSummary(slug: string): Promise<NeighbourhoodAiSummaryData | null> {
+  try {
+    const res = await fetch(`${API_BASE}/ai/neighbourhood-summary/${encodeURIComponent(slug)}`, {
+      next: { revalidate: 14400 },
+    })
+    if (!res.ok) return null
+    return res.json() as Promise<NeighbourhoodAiSummaryData>
+  } catch {
+    return null
+  }
+}
+
 async function apiFetch<T>(path: string, fallback: T): Promise<T> {
   try {
     const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 1800 } })
@@ -63,20 +87,53 @@ const MOCK_NEIGHBOURHOODS: Neighbourhood[] = [
   { slug: 'mount-royal', name: 'Mount Royal', city: 'Calgary', province: 'AB', imageUrl: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80', medianPrice: 1800000 },
 ]
 
+// ─── Backend → frontend shape mappers ─────────────────────────────────────────
+
+interface ApiNeighbourhood {
+  slug: string
+  name?: string | null
+  city?: string | null
+  province?: string | null
+  bio?: string | null
+  heroImageUrl?: string | null
+  photos?: string[]
+  medianPrice?: number | null
+  walkScore?: number | null
+  transitScore?: number | null
+  schoolGrade?: string | null
+  lat?: number | null
+  lng?: number | null
+}
+
+function mapNeighbourhood(n: ApiNeighbourhood): Neighbourhood {
+  return {
+    slug: n.slug,
+    name: n.name ?? '',
+    city: n.city ?? '',
+    province: n.province ?? '',
+    bio: n.bio ?? undefined,
+    imageUrl: n.heroImageUrl ?? n.photos?.[0] ?? undefined,
+    photos: n.photos ?? [],
+    medianPrice: n.medianPrice ?? undefined,
+    walkScore: n.walkScore ?? undefined,
+    transitScore: n.transitScore ?? undefined,
+    schoolGrade: n.schoolGrade ?? undefined,
+    lat: n.lat ?? undefined,
+    lng: n.lng ?? undefined,
+  }
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 export async function getNeighbourhood(slug: string): Promise<Neighbourhood> {
-  const data = await apiFetch<Partial<Neighbourhood> & { photos?: string[] }>(`/neighbourhoods/${slug}`, {})
-  // Backend stub returns {slug} only — fall through to mock when name is absent
-  if (!data.name) return { ...MOCK_NEIGHBOURHOOD, slug }
-  return { ...MOCK_NEIGHBOURHOOD, slug, ...data, photos: data.photos ?? [] }
+  const data = await apiFetch<ApiNeighbourhood | null>(`/neighbourhoods/${slug}`, null)
+  if (!data || !data.name) {
+    const name = slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    return { slug, name, city: '', province: '' }
+  }
+  return mapNeighbourhood(data)
 }
 
-// ─── Backend → frontend shape mappers ─────────────────────────────────────────
-// The NestJS API returns a different field layout than the FE types expect
-// (listPrice vs price, mainPhotoUrl vs imageUrl, distanceKm vs distance, etc.).
-// These mappers normalise the backend response so components never receive
-// undefined where they expect a value.
 
 const LISTING_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80'
@@ -136,23 +193,21 @@ function mapEssential(e: ApiEssential): Essential | null {
 
 export async function getNeighbourhoodListings(slug: string): Promise<NeighbourhoodListing[]> {
   const data = await apiFetch<ApiListing[]>(`/neighbourhoods/${slug}/listings`, [])
-  if (data.length === 0) return MOCK_LISTINGS
   return data.map(mapListing)
 }
 
 export async function getNeighbourhoodEssentials(slug: string): Promise<Essential[]> {
   const data = await apiFetch<ApiEssential[]>(`/neighbourhoods/${slug}/essentials`, [])
-  if (data.length === 0) return MOCK_ESSENTIALS
-  const mapped = data.map(mapEssential).filter((e): e is Essential => e !== null)
-  return mapped.length > 0 ? mapped : MOCK_ESSENTIALS
+  return data.map(mapEssential).filter((e): e is Essential => e !== null)
 }
 
 export async function getNeighbourhoodAgents(slug: string): Promise<NeighbourhoodAgent[]> {
-  const data = await apiFetch<NeighbourhoodAgent[]>(`/neighbourhoods/${slug}/agents`, [])
-  return data.length > 0 ? data : MOCK_AGENTS
+  return apiFetch<NeighbourhoodAgent[]>(`/neighbourhoods/${slug}/agents`, [])
 }
 
 export async function getNeighbourhoods(): Promise<Neighbourhood[]> {
-  const data = await apiFetch<Neighbourhood[]>('/neighbourhoods', [])
-  return data.length > 0 ? data : MOCK_NEIGHBOURHOODS
+  const data = await apiFetch<ApiNeighbourhood[]>('/neighbourhoods', [])
+  if (data.length === 0) return MOCK_NEIGHBOURHOODS
+  return data.map(mapNeighbourhood)
 }
+
