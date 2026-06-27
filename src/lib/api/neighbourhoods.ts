@@ -14,13 +14,43 @@ export interface NeighbourhoodAiSummaryData {
   growth: NeighbourhoodSummarySection
 }
 
+// Normalises both legacy {sections:[{title,text}]} and current {safety,dailyLife,schools,growth} shapes.
+function normaliseAiResponse(raw: unknown): NeighbourhoodAiSummaryData | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+
+  // Current schema
+  if (r['safety'] && r['dailyLife'] && r['schools'] && r['growth']) {
+    return r as unknown as NeighbourhoodAiSummaryData
+  }
+
+  // Legacy schema: { sections: [{ title, text }] }
+  if (Array.isArray(r['sections'])) {
+    const titleKey: Record<string, keyof NeighbourhoodAiSummaryData> = {
+      'Safety & Welcoming Vibe': 'safety',
+      'Daily Life & Convenience': 'dailyLife',
+      'Schools & Families': 'schools',
+      'Growth & Prosperity': 'growth',
+    }
+    const out: Partial<NeighbourhoodAiSummaryData> = {}
+    for (const s of r['sections'] as Array<{ title: string; text: string }>) {
+      const key = titleKey[s.title]
+      if (key) out[key] = { heading: s.title, points: [s.text] }
+    }
+    if (out.safety && out.dailyLife && out.schools && out.growth)
+      return out as NeighbourhoodAiSummaryData
+  }
+
+  return null
+}
+
 export async function getNeighbourhoodAiSummary(slug: string): Promise<NeighbourhoodAiSummaryData | null> {
   try {
     const res = await fetch(`${API_BASE}/ai/neighbourhood-summary/${encodeURIComponent(slug)}`, {
-      next: { revalidate: 14400 },
+      cache: 'no-store',
     })
     if (!res.ok) return null
-    return res.json() as Promise<NeighbourhoodAiSummaryData>
+    return normaliseAiResponse(await res.json())
   } catch {
     return null
   }

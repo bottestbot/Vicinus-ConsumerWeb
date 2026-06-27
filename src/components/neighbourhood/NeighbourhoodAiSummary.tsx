@@ -69,7 +69,9 @@ export default function NeighbourhoodAiSummary({ slug, name, city }: Props) {
     )
   }
 
-  const sections = [data.safety, data.dailyLife, data.schools, data.growth]
+  const sections = [data.safety, data.dailyLife, data.schools, data.growth].filter(
+    (s): s is NeighbourhoodSummarySection => !!s,
+  )
 
   return (
     <section className="py-10 border-b border-[#E8E6E1]">
