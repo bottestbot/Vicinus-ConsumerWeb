@@ -32,6 +32,9 @@ export class SearchQueryDto {
   /** Listing status — defaults to "Active" */
   @ApiPropertyOptional({ example: 'Active' }) @IsOptional() @IsString() status?: string
 
+  /** "For Sale" (default) or "For Rent" — sale listings have no LeaseAmount */
+  @ApiPropertyOptional({ example: 'For Sale' }) @IsOptional() @IsString() listingType?: string
+
   @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsInt() minSqft?: number
   @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsInt() maxSqft?: number
 

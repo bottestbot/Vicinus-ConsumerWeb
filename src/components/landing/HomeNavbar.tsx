@@ -45,11 +45,11 @@ export default function HomeNavbar() {
           <Link href="/search?listingType=For+Sale" className={`${navLink} transition-colors`}>
             Buy
           </Link>
-          <Link href="/neighbourhoods" className={`${navLink} transition-colors`}>
-            Neighbourhoods
+          <Link href="/sell" className={`${navLink} transition-colors`}>
+            Sell
           </Link>
           <Link href="/search" className={`${navLink} transition-colors`}>
-            Agent Finder
+            Agents Hub
           </Link>
         </nav>
 
@@ -90,9 +90,11 @@ export default function HomeNavbar() {
 
         {/* Mobile hamburger */}
         <button
-          className={`md:hidden p-2 transition-colors ${scrolled ? 'text-[#111111]' : 'text-white'}`}
+          className={`md:hidden flex items-center justify-center min-w-[44px] min-h-[44px] transition-colors cursor-pointer touch-manipulation ${scrolled ? 'text-[#111111]' : 'text-white'}`}
+          style={{ WebkitTapHighlightColor: 'transparent' }}
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
+          type="button"
         >
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -103,8 +105,8 @@ export default function HomeNavbar() {
         <div className="md:hidden bg-white border-t border-[#E8E6E1] px-6 py-4 flex flex-col gap-0">
           {[
             { label: 'Buy', href: '/search?listingType=For+Sale' },
-            { label: 'Neighbourhoods', href: '/neighbourhoods' },
-            { label: 'Agent Finder', href: '/search' },
+            { label: 'Sell', href: '/sell' },
+            { label: 'Agents Hub', href: '/search' },
           ].map((item) => (
             <Link
               key={item.label}

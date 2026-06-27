@@ -15,10 +15,19 @@ export class SearchController {
   }
 
   @Get('map-pins')
-  @ApiOperation({ summary: 'Lightweight geo + price pins for the map viewport' })
+  @ApiOperation({
+    summary: 'Lightweight geo + price pins for the map viewport. Accepts the same filters as /search.',
+  })
   @ApiQuery({ name: 'bbox', required: true, example: '-79.63,43.58,-79.27,43.85', description: 'west,south,east,north' })
-  mapPins(@Query('bbox') bbox: string) {
-    return this.searchService.getMapPins(bbox ?? '')
+  mapPins(@Query() query: SearchQueryDto) {
+    return this.searchService.getMapPins(query)
+  }
+
+  @Get('autocomplete')
+  @ApiOperation({ summary: 'City / neighbourhood autocomplete suggestions' })
+  @ApiQuery({ name: 'q', required: true, description: 'Prefix query' })
+  autocomplete(@Query('q') q: string) {
+    return this.searchService.autocomplete(q ?? '')
   }
 
   @Get('listing/:key')

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, X, SlidersHorizontal } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import SaveSearch from './SaveSearch'
@@ -58,28 +59,49 @@ function Popover({
   onClose: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const markerRef = useRef<HTMLSpanElement>(null)
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+
+  // Anchor the portal to the chip (the marker's parent), so it escapes the
+  // filter row's overflow-x-auto clip instead of being cut off.
+  const update = useCallback(() => {
+    const r = markerRef.current?.parentElement?.getBoundingClientRect()
+    if (r) setCoords({ top: r.bottom + 8, left: r.left })
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
+    update()
     const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose()
+      const t = e.target as Node
+      if (!ref.current?.contains(t) && !markerRef.current?.parentElement?.contains(t)) onClose()
     }
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [isOpen, onClose])
-
-  if (!isOpen) return null
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [isOpen, onClose, update])
 
   return (
-    <div
-      ref={ref}
-      className={[
-        'absolute top-full left-0 mt-2 bg-white rounded-xl border border-[#E8E6E1]',
-        'shadow-xl shadow-black/10 z-50 min-w-[280px] p-4',
-      ].join(' ')}
-    >
-      {children}
-    </div>
+    <span ref={markerRef} className="hidden" aria-hidden>
+      {isOpen && coords && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={ref}
+          style={{ position: 'fixed', top: coords.top, left: coords.left }}
+          className={[
+            'bg-white rounded-xl border border-[#E8E6E1]',
+            'shadow-xl shadow-black/10 z-[100] min-w-[280px] p-4',
+          ].join(' ')}
+        >
+          {children}
+        </div>,
+        document.body,
+      )}
+    </span>
   )
 }
 
@@ -391,12 +413,15 @@ function AdvancedFilters() {
 
       {open && (
         <div className="absolute top-full right-0 mt-2 bg-white rounded-xl border border-[#E8E6E1] shadow-xl shadow-black/10 z-50 w-[340px] p-4 max-h-[520px] overflow-y-auto">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Advanced Filters</p>
             {hasValue && (
               <button onClick={clearAdvanced} className="text-xs text-[#1C3829] hover:underline">Clear all</button>
             )}
           </div>
+          <p className="text-[11px] text-[#9B9B9B] mb-4 leading-snug">
+            Year Built &amp; Parking filter live results. Other options below are coming soon.
+          </p>
 
           {/* Year Built */}
           <div className="mb-4">

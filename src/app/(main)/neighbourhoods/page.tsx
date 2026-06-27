@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
+import { getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
 import { formatPrice } from '@/types/search'
 import type { Neighbourhood } from '@/types/neighbourhood'
 
@@ -14,12 +15,18 @@ export const metadata: Metadata = {
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1548656848-c80e1d02d05a?w=800&q=80'
 
 function NeighbourhoodCard({ neighbourhood }: { neighbourhood: Neighbourhood }) {
+  const imageSrc =
+    neighbourhood.imageUrl ||
+    (neighbourhood.lat && neighbourhood.lng
+      ? getNeighbourhoodMapImageUrl(neighbourhood.lat, neighbourhood.lng)
+      : FALLBACK_IMAGE)
+
   return (
     <Link href={`/neighbourhoods/${neighbourhood.slug}`} className="group">
       <article className="bg-white rounded-2xl border border-[#E8E6E1] overflow-hidden hover:border-[#1C3829]/40 hover:shadow-lg transition-all duration-300">
         <div className="relative h-52 overflow-hidden bg-[#F2F0EB]">
           <Image
-            src={neighbourhood.imageUrl ?? FALLBACK_IMAGE}
+            src={imageSrc}
             alt={neighbourhood.name}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

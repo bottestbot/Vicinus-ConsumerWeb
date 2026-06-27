@@ -1,5 +1,6 @@
 import type { DashboardData } from '@/types/dashboard'
 import RecentSearches from './RecentSearches'
+import HeroSearchBar from '@/components/landing/HeroSearchBar'
 
 interface Props {
   data: DashboardData
@@ -20,6 +21,12 @@ export default function WelcomeBanner({ data }: Props) {
         <span className="font-semibold text-[#111111]">{newUpdates} new updates</span> since your
         last visit. Explore matches in Chelsea and Aspen.
       </p>
+
+      {/* Search bar */}
+      <div className="mt-6 mb-2">
+        <HeroSearchBar />
+      </div>
+
       <RecentSearches />
     </div>
   )

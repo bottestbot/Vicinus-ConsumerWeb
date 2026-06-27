@@ -13,6 +13,14 @@ const NEARBY_DEGREES = 0.05
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Extract the primary (or first) image URL from a Property.images JSON array. */
+function firstImageUrl(images: Prisma.JsonValue): string | null {
+  if (!Array.isArray(images)) return null
+  const imgs = images as Array<{ url?: string; isPrimary?: boolean }>
+  const primary = imgs.find((m) => m?.isPrimary && m.url) ?? imgs.find((m) => m?.url)
+  return primary?.url ?? null
+}
+
 function median(values: number[]): number {
   if (!values.length) return 0
   const sorted = [...values].sort((a, b) => a - b)
@@ -106,13 +114,74 @@ export class PropertiesService {
     return { own: ownOpenHouses, nearby }
   }
 
+  // ── BE-H ────────────────────────────────────────────────────────────────
+  // GET /properties/featured — highlight listings for the landing page.
+  // Prefers curator-flagged listings; falls back to top-priced active
+  // residential BC listings with photos so the home page never shows mocks.
+  // ────────────────────────────────────────────────────────────────────────
+  async getFeatured() {
+    const baseWhere: Prisma.PropertyWhereInput = {
+      status: 'Active',
+      displayOnInternet: true,
+      price: { gt: 0 },
+      sqft: { gt: 1000 },
+      beds: { gte: 3 },
+      images: { not: Prisma.JsonNull },
+    }
+    const select = {
+      id: true,
+      ddfListingKey: true,
+      address: true,
+      city: true,
+      province: true,
+      price: true,
+      beds: true,
+      baths: true,
+      sqft: true,
+      images: true,
+      editorialTag: true,
+      isCuratorPick: true,
+    }
+
+    let rows = await this.prisma.property.findMany({
+      where: { ...baseWhere, isCuratorPick: true },
+      select,
+      orderBy: { price: 'desc' },
+      take: 6,
+    })
+    if (rows.length === 0) {
+      rows = await this.prisma.property.findMany({
+        where: { ...baseWhere, province: 'British Columbia' },
+        select,
+        orderBy: { price: 'desc' },
+        take: 6,
+      })
+    }
+
+    return rows.map((p) => ({
+      id: p.ddfListingKey,
+      name: p.address ?? 'Featured Residence',
+      location: [p.city, p.province].filter(Boolean).join(', '),
+      price: p.price,
+      beds: p.beds,
+      baths: p.baths,
+      sqft: p.sqft,
+      image: firstImageUrl(p.images),
+      badge: p.editorialTag ?? (p.isCuratorPick ? 'Curator Pick' : 'Featured'),
+      href: `/properties/${p.ddfListingKey}`,
+    }))
+  }
+
   // ── BE-403 ──────────────────────────────────────────────────────────────
   // GET /properties/:id/market-context
   // ────────────────────────────────────────────────────────────────────────
   async getMarketContext(id: string) {
-    const property = await this.prisma.property.findUnique({
-      where: { id },
+    // The detail page keys properties by DDF ListingKey, not the local UUID, so
+    // resolve by either. (The synced Property table holds both.)
+    const property = await this.prisma.property.findFirst({
+      where: { OR: [{ id }, { ddfListingKey: id }] },
       select: {
+        id: true,
         price: true,
         sqft: true,
         city: true,
@@ -143,7 +212,7 @@ export class PropertiesService {
             where: {
               city: property.city,
               status: 'Active',
-              id: { not: id },
+              id: { not: property.id },
               price: { gt: 0 },
             },
             select: { price: true, sqft: true, listedAt: true },

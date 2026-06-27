@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Vicinus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --cream: #FAF9F6;
+      --forest: #1C3829;
+      --forest-light: #2a5040;
+      --gold: #B8975A;
+      --charcoal: #2C2C2C;
+      --muted: #6B6B6B;
+      --border: #E8E5DF;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--cream); font-family: 'Inter', sans-serif; color: var(--charcoal); }
+    .playfair { font-family: 'Playfair Display', serif; }
+    .tag { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+    .divider-line { width: 28px; height: 1px; background: var(--gold); margin-bottom: 16px; }
+    .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .card-hover:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(28,56,41,0.1); }
+    .badge { font-size: 10px; font-weight: 600; padding: 3px 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .property-row { border-bottom: 1px solid var(--border); transition: background 0.15s; cursor: pointer; }
+    .property-row:last-child { border-bottom: none; }
+    .property-row:hover { background: rgba(28,56,41,0.02); }
+    .intel-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 4px 10px; background: rgba(28,56,41,0.08); color: var(--forest); border-radius: 2px; }
+    .section-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
+    .editorial-card { overflow: hidden; position: relative; border-radius: 3px; cursor: pointer; }
+    .editorial-card img { transition: transform 0.4s; width: 100%; height: 100%; object-fit: cover; }
+    .editorial-card:hover img { transform: scale(1.04); }
+    .nav-link { font-size: 13px; color: var(--muted); transition: color 0.15s; padding: 0 4px; }
+    .nav-link:hover { color: var(--charcoal); }
+    .nav-link.active { color: var(--charcoal); font-weight: 600; border-bottom: 2px solid var(--forest); padding-bottom: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav style="background: var(--cream); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;">
+  <div class="max-w-7xl mx-auto px-6 flex items-center justify-between h-14">
+    <a href="index.html" class="playfair text-base font-semibold tracking-wide" style="color: var(--forest);">Vicinus</a>
+
+    <div class="flex items-center gap-6">
+      <a href="search.html" class="nav-link">Properties</a>
+      <a href="search.html" class="nav-link">Search</a>
+      <a href="neighbourhood.html" class="nav-link">Neighbourhoods</a>
+      <a href="dashboard.html" class="nav-link active">Dashboard</a>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <!-- Notifications -->
+      <button style="width: 34px; height: 34px; background: white; border: 1px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
+        <svg width="15" height="15" fill="none" stroke="var(--charcoal)" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span style="position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; background: var(--gold); border-radius: 50%; border: 1.5px solid var(--cream);"></span>
+      </button>
+      <!-- Avatar -->
+      <div style="width: 34px; height: 34px; border-radius: 50%; overflow: hidden; border: 2px solid var(--border); cursor: pointer;">
+        <img src="https://i.pravatar.cc/68?img=33" class="w-full h-full object-cover" />
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- WELCOME BANNER + SEARCH -->
+  <div class="mb-8">
+    <h1 class="playfair text-4xl font-semibold mb-1" style="color: var(--charcoal);">Welcome back, Julian.</h1>
+    <p class="text-sm mb-6" style="color: var(--muted);">You have 3 saved searches with new listings since your last visit.</p>
+
+    <!-- Quick Search Bar -->
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-1 max-w-lg px-4 py-2.5" style="background: white; border: 1px solid var(--border); border-radius: 2px;">
+        <svg width="16" height="16" fill="none" stroke="var(--muted)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search by neighbourhood, city, or address…" class="flex-1 text-sm outline-none bg-transparent" style="color: var(--charcoal);" />
+      </div>
+      <button class="px-4 py-2.5 text-sm font-semibold rounded-sm flex items-center gap-2" style="background: white; border: 1px solid var(--border); color: var(--charcoal); cursor: pointer;">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Search Alerts
+      </button>
+      <button class="px-4 py-2.5 text-sm font-semibold rounded-sm flex items-center gap-2" style="background: white; border: 1px solid var(--border); color: var(--charcoal); cursor: pointer;">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        Saved Searches
+      </button>
+    </div>
+  </div>
+
+  <!-- FEATURED PROPERTY (HERO CARD) -->
+  <div class="mb-10" style="display: grid; grid-template-columns: 1fr 340px; gap: 20px;">
+
+    <!-- Main feature -->
+    <a href="property-detail.html" class="relative overflow-hidden block" style="height: 420px; border-radius: 3px;">
+      <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1000&q=80&fit=crop" class="w-full h-full object-cover" alt="" style="transition: transform 0.5s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'" />
+      <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(20,40,28,0.85) 0%, rgba(20,40,28,0.2) 55%, transparent 100%);"></div>
+      <div style="position: absolute; top: 20px; left: 20px;">
+        <span class="badge text-white" style="background: var(--gold);">Curator's Pick · New Match</span>
+      </div>
+      <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 28px;">
+        <p class="text-xs mb-2" style="color: rgba(255,255,255,0.6); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;">Featured Listing</p>
+        <h2 class="playfair text-3xl font-semibold text-white mb-1">The Glass Pavilion, Greenwood</h2>
+        <p class="text-sm mb-4" style="color: rgba(255,255,255,0.7);">44 Ravine Drive, Greenwood Heights, Vancouver, BC</p>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-5">
+            <p class="playfair text-2xl font-semibold text-white">$4,750,000</p>
+            <div class="flex gap-3 text-xs" style="color: rgba(255,255,255,0.65);">
+              <span>5 Bed</span><span>·</span><span>5 Bath</span><span>·</span><span>4,200 sqft</span>
+            </div>
+          </div>
+          <span class="text-xs font-semibold text-white border border-white px-3 py-1.5 rounded-sm">View Listing →</span>
+        </div>
+        <div class="flex items-center gap-3 mt-3">
+          <span class="intel-chip" style="background: rgba(255,255,255,0.15); color: white;">● Intelligent Match 96%</span>
+          <span class="intel-chip" style="background: rgba(255,255,255,0.15); color: white;">Walk Score 92</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Intel sidebar -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <!-- Field Agent -->
+      <div style="background: white; border: 1px solid var(--border); padding: 18px; flex: 0 0 auto;">
+        <p class="tag mb-3" style="color: var(--muted);">Field Agent</p>
+        <div class="flex items-center gap-3 mb-3">
+          <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex-shrink: 0;">
+            <img src="https://i.pravatar.cc/80?img=12" class="w-full h-full object-cover" />
+          </div>
+          <div>
+            <p class="text-sm font-semibold" style="color: var(--charcoal);">Sophie Beaumont</p>
+            <p class="text-xs" style="color: var(--muted);">Elite Agent · Greenwood Heights</p>
+          </div>
+        </div>
+        <p class="text-xs leading-relaxed mb-3" style="color: var(--muted);">"This is one of the finest examples of Pacific NW residential architecture to come to market this season."</p>
+        <button class="w-full py-2 text-xs font-semibold rounded-sm" style="background: var(--forest); color: white; border: none; cursor: pointer;">Request Showing</button>
+      </div>
+      <!-- Price context -->
+      <div style="background: white; border: 1px solid var(--border); padding: 18px; flex: 0 0 auto;">
+        <p class="tag mb-3" style="color: var(--muted);">Price Intelligence</p>
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs" style="color: var(--muted);">Neighbourhood Median</span>
+          <span class="text-sm font-semibold">$3.8M</span>
+        </div>
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs" style="color: var(--muted);">Price per sqft</span>
+          <span class="text-sm font-semibold">$1,130</span>
+        </div>
+        <div class="flex justify-between items-center mb-3">
+          <span class="text-xs" style="color: var(--muted);">YoY Appreciation</span>
+          <span class="text-sm font-semibold" style="color: var(--forest);">+11.4%</span>
+        </div>
+        <!-- Mini bar chart -->
+        <div style="background: rgba(28,56,41,0.06); border-radius: 2px; padding: 12px;">
+          <p class="text-xs mb-2" style="color: var(--muted);">12-Month Trend</p>
+          <div style="display: flex; align-items: flex-end; gap: 3px; height: 36px;">
+            <div style="flex: 1; background: rgba(28,56,41,0.2); height: 55%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.25); height: 62%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.3); height: 70%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.35); height: 68%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.4); height: 75%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.45); height: 72%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.5); height: 80%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.55); height: 85%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.6); height: 82%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.65); height: 88%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: rgba(28,56,41,0.7); height: 90%; border-radius: 1px;"></div>
+            <div style="flex: 1; background: var(--forest); height: 100%; border-radius: 1px;"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Thin map -->
+      <div style="background: #2A2A2A; border: 1px solid var(--border); flex: 1; min-height: 100px; position: relative; overflow: hidden; border-radius: 3px;">
+        <div style="position: absolute; inset: 0; background-image: linear-gradient(rgba(255,200,80,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,200,80,0.07) 1px, transparent 1px); background-size: 20px 20px;"></div>
+        <div style="position: absolute; bottom: 50%; left: 50%; transform: translate(-50%, 50%);">
+          <div style="background: white; color: var(--charcoal); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.4); white-space: nowrap;">$4.75M</div>
+        </div>
+        <div style="position: absolute; bottom: 8px; right: 8px; font-size: 9px; color: rgba(255,255,255,0.3);">Greenwood Heights</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVED PROPERTIES -->
+  <section class="mb-10">
+    <div class="section-header">
+      <div>
+        <div class="divider-line"></div>
+        <p class="tag mb-1" style="color: var(--muted);">Saved by you</p>
+        <h2 class="playfair text-2xl font-medium" style="color: var(--charcoal);">Saved Properties</h2>
+      </div>
+      <a href="search.html" class="text-sm font-medium" style="color: var(--forest);">View All 12 →</a>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+      <!-- Property 1 -->
+      <a href="property-detail.html" class="card-hover block" style="background: white; border: 1px solid var(--border);">
+        <div style="height: 160px; overflow: hidden; position: relative;">
+          <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+          <button onclick="event.preventDefault()" style="position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border-radius: 50%; background: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,0.15);">
+            <svg width="13" height="13" fill="var(--forest)" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </button>
+          <span class="badge absolute bottom-2 left-2 text-white" style="background: var(--gold);">Curator's Choice</span>
+        </div>
+        <div class="p-4">
+          <p class="playfair text-lg font-semibold mb-0.5" style="color: var(--charcoal);">$2,650,000</p>
+          <p class="text-xs mb-2" style="color: var(--muted);">Forest Hill Rd, Toronto, ON</p>
+          <div class="flex justify-between text-xs" style="color: var(--muted);">
+            <span>4 Bed · 3 Bath</span>
+            <span style="color: var(--gold);">Match 91%</span>
+          </div>
+        </div>
+      </a>
+      <!-- Property 2 -->
+      <a href="property-detail.html" class="card-hover block" style="background: white; border: 1px solid var(--border);">
+        <div style="height: 160px; overflow: hidden; position: relative;">
+          <img src="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+          <button onclick="event.preventDefault()" style="position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border-radius: 50%; background: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,0.15);">
+            <svg width="13" height="13" fill="var(--forest)" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </button>
+        </div>
+        <div class="p-4">
+          <p class="playfair text-lg font-semibold mb-0.5" style="color: var(--charcoal);">$1,890,000</p>
+          <p class="text-xs mb-2" style="color: var(--muted);">Belmont Ave, Vancouver, BC</p>
+          <div class="flex justify-between text-xs" style="color: var(--muted);">
+            <span>3 Bed · 2 Bath</span>
+            <span>Open House Sun</span>
+          </div>
+        </div>
+      </a>
+      <!-- Property 3 -->
+      <a href="property-detail.html" class="card-hover block" style="background: white; border: 1px solid var(--border);">
+        <div style="height: 160px; overflow: hidden;">
+          <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+        </div>
+        <div class="p-4">
+          <p class="playfair text-lg font-semibold mb-0.5" style="color: var(--charcoal);">$3,100,000</p>
+          <p class="text-xs mb-2" style="color: var(--muted);">Drummond St, Westmount, QC</p>
+          <div class="flex justify-between text-xs" style="color: var(--muted);">
+            <span>5 Bed · 4 Bath</span>
+            <span style="color: var(--gold);">Match 88%</span>
+          </div>
+        </div>
+      </a>
+      <!-- Property 4 -->
+      <a href="property-detail.html" class="card-hover block" style="background: white; border: 1px solid var(--border);">
+        <div style="height: 160px; overflow: hidden; position: relative;">
+          <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+          <span class="badge absolute top-2 left-2 text-white" style="background: var(--forest);">Price Drop</span>
+        </div>
+        <div class="p-4">
+          <p class="playfair text-lg font-semibold mb-0.5" style="color: var(--charcoal);">$2,290,000 <span class="text-sm line-through" style="color: var(--muted);">$2,450,000</span></p>
+          <p class="text-xs mb-2" style="color: var(--muted);">Fairfield Rd, Victoria, BC</p>
+          <div class="flex justify-between text-xs" style="color: var(--muted);">
+            <span>4 Bed · 3 Bath</span>
+            <span style="color: var(--forest); font-weight: 600;">↓ $160K</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- VISITED PROPERTIES -->
+  <section class="mb-10" style="border-top: 1px solid var(--border); padding-top: 36px;">
+    <div class="section-header">
+      <div>
+        <div class="divider-line"></div>
+        <p class="tag mb-1" style="color: var(--muted);">Recently viewed</p>
+        <h2 class="playfair text-2xl font-medium" style="color: var(--charcoal);">Visited Properties</h2>
+      </div>
+      <a href="#" class="text-sm font-medium" style="color: var(--muted);">Clear History</a>
+    </div>
+    <div style="border: 1px solid var(--border); background: white;">
+      <!-- Row 1 -->
+      <div class="property-row flex items-center gap-5 p-4">
+        <div style="width: 72px; height: 56px; overflow: hidden; flex-shrink: 0; border-radius: 2px;">
+          <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=200&q=80&fit=crop" class="w-full h-full object-cover" />
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-semibold" style="color: var(--charcoal);">The Mountain Retreat, Whistler</p>
+          <p class="text-xs" style="color: var(--muted);">8201 Alpine Way · 4 Bed · 3,800 sqft</p>
+        </div>
+        <p class="playfair text-base font-semibold" style="color: var(--charcoal);">$5,200,000</p>
+        <span class="text-xs" style="color: var(--muted);">2 days ago</span>
+        <a href="property-detail.html" class="text-xs font-medium border-b pb-0.5" style="color: var(--forest); border-color: var(--forest);">View →</a>
+      </div>
+      <!-- Row 2 -->
+      <div class="property-row flex items-center gap-5 p-4">
+        <div style="width: 72px; height: 56px; overflow: hidden; flex-shrink: 0; border-radius: 2px;">
+          <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=200&q=80&fit=crop" class="w-full h-full object-cover" />
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-semibold" style="color: var(--charcoal);">Rosedale Manor, Toronto</p>
+          <p class="text-xs" style="color: var(--muted);">142 Crescent Rd · 6 Bed · 5,100 sqft</p>
+        </div>
+        <p class="playfair text-base font-semibold" style="color: var(--charcoal);">$7,800,000</p>
+        <span class="text-xs" style="color: var(--muted);">4 days ago</span>
+        <a href="property-detail.html" class="text-xs font-medium border-b pb-0.5" style="color: var(--forest); border-color: var(--forest);">View →</a>
+      </div>
+      <!-- Row 3 -->
+      <div class="property-row flex items-center gap-5 p-4">
+        <div style="width: 72px; height: 56px; overflow: hidden; flex-shrink: 0; border-radius: 2px;">
+          <img src="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=200&q=80&fit=crop" class="w-full h-full object-cover" />
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-semibold" style="color: var(--charcoal);">42 Obsidian Way, Kitsilano</p>
+          <p class="text-xs" style="color: var(--muted);">42 Obsidian Way, Vancouver · 2 Bed · 1,587 sqft</p>
+        </div>
+        <p class="playfair text-base font-semibold" style="color: var(--charcoal);">$2,350,000</p>
+        <span class="text-xs" style="color: var(--muted);">5 days ago</span>
+        <a href="property-detail.html" class="text-xs font-medium border-b pb-0.5" style="color: var(--forest); border-color: var(--forest);">View →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- EDITORIAL CURATIONS -->
+  <section class="mb-0" style="border-top: 1px solid var(--border); padding-top: 36px;">
+    <div class="section-header">
+      <div>
+        <div class="divider-line"></div>
+        <p class="tag mb-1" style="color: var(--muted);">Curated for you</p>
+        <h2 class="playfair text-2xl font-medium" style="color: var(--charcoal);">Editorial Curations</h2>
+      </div>
+      <div class="flex gap-2">
+        <button style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 2px; color: var(--charcoal);">←</button>
+        <button style="width: 32px; height: 32px; background: var(--forest); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 2px; color: white;">→</button>
+      </div>
+    </div>
+
+    <!-- Dark editorial band -->
+    <div style="background: var(--forest); padding: 32px; border-radius: 3px; overflow: hidden;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px;">
+        <!-- Editorial 1 — wide -->
+        <div class="editorial-card col-span-2" style="height: 260px; position: relative; border-radius: 3px; overflow: hidden;">
+          <img src="https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=700&q=80&fit=crop" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'" alt="" />
+          <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%);"></div>
+          <div style="position: absolute; bottom: 16px; left: 16px; right: 16px;">
+            <span class="badge text-white mb-2 inline-block" style="background: rgba(255,255,255,0.15);">Victoria · BC</span>
+            <p class="playfair text-lg font-medium text-white">The New Pacific Luxury</p>
+            <p class="text-xs mt-1" style="color: rgba(255,255,255,0.6);">5 curated estates from $3.2M</p>
+          </div>
+        </div>
+        <!-- Editorial 2 -->
+        <div class="editorial-card" style="height: 260px; position: relative; border-radius: 3px; overflow: hidden;">
+          <img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&q=80&fit=crop" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'" alt="" />
+          <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%);"></div>
+          <div style="position: absolute; bottom: 16px; left: 16px; right: 16px;">
+            <p class="playfair text-base font-medium text-white leading-snug">Interiors Worth Living</p>
+            <p class="text-xs mt-1" style="color: rgba(255,255,255,0.6);">8 homes with exceptional design</p>
+          </div>
+        </div>
+        <!-- Editorial 3 -->
+        <div class="editorial-card" style="height: 260px; position: relative; border-radius: 3px; overflow: hidden;">
+          <img src="https://images.unsplash.com/photo-1501183638710-841dd1904471?w=400&q=80&fit=crop" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'" alt="" />
+          <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%);"></div>
+          <div style="position: absolute; bottom: 16px; left: 16px; right: 16px;">
+            <p class="playfair text-base font-medium text-white leading-snug">The Rosedale Collection</p>
+            <p class="text-xs mt-1" style="color: rgba(255,255,255,0.6);">Toronto's finest estates</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+</div>
+
+<!-- FOOTER -->
+<footer class="mt-16" style="background: var(--forest); padding: 32px 24px;">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <p class="playfair text-lg font-semibold text-white">VICINUS</p>
+    <div class="flex gap-6 text-xs" style="color: rgba(255,255,255,0.4);">
+      <a href="search.html" class="hover:text-white transition-colors">Properties</a>
+      <a href="neighbourhood.html" class="hover:text-white transition-colors">Neighbourhoods</a>
+      <a href="#" class="hover:text-white transition-colors">Privacy</a>
+      <a href="#" class="hover:text-white transition-colors">Terms</a>
+    </div>
+    <p class="text-xs" style="color: rgba(255,255,255,0.3);">© 2024 Curator Group Inc.</p>
+  </div>
+</footer>
+
+</body>
+</html>

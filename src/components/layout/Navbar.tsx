@@ -29,6 +29,9 @@ export default function Navbar() {
           <Link href="/search" className="hover:text-[var(--heading)] transition-colors">
             Properties
           </Link>
+          <Link href="/feed" className="hover:text-[var(--heading)] transition-colors">
+            Feed
+          </Link>
           <Link href="/neighbourhoods" className="hover:text-[var(--heading)] transition-colors">
             Neighbourhoods
           </Link>
@@ -66,9 +69,11 @@ export default function Navbar() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden p-2 text-[var(--body)] hover:text-[var(--heading)] transition-colors"
+          className="md:hidden flex items-center justify-center min-w-[44px] min-h-[44px] text-[var(--body)] hover:text-[var(--heading)] transition-colors cursor-pointer touch-manipulation"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
           onClick={() => setMobileOpen(true)}
           aria-label="Open menu"
+          type="button"
         >
           <Menu size={22} />
         </button>
@@ -88,6 +93,13 @@ export default function Navbar() {
               className="text-sm text-[#6B6B6B] hover:text-[#111111] py-3.5 border-b border-[#E8E6E1] transition-colors"
             >
               Properties
+            </Link>
+            <Link
+              href="/feed"
+              onClick={() => setMobileOpen(false)}
+              className="text-sm text-[#6B6B6B] hover:text-[#111111] py-3.5 border-b border-[#E8E6E1] transition-colors"
+            >
+              Feed
             </Link>
             <Link
               href="/neighbourhoods"

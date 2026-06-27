@@ -87,7 +87,7 @@ function VisitedCard({ record, index }: { record: VisitedPropertyRecord; index: 
 
         {/* Action buttons */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {(['SHORTLIST', 'DOCS', 'OFFER'] as const).map((action) => (
+          {(['SHORTLIST', 'DOCS'] as const).map((action) => (
             <button
               key={action}
               className="text-[10px] font-bold text-[#6B6B6B] border border-[#E8E6E1] px-2.5 py-1 rounded-lg uppercase tracking-wide hover:border-[#1C3829] hover:text-[#1C3829] transition-colors"
@@ -95,6 +95,9 @@ function VisitedCard({ record, index }: { record: VisitedPropertyRecord; index: 
               {action}
             </button>
           ))}
+          <button className="text-[10px] font-bold text-white bg-[#1C3829] px-2.5 py-1 rounded-lg uppercase tracking-wide hover:bg-[#2D5A3D] transition-colors">
+            OFFER
+          </button>
         </div>
       </div>
     </div>

@@ -1,5 +1,3 @@
-export type UnsplashPhoto = { url: string; alt: string }
-
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''
 
 export function getNeighbourhoodMapImageUrl(lat: number, lng: number): string {
@@ -22,22 +20,5 @@ export async function geocodeNeighbourhood(
     return { lat, lng }
   } catch {
     return null
-  }
-}
-
-export async function getUnsplashPhotos(query: string): Promise<UnsplashPhoto[]> {
-  const key = process.env.UNSPLASH_ACCESS_KEY
-  if (!key) return []
-  try {
-    const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=6&client_id=${key}`
-    const res = await fetch(url, { next: { revalidate: 3600 } })
-    if (!res.ok) return []
-    const data = await res.json()
-    return (data?.results ?? []).map((r: { urls: { regular: string }; alt_description?: string }) => ({
-      url: r.urls.regular,
-      alt: r.alt_description ?? query,
-    }))
-  } catch {
-    return []
   }
 }

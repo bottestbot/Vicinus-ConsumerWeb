@@ -11,6 +11,8 @@ import { NeighbourhoodsModule } from './modules/neighbourhoods/neighbourhoods.mo
 import { AgentsModule } from './modules/agents/agents.module'
 import { EditorialModule } from './modules/editorial/editorial.module'
 import { AuthModule } from './modules/auth/auth.module'
+import { AiModule } from './modules/ai/ai.module'
+import { SellModule } from './modules/sell/sell.module'
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { AuthModule } from './modules/auth/auth.module'
     AgentsModule,
     EditorialModule,
     DdfSyncModule,
+    AiModule,
+    SellModule,
   ],
 })
 export class AppModule {}

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Properties — Vicinus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --cream: #FAF9F6;
+      --forest: #1C3829;
+      --forest-light: #2a5040;
+      --gold: #B8975A;
+      --charcoal: #2C2C2C;
+      --muted: #6B6B6B;
+      --border: #E8E5DF;
+      --map-bg: #2A2A2A;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--cream); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    .playfair { font-family: 'Playfair Display', serif; }
+    .filter-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 12px; border: 1px solid var(--border);
+      background: white; font-size: 12px; font-weight: 500;
+      cursor: pointer; border-radius: 2px; color: var(--charcoal);
+      transition: border-color 0.15s;
+      white-space: nowrap;
+    }
+    .filter-chip:hover { border-color: var(--forest); }
+    .filter-chip.active { background: var(--forest); color: white; border-color: var(--forest); }
+    /* Map */
+    .map-container {
+      background: var(--map-bg);
+      position: relative;
+      overflow: hidden;
+      flex: 1;
+    }
+    .map-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(rgba(255,200,100,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,200,100,0.06) 1px, transparent 1px);
+      background-size: 30px 30px, 30px 30px, 150px 150px, 150px 150px;
+    }
+    /* Simulate street texture */
+    .map-roads {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(45deg, rgba(255,200,80,0.12) 0%, transparent 40%),
+        linear-gradient(-45deg, rgba(255,200,80,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 30% 60%, rgba(255,180,60,0.1) 0%, transparent 50%);
+    }
+    .price-pin {
+      position: absolute;
+      background: white;
+      color: var(--charcoal);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+    .price-pin:hover, .price-pin.selected { background: var(--forest); color: white; transform: scale(1.1); }
+    .price-pin::after {
+      content: '';
+      position: absolute;
+      bottom: -5px; left: 50%; transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid white;
+    }
+    .price-pin.selected::after { border-top-color: var(--forest); }
+    /* Listing panel */
+    .listing-panel { overflow-y: auto; width: 400px; flex-shrink: 0; border-left: 1px solid var(--border); }
+    .listing-panel::-webkit-scrollbar { width: 4px; }
+    .listing-panel::-webkit-scrollbar-track { background: transparent; }
+    .listing-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .prop-card { border-bottom: 1px solid var(--border); transition: background 0.15s; cursor: pointer; }
+    .prop-card:hover { background: rgba(28,56,41,0.03); }
+    .prop-card.featured { background: white; box-shadow: 0 2px 16px rgba(28,56,41,0.08); }
+    .tag { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+    .badge {
+      font-size: 10px; font-weight: 600; padding: 3px 8px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .map-controls {
+      position: absolute; right: 16px; bottom: 80px;
+      display: flex; flex-direction: column; gap: 1px;
+    }
+    .map-btn {
+      width: 32px; height: 32px;
+      background: white;
+      border: 1px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 16px; color: var(--charcoal);
+      transition: background 0.15s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .map-btn:hover { background: var(--cream); }
+    .save-search-btn {
+      font-size: 11px; font-weight: 600; color: var(--forest);
+      border: 1px solid var(--forest); background: transparent;
+      padding: 5px 12px; cursor: pointer; border-radius: 2px;
+      transition: all 0.2s; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .save-search-btn:hover { background: var(--forest); color: white; }
+    .icon-action { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.9); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+  </style>
+</head>
+<body>
+
+<!-- TOP NAV / SEARCH BAR -->
+<header style="background: var(--cream); border-bottom: 1px solid var(--border); z-index: 10; flex-shrink: 0;">
+  <div class="flex items-center gap-4 px-5 h-14">
+    <!-- Logo -->
+    <a href="index.html" class="playfair text-base font-semibold tracking-wide flex-shrink-0" style="color: var(--forest);">THE INTELLIGENT CURATOR</a>
+
+    <!-- Search Input -->
+    <div class="flex-1 max-w-xs relative">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" fill="none" stroke="#ADADAD" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" value="Kitsilano, Vancouver, BC" class="w-full pl-9 pr-4 py-2 text-sm outline-none" style="background: white; border: 1px solid var(--border); border-radius: 2px; color: var(--charcoal);" />
+    </div>
+
+    <!-- View toggles -->
+    <div class="flex items-center gap-1 ml-2">
+      <button class="filter-chip active" style="gap: 4px;">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        List
+      </button>
+      <button class="filter-chip">Map</button>
+      <button class="filter-chip">Both</button>
+    </div>
+
+    <!-- Spacer -->
+    <div class="flex-1"></div>
+
+    <!-- Neighbourhood link -->
+    <a href="neighbourhood.html" class="text-sm font-medium" style="color: var(--muted);">Neighbourhood</a>
+    <div style="width: 1px; height: 16px; background: var(--border);"></div>
+
+    <!-- Price range buttons -->
+    <div class="flex items-center gap-1">
+      <button class="filter-chip">$1M</button>
+      <button class="filter-chip">$2M</button>
+      <button class="filter-chip active">$5M</button>
+      <button class="filter-chip">$8M+</button>
+    </div>
+
+    <div style="width: 1px; height: 16px; background: var(--border);"></div>
+    <a href="signin.html" class="text-sm font-semibold px-4 py-2 rounded-sm" style="background: var(--forest); color: white;">Sign In</a>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="flex items-center gap-2 px-5 py-2.5" style="border-top: 1px solid var(--border); background: white;">
+    <span class="text-xs font-medium" style="color: var(--muted);">Filter:</span>
+    <button class="filter-chip">Beds &amp; Baths ↓</button>
+    <button class="filter-chip active">Property Type: House ✕</button>
+    <button class="filter-chip">Price Range ↓</button>
+    <button class="filter-chip">More ↓</button>
+    <div style="flex: 1;"></div>
+    <button class="save-search-btn">⊕ Save Search</button>
+  </div>
+</header>
+
+<!-- MAIN CONTENT: MAP + LISTINGS -->
+<div style="flex: 1; display: flex; overflow: hidden;">
+
+  <!-- MAP -->
+  <div class="map-container">
+    <div class="map-grid"></div>
+    <div class="map-roads"></div>
+
+    <!-- Simulated street pattern overlay -->
+    <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.18" xmlns="http://www.w3.org/2000/svg">
+      <!-- Horizontal streets -->
+      <line x1="0" y1="120" x2="100%" y2="100" stroke="#FFD080" stroke-width="3"/>
+      <line x1="0" y1="220" x2="100%" y2="240" stroke="#FFD080" stroke-width="2"/>
+      <line x1="0" y1="320" x2="100%" y2="310" stroke="#FFD080" stroke-width="3"/>
+      <line x1="0" y1="420" x2="100%" y2="430" stroke="#FFD080" stroke-width="2"/>
+      <!-- Diagonal -->
+      <line x1="100" y1="0" x2="500" y2="100%" stroke="#FFD080" stroke-width="2.5"/>
+      <line x1="300" y1="0" x2="700" y2="100%" stroke="#FFD080" stroke-width="1.5"/>
+      <!-- Vertical -->
+      <line x1="150" y1="0" x2="180" y2="100%" stroke="#FFD080" stroke-width="2"/>
+      <line x1="350" y1="0" x2="370" y2="100%" stroke="#FFD080" stroke-width="3"/>
+      <line x1="550" y1="0" x2="530" y2="100%" stroke="#FFD080" stroke-width="2"/>
+      <!-- Blocks suggestion -->
+      <rect x="180" y="130" width="160" height="80" rx="2" fill="rgba(255,200,80,0.06)" stroke="rgba(255,200,80,0.15)" stroke-width="1"/>
+      <rect x="360" y="250" width="140" height="60" rx="2" fill="rgba(255,200,80,0.06)" stroke="rgba(255,200,80,0.15)" stroke-width="1"/>
+      <rect x="80" y="260" width="80" height="100" rx="2" fill="rgba(255,200,80,0.08)" stroke="rgba(255,200,80,0.12)" stroke-width="1"/>
+    </svg>
+
+    <!-- Price Pins -->
+    <div class="price-pin selected" style="left: 28%; top: 35%;">$3.45M</div>
+    <div class="price-pin" style="left: 18%; top: 52%;">$2.2M</div>
+    <div class="price-pin" style="left: 45%; top: 28%;">$5.8M</div>
+    <div class="price-pin" style="left: 55%; top: 58%;">$1.9M</div>
+    <div class="price-pin" style="left: 38%; top: 65%;">$4.1M</div>
+    <div class="price-pin" style="left: 67%; top: 42%;">$2.75M</div>
+    <div class="price-pin" style="left: 22%; top: 75%;">$3.8M</div>
+    <div class="price-pin" style="left: 72%; top: 22%;">$6.2M</div>
+
+    <!-- Map watermark -->
+    <div style="position: absolute; bottom: 20px; left: 20px; font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 0.05em;">© Vicinus Map Intelligence</div>
+
+    <!-- Map Controls -->
+    <div class="map-controls">
+      <div class="map-btn">+</div>
+      <div class="map-btn">−</div>
+      <div class="map-btn" style="margin-top: 6px;">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
+      </div>
+    </div>
+
+    <!-- Results count overlay -->
+    <div style="position: absolute; top: 16px; left: 16px; background: white; padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--charcoal); box-shadow: 0 2px 8px rgba(0,0,0,0.2); border-radius: 2px;">
+      246 results found
+    </div>
+  </div>
+
+  <!-- LISTING PANEL -->
+  <div class="listing-panel" style="background: var(--cream);">
+    <!-- Header -->
+    <div class="px-5 py-4" style="border-bottom: 1px solid var(--border); background: white; position: sticky; top: 0; z-index: 5;">
+      <h2 class="playfair text-xl font-semibold mb-0.5" style="color: var(--charcoal);">Vancouver</h2>
+      <p class="text-xs" style="color: var(--muted);">Exclusive curated listings &amp; interior stories.</p>
+    </div>
+
+    <!-- Featured Property -->
+    <div class="prop-card featured">
+      <div class="relative" style="height: 200px; overflow: hidden;">
+        <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+        <span class="absolute top-3 left-3 badge text-white" style="background: var(--forest);">New Enquiry</span>
+        <div class="absolute top-3 right-3 flex gap-2">
+          <div class="icon-action">
+            <svg width="14" height="14" fill="none" stroke="var(--charcoal)" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </div>
+          <div class="icon-action">
+            <svg width="14" height="14" fill="none" stroke="var(--charcoal)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          </div>
+          <div class="icon-action">
+            <svg width="14" height="14" fill="none" stroke="var(--charcoal)" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="p-5">
+        <p class="playfair text-2xl font-semibold mb-1" style="color: var(--charcoal);">$5,825,000</p>
+        <p class="text-sm mb-3" style="color: var(--muted);">1388 Pacific Avenue, San Francisco, CA 9419</p>
+        <div class="flex gap-4 text-xs mb-3" style="color: var(--muted);">
+          <span>4Bd</span><span>·</span><span>3Ba</span><span>·</span><span>4,200 sqft</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold" style="color: var(--gold);">● Intelligent Match 94%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Separator -->
+    <div class="px-5 py-3" style="background: white; border-bottom: 1px solid var(--border);">
+      <p class="text-xs font-semibold" style="color: var(--muted);">The Curator's Choice</p>
+    </div>
+
+    <!-- Featured large card -->
+    <a href="property-detail.html" class="prop-card block">
+      <div class="relative" style="height: 260px; overflow: hidden;">
+        <img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+        <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)"></div>
+        <div class="absolute bottom-4 left-4 right-4">
+          <p class="text-white text-xs font-semibold mb-1 opacity-70">The Glass Pavilion</p>
+          <p class="text-white playfair text-xl font-medium">Experience the luminous transition between indoor-outdoor architecture, a masterpiece in the Pacific NW.</p>
+        </div>
+        <div class="absolute top-3 right-3 flex gap-2">
+          <div class="icon-action">
+            <svg width="14" height="14" fill="none" stroke="var(--charcoal)" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </div>
+          <div class="icon-action">
+            <svg width="14" height="14" fill="none" stroke="var(--charcoal)" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Listing card 1 -->
+    <a href="property-detail.html" class="prop-card block p-4 flex gap-4">
+      <div style="width: 100px; height: 80px; flex-shrink: 0; overflow: hidden; border-radius: 2px;">
+        <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=300&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+      </div>
+      <div class="flex-1">
+        <div class="flex items-start justify-between">
+          <p class="playfair text-base font-semibold" style="color: var(--charcoal);">$2,890,000</p>
+          <span class="badge" style="color: var(--forest); background: rgba(28,56,41,0.08);">Townhouse</span>
+        </div>
+        <p class="text-xs mt-0.5 mb-1.5" style="color: var(--muted);">87 Dunbar Street, Vancouver, BC</p>
+        <div class="flex gap-3 text-xs" style="color: var(--muted);">
+          <span>3 Bed</span><span>·</span><span>2 Bath</span><span>·</span><span>2,100 sqft</span>
+        </div>
+        <p class="text-xs mt-1" style="color: var(--gold);">● Match 88%</p>
+      </div>
+    </a>
+
+    <!-- Listing card 2 -->
+    <a href="property-detail.html" class="prop-card block p-4 flex gap-4">
+      <div style="width: 100px; height: 80px; flex-shrink: 0; overflow: hidden; border-radius: 2px;">
+        <img src="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=300&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+      </div>
+      <div class="flex-1">
+        <div class="flex items-start justify-between">
+          <p class="playfair text-base font-semibold" style="color: var(--charcoal);">$4,450,000</p>
+          <span class="badge" style="color: var(--charcoal); background: rgba(0,0,0,0.06);">House</span>
+        </div>
+        <p class="text-xs mt-0.5 mb-1.5" style="color: var(--muted);">2201 West 35th Ave, Vancouver, BC</p>
+        <div class="flex gap-3 text-xs" style="color: var(--muted);">
+          <span>5 Bed</span><span>·</span><span>4 Bath</span><span>·</span><span>3,850 sqft</span>
+        </div>
+        <p class="text-xs mt-1" style="color: var(--muted);">Open House · Sun 2–4pm</p>
+      </div>
+    </a>
+
+    <!-- Listing card 3 -->
+    <a href="property-detail.html" class="prop-card block p-4 flex gap-4">
+      <div style="width: 100px; height: 80px; flex-shrink: 0; overflow: hidden; border-radius: 2px;">
+        <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=300&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+      </div>
+      <div class="flex-1">
+        <div class="flex items-start justify-between">
+          <p class="playfair text-base font-semibold" style="color: var(--charcoal);">$1,950,000</p>
+          <span class="badge" style="color: var(--forest); background: rgba(28,56,41,0.08);">Condo</span>
+        </div>
+        <p class="text-xs mt-0.5 mb-1.5" style="color: var(--muted);">1188 Richards St #2801, Vancouver, BC</p>
+        <div class="flex gap-3 text-xs" style="color: var(--muted);">
+          <span>2 Bed</span><span>·</span><span>2 Bath</span><span>·</span><span>1,420 sqft</span>
+        </div>
+        <p class="text-xs mt-1" style="color: var(--gold);">● Match 82%</p>
+      </div>
+    </a>
+
+    <!-- Listing card 4 -->
+    <a href="property-detail.html" class="prop-card block p-4 flex gap-4">
+      <div style="width: 100px; height: 80px; flex-shrink: 0; overflow: hidden; border-radius: 2px;">
+        <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=300&q=80&fit=crop" class="w-full h-full object-cover" alt="" />
+      </div>
+      <div class="flex-1">
+        <div class="flex items-start justify-between">
+          <p class="playfair text-base font-semibold" style="color: var(--charcoal);">$7,200,000</p>
+          <span class="badge" style="color: var(--gold); background: rgba(184,151,90,0.1);">Curator's Choice</span>
+        </div>
+        <p class="text-xs mt-0.5 mb-1.5" style="color: var(--muted);">4950 Belmont Ave, Vancouver, BC</p>
+        <div class="flex gap-3 text-xs" style="color: var(--muted);">
+          <span>6 Bed</span><span>·</span><span>6 Bath</span><span>·</span><span>5,900 sqft</span>
+        </div>
+        <p class="text-xs mt-1" style="color: var(--muted);">3 days ago</p>
+      </div>
+    </a>
+
+    <!-- Load more -->
+    <div class="p-5 text-center">
+      <button class="text-sm font-medium border-b pb-0.5" style="background: none; border-top: none; border-left: none; border-right: none; border-bottom: 1px solid var(--forest); color: var(--forest); cursor: pointer;">Load More Results</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

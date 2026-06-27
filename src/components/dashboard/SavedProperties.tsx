@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Bed, Bath, Heart, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react'
+import { Bed, Bath, Heart, ChevronLeft, ChevronRight, Bookmark, Calendar } from 'lucide-react'
 import type { SavedPropertyRecord } from '@/types/dashboard'
 
 const CARDS_PER_PAGE = 3
@@ -60,14 +60,14 @@ function PropertyCard({ record }: CardProps) {
           <div className="flex items-center gap-3 text-xs text-[#6B6B6B]">
             {property.beds != null && (
               <span className="flex items-center gap-1">
-                <Bed size={12} /> {property.beds} bd
+                <Bed size={12} /> {property.beds} Beds
               </span>
             )}
             {property.baths != null && (
               <>
                 <span className="text-[#E8E6E1]">·</span>
                 <span className="flex items-center gap-1">
-                  <Bath size={12} /> {property.baths} ba
+                  <Bath size={12} /> {property.baths} Baths
                 </span>
               </>
             )}
@@ -77,7 +77,8 @@ function PropertyCard({ record }: CardProps) {
 
       {/* Schedule Tour CTA */}
       <div className="px-3.5 pb-3.5">
-        <button className="w-full bg-[#1C3829] text-white text-[11px] font-bold py-2.5 rounded-xl uppercase tracking-widest hover:bg-[#2D5A3D] transition-colors">
+        <button className="w-full bg-[#1C3829] text-white text-[11px] font-bold py-2.5 rounded-xl uppercase tracking-widest hover:bg-[#2D5A3D] transition-colors flex items-center justify-center gap-1.5">
+          <Calendar size={12} />
           Schedule Tour
         </button>
       </div>

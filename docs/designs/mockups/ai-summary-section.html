@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Summary Section — Vicinus Mockup</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --cream: #FAF9F6;
+      --white: #FFFFFF;
+      --forest: #1C3829;
+      --forest-light: rgba(28, 56, 41, 0.07);
+      --gold: #B8975A;
+      --gold-light: rgba(184, 151, 90, 0.10);
+      --blue: #3B6FBF;
+      --blue-light: rgba(59, 111, 191, 0.08);
+      --charcoal: #1E1E1E;
+      --body: #3C3C3C;
+      --muted: #7A7A7A;
+      --border: #E4E1DA;
+      --border-light: #F0EDE8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--cream);
+      font-family: 'Inter', sans-serif;
+      color: var(--body);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Page shell (mockup wrapper only) ── */
+    .page-shell {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 48px 40px 64px;
+    }
+
+    .mockup-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* ── Section wrapper ── */
+    .section {
+      border-top: 1px solid var(--border);
+      padding-top: 40px;
+    }
+
+    /* ── Context strip ── */
+    .context-strip {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 36px;
+      overflow: hidden;
+    }
+
+    .context-cell {
+      flex: 1;
+      min-width: 0;
+      padding: 16px 22px;
+      border-right: 1px solid var(--border-light);
+    }
+
+    .context-cell:first-child { flex: 1.6; }
+    .context-cell:last-child  { border-right: none; }
+
+    .context-cell-label {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+
+    .context-cell-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--charcoal);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .section-header-left { display: flex; flex-direction: column; gap: 0; }
+
+    .gold-rule {
+      width: 24px;
+      height: 1.5px;
+      background: var(--gold);
+      margin-bottom: 10px;
+      border-radius: 2px;
+    }
+
+    .section-eyebrow {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 500;
+      color: var(--charcoal);
+      line-height: 1.2;
+    }
+
+    .section-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-top: 4px;
+      flex-shrink: 0;
+    }
+
+    /* ── AI badge ── */
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 13px;
+      letter-spacing: 0.02em;
+    }
+
+    .ai-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      flex-shrink: 0;
+      animation: breathe 2.4s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* ── Regen button ── */
+    .btn-regen {
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      letter-spacing: 0.01em;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .btn-regen:hover { border-color: var(--charcoal); color: var(--charcoal); }
+
+    .btn-regen-icon { font-size: 13px; }
+
+    /* ── Card grid ── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-top: 3px solid;
+      border-radius: 6px;
+      padding: 28px 26px 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card--forest { border-top-color: var(--forest); }
+    .card--gold   { border-top-color: var(--gold); }
+    .card--blue   { border-top-color: var(--blue); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 16px;
+      min-height: 28px;
+    }
+
+    .card-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .card-icon--forest { background: var(--forest-light); }
+    .card-icon--gold   { background: var(--gold-light); }
+    .card-icon--blue   { background: var(--blue-light); }
+
+    .card-icon svg { display: block; }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .card-body {
+      font-size: 13.5px;
+      line-height: 1.85;
+      color: var(--body);
+      flex: 1;
+      margin-bottom: 18px;
+    }
+
+    /* ── Chips ── */
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    .chip--forest { background: var(--forest-light); color: var(--forest); }
+    .chip--gold   { background: var(--gold-light);   color: #7a5e20; }
+    .chip--blue   { background: var(--blue-light);   color: var(--blue); }
+
+    /* ── Disclaimer ── */
+    .disclaimer {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.65;
+      padding-top: 2px;
+    }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+
+  <p class="mockup-label">Property detail page — AI summary section (below specs bar)</p>
+
+  <div class="section">
+
+    <!-- Context strip -->
+    <div class="context-strip">
+      <div class="context-cell">
+        <div class="context-cell-label">Address</div>
+        <div class="context-cell-value">42 Obsidian Way, Kitsilano</div>
+      </div>
+      <div class="context-cell">
+        <div class="context-cell-label">List price</div>
+        <div class="context-cell-value">$2,350,000</div>
+      </div>
+      <div class="context-cell">
+        <div class="context-cell-label">Property type</div>
+        <div class="context-cell-value">Townhouse · 1,587 sqft</div>
+      </div>
+      <div class="context-cell">
+        <div class="context-cell-label">Neighbourhood</div>
+        <div class="context-cell-value">Kitsilano, Vancouver</div>
+      </div>
+    </div>
+
+    <!-- Section header -->
+    <div class="section-header">
+      <div class="section-header-left">
+        <div class="gold-rule"></div>
+        <p class="section-eyebrow">Vicinus Intelligence</p>
+        <h2 class="section-title">Property Intelligence Summary</h2>
+      </div>
+      <div class="section-header-right">
+        <span class="ai-badge">
+          <span class="ai-dot"></span>
+          AI-generated · Claude
+        </span>
+        <button class="btn-regen">
+          <span class="btn-regen-icon">↻</span> Regenerate
+        </button>
+      </div>
+    </div>
+
+    <!-- Three cards -->
+    <div class="card-grid">
+
+      <!-- Property overview -->
+      <div class="card card--forest">
+        <div class="card-header">
+          <div class="card-icon card-icon--forest">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 14V7.5L8 2l7 5.5V14a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1Z" stroke="#1C3829" stroke-width="1.4" stroke-linejoin="round"/>
+              <path d="M6 15v-5h4v5" stroke="#1C3829" stroke-width="1.4" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="card-title">Property overview</span>
+        </div>
+        <p class="card-body">A rare west-facing corner townhouse on one of Kitsilano's most coveted streets. The 2019 build delivers thoughtful Pacific Northwest architecture — wide-plank hardwood, European appliances, and a private rooftop deck with unobstructed mountain views. Impeccably maintained, with no deferred work. A turnkey offering at a meaningful premium to the neighbourhood median.</p>
+        <div class="chip-row">
+          <span class="chip chip--forest">Turnkey condition</span>
+          <span class="chip chip--forest">2019 build</span>
+          <span class="chip chip--forest">Mountain views</span>
+        </div>
+      </div>
+
+      <!-- Investment angle -->
+      <div class="card card--gold">
+        <div class="card-header">
+          <div class="card-icon card-icon--gold">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polyline points="1,12 5,7 9,9 15,2" stroke="#B8975A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="11,2 15,2 15,6" stroke="#B8975A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="card-title">Investment angle</span>
+        </div>
+        <p class="card-body">Listed at $1,481/sqft — a 31% premium over the Kitsilano median of $1,130/sqft — but comparable townhouses in this condition have held their premium well. The neighbourhood has appreciated 14.2% year-over-year, outpacing greater Vancouver by 2.8pp. With inventory constrained and rate cycles peaking, high-quality product in this tier has shown limited downside risk.</p>
+        <div class="chip-row">
+          <span class="chip chip--gold">+14.2% YoY</span>
+          <span class="chip chip--gold">14d avg on market</span>
+          <span class="chip chip--gold">Low supply risk</span>
+        </div>
+      </div>
+
+      <!-- Lifestyle fit -->
+      <div class="card card--blue">
+        <div class="card-header">
+          <div class="card-icon card-icon--blue">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="8" cy="7" r="5" stroke="#3B6FBF" stroke-width="1.4"/>
+              <path d="M8 2C8 2 5 5 5 7a3 3 0 0 0 6 0c0-2-3-5-3-5Z" stroke="#3B6FBF" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M3 13c1.2-1.2 3-2 5-2s3.8.8 5 2" stroke="#3B6FBF" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <span class="card-title">Lifestyle fit</span>
+        </div>
+        <p class="card-body">Kitsilano is Vancouver's most liveable inner-city neighbourhood for active, design-conscious households. Walk Score 92, with Choices Market, JJ Bean, and Tatlow Park all within five minutes on foot. Best suited to a buyer who values proximity over space — the 1,587 sqft is architecturally efficient, but the density trade-off delivers daily lifestyle quality that few Canadian cities can match.</p>
+        <div class="chip-row">
+          <span class="chip chip--blue">Walk Score 92</span>
+          <span class="chip chip--blue">Top-rated schools</span>
+          <span class="chip chip--blue">Beach access</span>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="disclaimer">Generated by Vicinus AI using property data, market comparables, and neighbourhood intelligence. Not financial or legal advice — always verify with a licensed real estate professional.</p>
+
+  </div>
+</div>
+</body>
+</html>

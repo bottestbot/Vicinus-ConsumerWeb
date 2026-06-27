@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -149,6 +150,8 @@ model Neighbourhood {
   livingGrade  String?
   videoUrl     String?
   photos       Json?
+  lat          Float?
+  lng          Float?
   createdAt    DateTime @default(now())
 
   properties      Property[]

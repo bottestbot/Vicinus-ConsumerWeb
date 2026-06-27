@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Search, MapPin, ChevronRight, Bed, Bath, Square } from 'lucide-react'
+import { ChevronRight, Bed, Bath, Square } from 'lucide-react'
 import HomeNavbar from '@/components/landing/HomeNavbar'
+import HeroSearchBar from '@/components/landing/HeroSearchBar'
 import Footer from '@/components/layout/Footer'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
+import { getFeaturedProperties, type FeaturedProperty } from '@/lib/api/properties'
 import { formatPrice } from '@/types/search'
 import type { Neighbourhood } from '@/types/neighbourhood'
 
@@ -14,60 +16,22 @@ export const metadata: Metadata = {
     "Beyond data. The Vicinus standard — intelligent curation of Canada's finest properties.",
 }
 
-// ── Mock curated highlights ───────────────────────────────────────────────────
-const CURATED_HIGHLIGHTS = [
-  {
-    id: '1',
-    badge: 'New Editorial',
-    name: 'The Solarium House',
-    location: 'Palm Springs, CA',
-    price: 4_250_000,
-    beds: 4,
-    baths: 5,
-    sqft: 4_800,
-    image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80',
-    href: '/properties/1',
-  },
-  {
-    id: '2',
-    badge: 'New Editorial',
-    name: 'Misty Ridge Estate',
-    location: 'Aspen, CO',
-    price: 8_900_000,
-    beds: 6,
-    baths: 8,
-    sqft: 7_200,
-    image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&q=80',
-    href: '/properties/2',
-  },
-  {
-    id: '3',
-    badge: 'New Editorial',
-    name: 'Vertical Garden Loft',
-    location: 'Chelsea, NY',
-    price: 5_150_000,
-    beds: 3,
-    baths: 3,
-    sqft: 3_100,
-    image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
-    href: '/properties/3',
-  },
-]
-
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function PropertyCard({ p }: { p: (typeof CURATED_HIGHLIGHTS)[0] }) {
+function PropertyCard({ p }: { p: FeaturedProperty }) {
   return (
     <Link href={p.href} className="group shrink-0 w-72 sm:w-auto">
       <article className="bg-white rounded-2xl overflow-hidden border border-[#E8E6E1] hover:shadow-lg transition-shadow">
         <div className="relative h-52 overflow-hidden bg-[#F2F0EB]">
-          <Image
-            src={p.image}
-            alt={p.name}
-            fill
-            sizes="288px"
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-          />
+          {p.image && (
+            <Image
+              src={p.image}
+              alt={p.name}
+              fill
+              sizes="288px"
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          )}
           <div className="absolute top-3 left-3">
             <span className="bg-[#1C3829] text-white text-[10px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider">
               {p.badge}
@@ -76,23 +40,25 @@ function PropertyCard({ p }: { p: (typeof CURATED_HIGHLIGHTS)[0] }) {
         </div>
         <div className="p-4">
           <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="font-heading text-base font-semibold text-[#111111] leading-tight">
+            <p className="font-heading text-base font-semibold text-[#111111] leading-tight truncate">
               {p.name}
             </p>
-            <p className="font-semibold text-[#111111] text-sm shrink-0">
-              {formatPrice(p.price)}
-            </p>
+            {p.price != null && (
+              <p className="font-semibold text-[#111111] text-sm shrink-0">
+                {formatPrice(p.price)}
+              </p>
+            )}
           </div>
           <p className="text-[#6B6B6B] text-xs mb-3">{p.location}</p>
           <div className="flex items-center gap-3 text-xs text-[#6B6B6B]">
             <span className="flex items-center gap-1">
-              <Bed size={12} /> {p.beds} Beds
+              <Bed size={12} /> {p.beds ?? '—'} Beds
             </span>
             <span className="flex items-center gap-1">
-              <Bath size={12} /> {p.baths} Baths
+              <Bath size={12} /> {p.baths ?? '—'} Baths
             </span>
             <span className="flex items-center gap-1">
-              <Square size={12} /> {p.sqft.toLocaleString()} sqft
+              <Square size={12} /> {p.sqft != null ? p.sqft.toLocaleString() : '—'} sqft
             </span>
           </div>
         </div>
@@ -140,7 +106,10 @@ function NeighbourhoodCard({ n }: { n: Neighbourhood }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function LandingPage() {
-  const neighbourhoods = await getNeighbourhoods()
+  const [neighbourhoods, highlights] = await Promise.all([
+    getNeighbourhoods(),
+    getFeaturedProperties(),
+  ])
   const featured = neighbourhoods.slice(0, 3)
 
   return (
@@ -169,39 +138,7 @@ export default async function LandingPage() {
           </h1>
 
           {/* Search bar */}
-          <form
-            action="/search"
-            method="GET"
-            className="flex flex-col sm:flex-row gap-2 w-full max-w-2xl mx-auto"
-          >
-            <div className="flex-1 flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-xl px-4 py-3">
-              <MapPin size={16} className="text-[#9B9B9B] shrink-0" />
-              <input
-                name="q"
-                type="text"
-                placeholder="Neighbourhood, City, or ZIP"
-                className="flex-1 text-sm text-[#111111] placeholder-[#9B9B9B] bg-transparent focus:outline-none"
-              />
-            </div>
-            <select
-              name="priceRange"
-              className="sm:w-40 px-4 py-3 bg-white/95 backdrop-blur-sm rounded-xl text-sm text-[#6B6B6B] focus:outline-none cursor-pointer"
-              defaultValue=""
-            >
-              <option value="">Price Range</option>
-              <option value="0-1000000">Under $1M</option>
-              <option value="1000000-2000000">$1M – $2M</option>
-              <option value="2000000-5000000">$2M – $5M</option>
-              <option value="5000000-">$5M+</option>
-            </select>
-            <button
-              type="submit"
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-[#1C3829] text-white text-sm font-semibold rounded-xl hover:bg-[#2D5A3D] transition-colors shrink-0"
-            >
-              <Search size={16} />
-              Discover
-            </button>
-          </form>
+          <HeroSearchBar />
         </div>
 
         {/* Scroll hint */}
@@ -258,35 +195,37 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Curated Highlights ────────────────────────────────────────────── */}
-      <section className="pb-20 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <p className="text-[11px] font-semibold text-[#1C3829] uppercase tracking-widest mb-2">
-                Hand-picked
-              </p>
-              <h2 className="font-heading text-3xl font-bold text-[#111111]">
-                Curated Highlights
-              </h2>
-              <p className="text-[#6B6B6B] text-sm mt-1">
-                Active, intelligently-vetted opportunities.
-              </p>
+      {highlights.length > 0 && (
+        <section className="pb-20 px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <p className="text-[11px] font-semibold text-[#1C3829] uppercase tracking-widest mb-2">
+                  Hand-picked
+                </p>
+                <h2 className="font-heading text-3xl font-bold text-[#111111]">
+                  Curated Highlights
+                </h2>
+                <p className="text-[#6B6B6B] text-sm mt-1">
+                  Active, intelligently-vetted opportunities.
+                </p>
+              </div>
+              <Link
+                href="/search"
+                className="hidden sm:flex items-center gap-1 text-sm text-[#6B6B6B] hover:text-[#111111] transition-colors"
+              >
+                View all <ChevronRight size={14} />
+              </Link>
             </div>
-            <Link
-              href="/search"
-              className="hidden sm:flex items-center gap-1 text-sm text-[#6B6B6B] hover:text-[#111111] transition-colors"
-            >
-              View all <ChevronRight size={14} />
-            </Link>
-          </div>
 
-          <div className="flex sm:grid sm:grid-cols-3 gap-5 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 -mx-6 px-6 sm:mx-0 sm:px-0">
-            {CURATED_HIGHLIGHTS.map((p) => (
-              <PropertyCard key={p.id} p={p} />
-            ))}
+            <div className="flex sm:grid sm:grid-cols-3 gap-5 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 -mx-6 px-6 sm:mx-0 sm:px-0">
+              {highlights.slice(0, 3).map((p) => (
+                <PropertyCard key={p.id} p={p} />
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Contextual Living ─────────────────────────────────────────────── */}
       {featured.length > 0 && (

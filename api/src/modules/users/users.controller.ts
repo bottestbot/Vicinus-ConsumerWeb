@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
@@ -72,6 +72,23 @@ export class UsersController {
   @ApiOperation({ summary: 'Delete a saved search' })
   deleteSavedSearch(@CurrentUser() clerkId: string, @Param('id') id: string) {
     return this.users.deleteSavedSearch(clerkId, id)
+  }
+
+  // ─── Onboarding ──────────────────────────────────────────────────────────
+
+  @Post('me/ping')
+  @ApiOperation({ summary: 'Record a login and return whether to show onboarding' })
+  ping(@CurrentUser() clerkId: string) {
+    return this.users.ping(clerkId)
+  }
+
+  @Patch('me/onboarding')
+  @ApiOperation({ summary: 'Save onboarding step data or mark as completed' })
+  updateOnboarding(
+    @CurrentUser() clerkId: string,
+    @Body() body: { stepData?: Record<string, unknown>; completed?: boolean },
+  ) {
+    return this.users.updateOnboarding(clerkId, body)
   }
 
   // ─── Dashboard ───────────────────────────────────────────────────────────

@@ -31,6 +31,8 @@ export class NeighbourhoodsService {
         transitScore: true,
         livingGrade: true,
         photos: true,
+        lat: true,
+        lng: true,
       },
       orderBy: { name: 'asc' },
     })
@@ -60,6 +62,8 @@ export class NeighbourhoodsService {
         transitScore: true,
         livingGrade: true,
         photos: true,
+        lat: true,
+        lng: true,
       },
     })
 
@@ -201,8 +205,10 @@ export interface NeighbourhoodSummary {
   walkScore: number | null
   transitScore: number | null
   schoolGrade: string | null
-  heroImageUrl: null
+  heroImageUrl: string | null
   photos: string[]
+  lat: number | null
+  lng: number | null
 }
 
 export interface ListingSummary {
@@ -246,7 +252,10 @@ function toSummary(row: {
   transitScore: number | null
   livingGrade: string | null
   photos?: Prisma.JsonValue
+  lat?: number | null
+  lng?: number | null
 }): NeighbourhoodSummary {
+  const photos = Array.isArray(row.photos) ? (row.photos as string[]) : []
   return {
     id: row.id,
     slug: row.slug,
@@ -258,8 +267,10 @@ function toSummary(row: {
     walkScore: row.walkScore,
     transitScore: row.transitScore,
     schoolGrade: row.livingGrade,
-    heroImageUrl: null,
-    photos: Array.isArray(row.photos) ? (row.photos as string[]) : [],
+    heroImageUrl: photos[0] ?? null,
+    photos,
+    lat: row.lat ?? null,
+    lng: row.lng ?? null,
   }
 }
 

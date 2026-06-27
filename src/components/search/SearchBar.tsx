@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Search, X, MapPin, Building2, Home, Navigation } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
-import { MOCK_AUTOCOMPLETE } from '@/types/search'
+import { getAutocomplete } from '@/lib/api/search'
 import type { AutocompleteSuggestion } from '@/types/search'
 
 const TYPE_ICONS = {
@@ -32,21 +32,37 @@ export default function SearchBar({
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Filter suggestions from mock data (swap for real API in prod)
+  // Debounced live autocomplete from the BE (cities + seeded neighbourhoods).
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reqIdRef = useRef(0)
+
   const fetchSuggestions = useCallback((value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
     if (!value.trim()) {
       setSuggestions([])
       setIsOpen(false)
       return
     }
-    const filtered = MOCK_AUTOCOMPLETE.filter(
-      (s) =>
-        s.label.toLowerCase().includes(value.toLowerCase()) ||
-        s.subtitle?.toLowerCase().includes(value.toLowerCase())
-    ).slice(0, 6)
-    setSuggestions(filtered)
-    setIsOpen(filtered.length > 0)
-    setActiveIndex(-1)
+    const reqId = ++reqIdRef.current
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await getAutocomplete(value)
+        // Ignore out-of-order responses from earlier keystrokes.
+        if (reqId !== reqIdRef.current) return
+        const data = (res.data ?? []) as AutocompleteSuggestion[]
+        setSuggestions(data)
+        setIsOpen(data.length > 0)
+        setActiveIndex(-1)
+      } catch {
+        if (reqId !== reqIdRef.current) return
+        setSuggestions([])
+        setIsOpen(false)
+      }
+    }, 180)
+  }, [])
+
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,6 +116,13 @@ export default function SearchBar({
     setIsOpen(false)
     inputRef.current?.focus()
   }
+
+  // Reflect external store changes (e.g. URL hydration) into the input box.
+  // `query` only changes on submit/select — not per keystroke — so this won't
+  // clobber in-progress typing.
+  useEffect(() => {
+    setInputValue(query)
+  }, [query])
 
   // Close on outside click
   useEffect(() => {

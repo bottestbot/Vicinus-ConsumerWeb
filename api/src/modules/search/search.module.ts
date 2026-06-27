@@ -15,6 +15,6 @@ import { DdfQueryService } from '../ddf-sync/ddf-query.service'
    * inject AlgoliaService into DdfPropertySync (BE-303).
    * SearchService is exported for any future inter-module consumers.
    */
-  exports: [SearchService, AlgoliaService],
+  exports: [SearchService, AlgoliaService, DdfQueryService],
 })
 export class SearchModule {}

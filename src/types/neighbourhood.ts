@@ -12,6 +12,8 @@ export interface Neighbourhood {
   walkScore?: number
   transitScore?: number
   schoolGrade?: string
+  lat?: number
+  lng?: number
 }
 
 export interface Essential {

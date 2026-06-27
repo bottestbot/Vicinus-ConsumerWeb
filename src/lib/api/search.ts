@@ -12,6 +12,8 @@ export interface SearchParams {
   /** Comma-separated property sub-types, e.g. "Single Family,Condo" */
   propertyType?: string
   status?: string
+  /** "For Sale" | "For Rent" — distinguishes sale vs lease listings */
+  listingType?: string
   minSqft?: number
   maxSqft?: number
   yearBuiltMin?: number
@@ -24,8 +26,8 @@ export interface SearchParams {
 export const searchProperties = (params: SearchParams) =>
   apiClient.get('/search', { params })
 
-export const getMapPins = (bbox: string) =>
-  apiClient.get('/search/map-pins', { params: { bbox } })
+export const getMapPins = (params: SearchParams) =>
+  apiClient.get('/search/map-pins', { params })
 
 export const saveSearch = (body: {
   name: string

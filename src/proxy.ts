@@ -5,12 +5,17 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/search(.*)',
+  '/feed(.*)',
   '/properties/(.*)',
   '/neighbourhoods(.*)',
+  '/sell(.*)',
   '/dashboard(.*)',
+  '/onboarding(.*)',
 ])
 
-export default clerkMiddleware(async (auth, request) => {
+// Next.js 16 uses "proxy.ts" instead of "middleware.ts".
+// Named export "proxy" is the required convention.
+export const proxy = clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
     await auth.protect()
   }

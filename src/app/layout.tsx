@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Playfair_Display } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import QueryProvider from '@/components/providers/QueryProvider'
+import LocationProvider from '@/components/providers/LocationProvider'
 import './globals.css'
 
 const inter = Inter({
@@ -31,10 +32,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+    >
       <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
         <body className="font-sans">
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <LocationProvider />
+            {children}
+          </QueryProvider>
         </body>
       </html>
     </ClerkProvider>

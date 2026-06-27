@@ -7,6 +7,14 @@ import { PropertiesService } from './properties.service'
 export class PropertiesController {
   constructor(private readonly properties: PropertiesService) {}
 
+  // ── BE-H ────────────────────────────────────────────────────────────────
+  // Static route declared before ':id' so "featured" isn't captured as an id.
+  @Get('featured')
+  @ApiOperation({ summary: 'Curated highlight listings for the landing page (curator picks, else top active)' })
+  featured() {
+    return this.properties.getFeatured()
+  }
+
   // ── BE-401 ──────────────────────────────────────────────────────────────
   @Get(':id')
   @ApiOperation({ summary: 'Full property detail (agent, office, neighbourhood, open houses)' })

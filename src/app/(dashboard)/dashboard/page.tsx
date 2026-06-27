@@ -6,7 +6,7 @@ import type { DashboardData } from '@/types/dashboard'
 import DashboardNavbar from '@/components/dashboard/DashboardNavbar'
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner'
 import FeaturedProperty from '@/components/dashboard/FeaturedProperty'
-import IntelligencePanel from '@/components/dashboard/IntelligencePanel'
+import NotificationsPanel from '@/components/dashboard/NotificationsPanel'
 import SavedProperties from '@/components/dashboard/SavedProperties'
 import VisitedProperties from '@/components/dashboard/VisitedProperties'
 import EditorialCurations from '@/components/dashboard/EditorialCurations'
@@ -43,6 +43,30 @@ export default async function DashboardPage() {
   }
 
   const token = await getToken()
+
+  // Ping session — increments loginCount and checks if onboarding is needed.
+  // NOTE: redirect() throws internally, so it must live outside any try/catch.
+  if (token) {
+    let showOnboarding = false
+    try {
+      const pingRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001'}/users/me/ping`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }
+      )
+      if (pingRes.ok) {
+        const body = (await pingRes.json()) as { showOnboarding: boolean }
+        showOnboarding = body.showOnboarding
+      }
+    } catch {
+      // Never block dashboard load if ping fails
+    }
+    if (showOnboarding) redirect('/onboarding')
+  }
+
   const data = token ? await fetchDashboard(token) : null
 
   // Fallback data when API is unavailable
@@ -78,7 +102,7 @@ export default async function DashboardPage() {
             )}
           </div>
           <div className="lg:col-span-1">
-            <IntelligencePanel />
+            <NotificationsPanel />
           </div>
         </div>
 

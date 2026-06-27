@@ -4,6 +4,31 @@ import type { OpenHouseProperty, PropertyDetail, PropertyFactsDetails } from '@/
 export const getProperty = (id: string) => apiClient.get(`/properties/${id}`)
 export const getProperties = (params?: Record<string, unknown>) => apiClient.get('/properties', { params })
 
+// ─── AI Property Summary ──────────────────────────────────────────────────────
+
+export interface PropertySummarySection {
+  summary: string
+  bullets?: string[]
+  chips: string[]
+}
+
+export interface PropertySummaryData {
+  propertyOverview: PropertySummarySection
+  lifestyleFit: PropertySummarySection
+}
+
+export async function getPropertyAiSummary(id: string): Promise<PropertySummaryData | null> {
+  try {
+    const res = await fetch(`${API_BASE}/ai/property-summary/${encodeURIComponent(id)}`, {
+      next: { revalidate: 14400 }, // 4 hours — matches BE cache TTL
+    })
+    if (!res.ok) return null
+    return (await res.json()) as PropertySummaryData
+  } catch {
+    return null
+  }
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'
 
 // ─── Live DDF listing detail ──────────────────────────────────────────────────
@@ -62,7 +87,8 @@ function daysSince(iso: string | null | undefined): number {
 }
 
 function toPropertyDetail(l: ApiListing): PropertyDetail {
-  const price = l.price ?? 0
+  // Rentals carry leaseAmount instead of price — fall back so rent shows.
+  const price = l.price ?? l.leaseAmount ?? 0
   const sqft = l.sqft ?? 0
   const allowedStatus = ['Active', 'Sold', 'Coming Soon', 'Open House'] as const
   const status = (allowedStatus.includes(l.status as never) ? l.status : 'Active') as PropertyDetail['status']
@@ -111,6 +137,64 @@ export async function getPropertyDetail(id: string): Promise<PropertyDetail | nu
     const data = (await res.json()) as ApiListing
     if (!data || !data.id) return null
     return toPropertyDetail(data)
+  } catch {
+    return null
+  }
+}
+
+// ─── Featured highlights (BE-H) ───────────────────────────────────────────────
+
+export interface FeaturedProperty {
+  id: string
+  name: string
+  location: string
+  price: number | null
+  beds: number | null
+  baths: number | null
+  sqft: number | null
+  image: string | null
+  badge: string
+  href: string
+}
+
+/** Real curated highlight listings for the landing page. Returns [] on miss. */
+export async function getFeaturedProperties(): Promise<FeaturedProperty[]> {
+  try {
+    const res = await fetch(`${API_BASE}/properties/featured`, { next: { revalidate: 600 } })
+    if (!res.ok) return []
+    const data = (await res.json()) as FeaturedProperty[]
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+
+// ─── Market context (BE-G) ────────────────────────────────────────────────────
+
+export interface MarketContextData {
+  daysOnMarket: number | null
+  medianDaysOnMarket: number | null
+  price: number | null
+  pricePerSqft: number | null
+  medianPrice: number | null
+  medianPricePerSqft: number | null
+  pricePosition: 'above_market' | 'at_market' | 'below_market' | null
+  demandLevel: 'high' | 'medium' | 'low' | null
+  totalActiveListingsInCity: number
+}
+
+/**
+ * Real market context for a listing — median price/$ per sqft/days-on-market
+ * computed from live active comparables in the same city. Returns null on miss
+ * so the component can fall back to subject-only display.
+ */
+export async function getMarketContext(id: string): Promise<MarketContextData | null> {
+  try {
+    const res = await fetch(`${API_BASE}/properties/${encodeURIComponent(id)}/market-context`, {
+      next: { revalidate: 300 },
+    })
+    if (!res.ok) return null
+    return (await res.json()) as MarketContextData
   } catch {
     return null
   }

@@ -49,6 +49,16 @@ export interface NearbyOpenHouse {
   brokerageName: string
 }
 
+/**
+ * DDF `PropertySubType` values that count as residential. The CREA DDF feed
+ * mixes commercial/land listings (Office, Retail, Industrial, Vacant Land, …)
+ * into the same Property resource; this consumer app only surfaces residential
+ * inventory. Condos and townhouses are represented as "Single Family" in DDF
+ * (the dwelling style lives in a separate field), so this short list covers all
+ * residential stock.
+ */
+const RESIDENTIAL_SUBTYPES = ['Single Family', 'Multi-family', 'Recreational']
+
 @Injectable()
 export class DdfQueryService {
   private readonly logger = new Logger(DdfQueryService.name)
@@ -59,11 +69,21 @@ export class DdfQueryService {
     private config: ConfigService,
   ) {}
 
-  async searchProperties(dto: SearchQueryDto, skip: number, limit: number): Promise<SearchResult> {
-    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
-
+  /**
+   * Build the shared OData `$filter` parts from a search DTO. Used by both the
+   * paginated list search and the map-pin query so the map always reflects the
+   * same filters as the list.
+   */
+  private buildFilterParts(dto: SearchQueryDto): string[] {
     const filterParts: string[] = ['InternetEntireListingDisplayYN eq true']
     filterParts.push(`StandardStatus eq '${this.sanitize(dto.status ?? 'Active')}'`)
+
+    // Sale vs lease: rentals carry a LeaseAmount, sales do not.
+    if (dto.listingType === 'For Rent') {
+      filterParts.push('LeaseAmount ne null')
+    } else if (dto.listingType === 'For Sale') {
+      filterParts.push('LeaseAmount eq null')
+    }
 
     if (dto.city) {
       // DDF OData does not support tolower() — match on canonical (title) case
@@ -76,8 +96,11 @@ export class DdfQueryService {
         `StateOrProvince eq '${this.sanitize(this.normalizeProvince(dto.province))}'`,
       )
     }
-    if (dto.minPrice !== undefined) filterParts.push(`ListPrice ge ${dto.minPrice}`)
-    if (dto.maxPrice !== undefined) filterParts.push(`ListPrice le ${dto.maxPrice}`)
+
+    // For rentals, LeaseAmount holds the asking price; for sales it's ListPrice.
+    const priceField = dto.listingType === 'For Rent' ? 'LeaseAmount' : 'ListPrice'
+    if (dto.minPrice !== undefined) filterParts.push(`${priceField} ge ${dto.minPrice}`)
+    if (dto.maxPrice !== undefined) filterParts.push(`${priceField} le ${dto.maxPrice}`)
     if (dto.beds !== undefined) filterParts.push(`BedroomsTotal ge ${dto.beds}`)
     if (dto.baths !== undefined) filterParts.push(`BathroomsTotalInteger ge ${dto.baths}`)
     if (dto.minSqft !== undefined) filterParts.push(`LivingArea ge ${dto.minSqft}`)
@@ -85,18 +108,23 @@ export class DdfQueryService {
     if (dto.yearBuiltMin !== undefined) filterParts.push(`YearBuilt ge ${dto.yearBuiltMin}`)
     if (dto.parkingMin !== undefined) filterParts.push(`ParkingTotal ge ${dto.parkingMin}`)
 
-    if (dto.propertyType) {
-      const types = dto.propertyType
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean)
-      if (types.length === 1) {
-        filterParts.push(`PropertySubType eq '${this.sanitize(types[0])}'`)
-      } else if (types.length > 1) {
-        const typeFilter = types.map((t) => `PropertySubType eq '${this.sanitize(t)}'`).join(' or ')
-        filterParts.push(`(${typeFilter})`)
-      }
-    }
+    // Restrict to residential stock. When the user has picked explicit
+    // sub-types, intersect their choice with the residential whitelist;
+    // otherwise constrain to the whitelist so commercial/land never leaks in.
+    const requested = (dto.propertyType ?? '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
+    const subtypes = requested.length > 0
+      ? requested.filter((t) => RESIDENTIAL_SUBTYPES.includes(t))
+      : RESIDENTIAL_SUBTYPES
+    // If the request asked only for non-residential types, fall back to the
+    // residential whitelist rather than returning an impossible filter.
+    const effective = subtypes.length > 0 ? subtypes : RESIDENTIAL_SUBTYPES
+    const typeFilter = effective
+      .map((t) => `PropertySubType eq '${this.sanitize(t)}'`)
+      .join(' or ')
+    filterParts.push(`(${typeFilter})`)
 
     if (dto.bbox) {
       const coords = this.parseBbox(dto.bbox)
@@ -118,7 +146,13 @@ export class DdfQueryService {
       )
     }
 
-    const filter = filterParts.join(' and ')
+    return filterParts
+  }
+
+  async searchProperties(dto: SearchQueryDto, skip: number, limit: number): Promise<SearchResult> {
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
+
+    const filter = this.buildFilterParts(dto).join(' and ')
     const url =
       `${baseUrl}/Property` +
       `?$top=${limit}` +
@@ -148,40 +182,55 @@ export class DdfQueryService {
     }
   }
 
-  async getMapPins(bbox: string): Promise<MapPin[]> {
-    const coords = this.parseBbox(bbox)
-    if (!coords) return []
+  async getMapPins(dto: SearchQueryDto): Promise<MapPin[]> {
+    if (!dto.bbox || !this.parseBbox(dto.bbox)) return []
 
-    const { west, south, east, north } = coords
     const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
 
-    const filter =
-      `InternetEntireListingDisplayYN eq true` +
-      ` and StandardStatus eq 'Active'` +
-      ` and Latitude ge ${south} and Latitude le ${north}` +
-      ` and Longitude ge ${west} and Longitude le ${east}`
+    // Reuse the list search's filter builder so the map reflects the same
+    // filters (price, beds, sale/rent, residential restriction, …) as the list.
+    const filter = this.buildFilterParts(dto).join(' and ')
 
-    const url =
-      `${baseUrl}/Property` +
-      `?$top=500` +
-      `&$filter=${encodeURIComponent(filter)}` +
-      `&$select=ListingKey,Latitude,Longitude,ListPrice`
+    // DDF caps $top at 100 — page through to gather up to 500 viewport pins.
+    const PAGE = 100
+    const MAX_PINS = 500
 
     try {
       const token = await this.auth.getToken()
-      const response = await firstValueFrom(
-        this.http.get(url, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-        }),
-      )
+      const pins: MapPin[] = []
 
-      const properties = (response.data.value as Record<string, unknown>[]) ?? []
-      return properties.map((p) => ({
-        id: String(p['ListingKey']),
-        lat: (p['Latitude'] as number | null) ?? null,
-        lng: (p['Longitude'] as number | null) ?? null,
-        price: (p['ListPrice'] as number | null) ?? null,
-      }))
+      for (let skip = 0; skip < MAX_PINS; skip += PAGE) {
+        const url =
+          `${baseUrl}/Property` +
+          `?$top=${PAGE}` +
+          `&$skip=${skip}` +
+          `&$filter=${encodeURIComponent(filter)}` +
+          `&$select=ListingKey,Latitude,Longitude,ListPrice,LeaseAmount`
+
+        const response = await firstValueFrom(
+          this.http.get(url, {
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          }),
+        )
+
+        const rows = (response.data.value as Record<string, unknown>[]) ?? []
+        for (const p of rows) {
+          pins.push({
+            id: String(p['ListingKey']),
+            lat: (p['Latitude'] as number | null) ?? null,
+            lng: (p['Longitude'] as number | null) ?? null,
+            // Rentals carry LeaseAmount instead of ListPrice — fall back so the
+            // pin shows the rent rather than an empty/zero price.
+            price:
+              (p['ListPrice'] as number | null) ??
+              (p['LeaseAmount'] as number | null) ??
+              null,
+          })
+        }
+        if (rows.length < PAGE) break // last page reached
+      }
+
+      return pins
     } catch (err) {
       const body = (err as { response?: { data?: unknown } }).response?.data
       this.logger.error(`DDF map-pins failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`)
@@ -298,6 +347,8 @@ export class DdfQueryService {
       lng: (p['Longitude'] as number | null) ?? null,
       description: (p['PublicRemarks'] as string | null) ?? null,
       images: media.map((m) => ({ url: m['MediaURL'], order: m['Order'], isPrimary: m['PreferredPhotoYN'] })),
+      virtualTourUrl: (p['VirtualTourURLBranded'] as string | null) ?? (p['VirtualTourURLUnbranded'] as string | null) ?? null,
+      youtubeUrl: this.extractYoutubeUrl(media),
       photosCount: (p['PhotosCount'] as number | null) ?? null,
       taxAnnual: (p['TaxAnnualAmount'] as number | null) ?? null,
       taxYear: (p['TaxYear'] as number | null) ?? null,
@@ -621,6 +672,18 @@ export class DdfQueryService {
     }
     const [west, south, east, north] = parts
     return { west, south, east, north }
+  }
+
+  /** Extract the first YouTube URL from a Media array (MediaCategory "Video Tour Website"). */
+  private extractYoutubeUrl(media: Record<string, unknown>[]): string | null {
+    for (const m of media) {
+      const cat = (m['MediaCategory'] as string | null) ?? ''
+      const url = (m['MediaURL'] as string | null) ?? ''
+      if (cat === 'Video Tour Website' && /youtu(\.be|be\.com)/i.test(url)) {
+        return url
+      }
+    }
+    return null
   }
 
   /** Escape single quotes to prevent OData filter injection. */
