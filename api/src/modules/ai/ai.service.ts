@@ -8,7 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service'
 const SUMMARY_TTL = 4 * 60 * 60 // 4 hours
 const NEIGHBOURHOOD_SUMMARY_TTL = 24 * 60 * 60 // 24 hours
 
-const NEIGHBOURHOOD_SECTION = {
+const NEIGHBOURHOOD_SECTION: Schema = {
   type: SchemaType.OBJECT,
   properties: {
     heading: { type: SchemaType.STRING },
