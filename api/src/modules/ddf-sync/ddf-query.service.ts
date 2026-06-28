@@ -153,23 +153,12 @@ export class DdfQueryService {
     const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
 
     const filter = this.buildFilterParts(dto).join(' and ')
-    const SELECT_FIELDS = [
-      'ListingKey','ListingId','ListingURL','StandardStatus',
-      'ListPrice','LeaseAmount','LeaseAmountFrequency',
-      'PropertySubType','BedroomsTotal','BathroomsTotalInteger','BathroomsPartial',
-      'LivingArea','LotSizeArea','YearBuilt','ParkingTotal','Stories',
-      'UnparsedAddress','StreetNumber','StreetName','City','StateOrProvince','PostalCode','Country',
-      'Latitude','Longitude','PublicRemarks',
-      'Media','VirtualTourURLBranded','VirtualTourURLUnbranded',
-      'PhotosCount','TaxAnnualAmount','TaxYear','OriginalEntryTimestamp',
-    ].join(',')
     const url =
       `${baseUrl}/Property` +
       `?$top=${limit}` +
       `&$skip=${skip}` +
       `&$filter=${encodeURIComponent(filter)}` +
       `&$orderby=ModificationTimestamp%20desc` +
-      `&$select=${SELECT_FIELDS}` +
       `&$count=true`
 
     try {
