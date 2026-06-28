@@ -58,7 +58,7 @@ export async function getNeighbourhoodAiSummary(slug: string): Promise<Neighbour
 
 async function apiFetch<T>(path: string, fallback: T): Promise<T> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 1800 } })
+    const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 1800 }, signal: AbortSignal.timeout(5000) })
     if (!res.ok) return fallback
     return res.json() as Promise<T>
   } catch {

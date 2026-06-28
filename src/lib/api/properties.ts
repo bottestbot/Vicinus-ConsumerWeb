@@ -160,7 +160,7 @@ export interface FeaturedProperty {
 /** Real curated highlight listings for the landing page. Returns [] on miss. */
 export async function getFeaturedProperties(): Promise<FeaturedProperty[]> {
   try {
-    const res = await fetch(`${API_BASE}/properties/featured`, { next: { revalidate: 600 } })
+    const res = await fetch(`${API_BASE}/properties/featured`, { next: { revalidate: 600 }, signal: AbortSignal.timeout(5000) })
     if (!res.ok) return []
     const data = (await res.json()) as FeaturedProperty[]
     return Array.isArray(data) ? data : []
