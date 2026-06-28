@@ -30,7 +30,7 @@ interface SearchResponse {
   totalPages: number
 }
 
-const PAGE_SIZE = 40
+const PAGE_SIZE = 20
 
 function toFrontendProperty(p: ApiProperty): Property {
   const mediaArr = (p.images as Array<{ url: string }> | null) ?? []

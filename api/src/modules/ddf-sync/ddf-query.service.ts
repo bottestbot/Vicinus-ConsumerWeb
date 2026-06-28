@@ -153,12 +153,23 @@ export class DdfQueryService {
     const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
 
     const filter = this.buildFilterParts(dto).join(' and ')
+    const SELECT_FIELDS = [
+      'ListingKey','ListingId','ListingURL','StandardStatus',
+      'ListPrice','LeaseAmount','LeaseAmountFrequency',
+      'PropertySubType','BedroomsTotal','BathroomsTotalInteger','BathroomsPartial',
+      'LivingArea','LotSizeArea','YearBuilt','ParkingTotal','Stories',
+      'UnparsedAddress','StreetNumber','StreetName','City','StateOrProvince','PostalCode','Country',
+      'Latitude','Longitude','PublicRemarks',
+      'Media','VirtualTourURLBranded','VirtualTourURLUnbranded',
+      'PhotosCount','TaxAnnualAmount','TaxYear','OriginalEntryTimestamp',
+    ].join(',')
     const url =
       `${baseUrl}/Property` +
       `?$top=${limit}` +
       `&$skip=${skip}` +
       `&$filter=${encodeURIComponent(filter)}` +
       `&$orderby=ModificationTimestamp%20desc` +
+      `&$select=${SELECT_FIELDS}` +
       `&$count=true`
 
     try {
@@ -191,43 +202,47 @@ export class DdfQueryService {
     // filters (price, beds, sale/rent, residential restriction, …) as the list.
     const filter = this.buildFilterParts(dto).join(' and ')
 
-    // DDF caps $top at 100 — page through to gather up to 500 viewport pins.
+    // DDF caps $top at 100 — fire all pages in parallel to gather up to 500 pins.
     const PAGE = 100
     const MAX_PINS = 500
+    const SKIPS = Array.from({ length: MAX_PINS / PAGE }, (_, i) => i * PAGE)
 
     try {
       const token = await this.auth.getToken()
-      const pins: MapPin[] = []
 
-      for (let skip = 0; skip < MAX_PINS; skip += PAGE) {
+      const fetchPage = async (skip: number): Promise<Record<string, unknown>[]> => {
         const url =
           `${baseUrl}/Property` +
           `?$top=${PAGE}` +
           `&$skip=${skip}` +
           `&$filter=${encodeURIComponent(filter)}` +
           `&$select=ListingKey,Latitude,Longitude,ListPrice,LeaseAmount`
+        try {
+          const response = await firstValueFrom(
+            this.http.get(url, {
+              headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+            }),
+          )
+          return (response.data.value as Record<string, unknown>[]) ?? []
+        } catch {
+          return []
+        }
+      }
 
-        const response = await firstValueFrom(
-          this.http.get(url, {
-            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-          }),
-        )
-
-        const rows = (response.data.value as Record<string, unknown>[]) ?? []
+      const pages = await Promise.all(SKIPS.map(fetchPage))
+      const pins: MapPin[] = []
+      for (const rows of pages) {
         for (const p of rows) {
           pins.push({
             id: String(p['ListingKey']),
             lat: (p['Latitude'] as number | null) ?? null,
             lng: (p['Longitude'] as number | null) ?? null,
-            // Rentals carry LeaseAmount instead of ListPrice — fall back so the
-            // pin shows the rent rather than an empty/zero price.
             price:
               (p['ListPrice'] as number | null) ??
               (p['LeaseAmount'] as number | null) ??
               null,
           })
         }
-        if (rows.length < PAGE) break // last page reached
       }
 
       return pins
