@@ -133,7 +133,11 @@ export default function FeedPage() {
       const mapped = raw
         .map(mapListing)
         .filter((p) => p.images.length > 0 || p.virtualTourUrl || p.youtubeUrl)
-        .sort((a, b) => (b.youtubeUrl ? 1 : 0) - (a.youtubeUrl ? 1 : 0))
+        .sort((a, b) => {
+          const aVideo = a.youtubeUrl || a.virtualTourUrl ? 1 : 0
+          const bVideo = b.youtubeUrl || b.virtualTourUrl ? 1 : 0
+          return bVideo - aVideo
+        })
 
       setListings((prev) => (reset ? mapped : [...prev, ...mapped]))
       setHasMore(raw.length === PAGE_SIZE)
