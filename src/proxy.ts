@@ -1,25 +1,12 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/search(.*)',
-  '/feed(.*)',
-  '/properties/(.*)',
-  '/neighbourhoods(.*)',
-  '/sell(.*)',
-  '/dashboard(.*)',
-  '/onboarding(.*)',
-])
-
-// Next.js 16 uses "proxy.ts" instead of "middleware.ts".
-// Named export "proxy" is the required convention.
-export const proxy = clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect()
-  }
-}, { signInUrl: '/sign-in', signUpUrl: '/sign-up' })
+// Clerk auth is handled at the page/layout level via auth() from @clerk/nextjs/server.
+// Keeping middleware as a pass-through avoids edge function network calls to Clerk
+// on every request, which caused timeouts on Netlify's edge runtime.
+export function proxy(request: NextRequest) {
+  return NextResponse.next()
+}
 
 export const config = {
   matcher: [
