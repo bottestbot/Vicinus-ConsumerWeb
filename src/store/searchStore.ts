@@ -21,6 +21,7 @@ interface SearchStore {
   // Map state
   mapBounds: MapBounds | null
   mapCenter: { longitude: number; latitude: number; zoom: number }
+  geocodedCenter: { longitude: number; latitude: number } | null
 
   // UI state
   hoveredPropertyId: string | null
@@ -36,6 +37,7 @@ interface SearchStore {
   setViewMode: (m: ViewMode) => void
   setMapBounds: (b: MapBounds) => void
   setMapCenter: (c: { longitude: number; latitude: number; zoom: number }) => void
+  setGeocodedCenter: (c: { longitude: number; latitude: number } | null) => void
   setUserLocation: (city: string | null, coords: { latitude: number; longitude: number } | null) => void
   setHoveredProperty: (id: string | null) => void
   setSelectedProperty: (id: string | null) => void
@@ -83,6 +85,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   userCoords: null,
   mapBounds: null,
   mapCenter: { longitude: -79.3832, latitude: 43.6532, zoom: 11 },
+  geocodedCenter: null,
   hoveredPropertyId: null,
   selectedPropertyId: null,
   savedSearches: [],
@@ -99,6 +102,8 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   setMapBounds: (b) => set({ mapBounds: b }),
 
   setMapCenter: (c) => set({ mapCenter: c }),
+
+  setGeocodedCenter: (c) => set({ geocodedCenter: c }),
 
   setUserLocation: (city, coords) => set({ userCity: city, userCoords: coords }),
 

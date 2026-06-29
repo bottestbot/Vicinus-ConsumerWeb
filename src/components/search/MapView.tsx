@@ -36,11 +36,22 @@ export default function MapView({ properties, pins = [], fitSignal = '' }: MapVi
     mapCenter,
     setMapCenter,
     setMapBounds,
+    geocodedCenter,
+    setGeocodedCenter,
     hoveredPropertyId,
     setHoveredProperty,
     selectedPropertyId,
     setSelectedProperty,
   } = useSearchStore()
+
+  // Fly instantly to geocoded city coords — fires before DDF responds
+  useEffect(() => {
+    if (!geocodedCenter) return
+    const map = mapRef.current
+    if (!map) return
+    map.flyTo({ center: [geocodedCenter.longitude, geocodedCenter.latitude], zoom: 12, duration: 800 })
+    setGeocodedCenter(null)
+  }, [geocodedCenter, setGeocodedCenter])
 
   // Recenter the map to the result set whenever a new text search runs.
   // Keyed on fitSignal so it fires once per search, not on map pans.

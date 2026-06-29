@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Search, X, MapPin, Building2, Home, Navigation } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { getAutocomplete } from '@/lib/api/search'
+import { geocodeCity } from '@/lib/geocode'
 import type { AutocompleteSuggestion } from '@/types/search'
 
 const TYPE_ICONS = {
@@ -24,7 +25,7 @@ export default function SearchBar({
   placeholder = 'Search by neighbourhood, city, or address...',
   className = '',
 }: SearchBarProps) {
-  const { query, setQuery } = useSearchStore()
+  const { query, setQuery, setGeocodedCenter } = useSearchStore()
   const [inputValue, setInputValue] = useState(query)
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -78,6 +79,8 @@ export default function SearchBar({
     setIsOpen(false)
     onSearch?.(s.label)
     inputRef.current?.blur()
+    // Geocode immediately so the map flies before DDF responds
+    geocodeCity(s.label).then((coords) => { if (coords) setGeocodedCenter(coords) })
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -99,6 +102,7 @@ export default function SearchBar({
           setQuery(inputValue)
           setIsOpen(false)
           onSearch?.(inputValue)
+          geocodeCity(inputValue).then((coords) => { if (coords) setGeocodedCenter(coords) })
         }
         break
       case 'Escape':
