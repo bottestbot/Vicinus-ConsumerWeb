@@ -189,7 +189,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
               properties={properties}
               totalCount={totalCount}
               locationLabel={query || 'All Properties'}
-              isLoading={isLoading}
+              isLoading={isLoading || isPlaceholderData}
               page={page}
               totalPages={totalPages}
               onPageChange={setPage}
