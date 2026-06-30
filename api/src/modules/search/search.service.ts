@@ -67,6 +67,27 @@ const CANADIAN_CITIES = [
   { id: 'c-stjohns', label: "St. John's", type: 'city', subtitle: 'Newfoundland' },
 ]
 
+/** Province code → full name, for rendering city subtitles consistently
+ * (DB stores codes like "BC"; the static fallback list uses full names). */
+const PROVINCE_NAMES: Record<string, string> = {
+  AB: 'Alberta',
+  BC: 'British Columbia',
+  MB: 'Manitoba',
+  NB: 'New Brunswick',
+  NL: 'Newfoundland and Labrador',
+  NS: 'Nova Scotia',
+  NT: 'Northwest Territories',
+  NU: 'Nunavut',
+  ON: 'Ontario',
+  PE: 'Prince Edward Island',
+  QC: 'Quebec',
+  SK: 'Saskatchewan',
+  YT: 'Yukon',
+}
+
+const provinceLabel = (code?: string | null): string =>
+  code ? (PROVINCE_NAMES[code] ?? code) : ''
+
 /** 5 minutes — on-demand DDF results are fresh enough at this TTL */
 const SEARCH_TTL = 300
 const MAP_PINS_TTL = 300
@@ -140,10 +161,13 @@ export class SearchService {
   }
 
   /**
-   * City + neighbourhood autocomplete. Cities come from the static CANADIAN_CITIES
-   * list (DDF has no city directory endpoint); neighbourhoods come from the seeded
-   * Neighbourhood table. Prefix matches rank above substring matches, cities above
-   * neighbourhoods. Short-Redis-cached per query.
+   * City + neighbourhood autocomplete. The seeded Neighbourhood table is the
+   * source of truth: rows where `name === city` are municipalities (rendered as
+   * cities), and rows where they differ are sub-areas (rendered as
+   * neighbourhoods). The static CANADIAN_CITIES list is only a fallback for
+   * metros not yet seeded (e.g. outside BC), deduped so DB rows always win.
+   * Prefix matches rank above substring matches, cities above neighbourhoods.
+   * Short-Redis-cached per query.
    */
   async autocomplete(
     q: string,
@@ -156,42 +180,69 @@ export class SearchService {
     const cached = await this.redis.get(cacheKey)
     if (cached) return JSON.parse(cached)
 
-    // Cities: prefix or substring match, prefix-first.
-    const cities = CANADIAN_CITIES.filter((c) =>
-      c.label.toLowerCase().includes(lower),
-    ).sort(
-      (a, b) =>
-        (a.label.toLowerCase().startsWith(lower) ? 0 : 1) -
-        (b.label.toLowerCase().startsWith(lower) ? 0 : 1),
-    )
-
-    // Neighbourhoods: case-insensitive contains on the seeded table.
+    // DB is authoritative: match on either the area name or its parent city.
     const hoods = await this.prisma.neighbourhood.findMany({
-      where: { name: { contains: query, mode: 'insensitive' } },
+      where: {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { city: { contains: query, mode: 'insensitive' } },
+        ],
+      },
       select: { slug: true, name: true, city: true, province: true },
-      take: 6,
+      take: 24,
       orderBy: { name: 'asc' },
     })
-    // Drop neighbourhood rows that duplicate a city already shown (the seeded
-    // municipality rows like "North Vancouver" overlap with the city list), and
-    // collapse same-name neighbourhood duplicates (e.g. a stray seed row).
-    const cityLabels = new Set(cities.map((c) => c.label.toLowerCase()))
-    const seenHoods = new Set<string>()
-    const hoodSuggestions = hoods
-      .filter((n) => {
-        const key = n.name.toLowerCase()
-        if (cityLabels.has(key) || seenHoods.has(key)) return false
-        seenHoods.add(key)
-        return true
-      })
-      .map((n) => ({
-        id: `n-${n.slug}`,
-        label: n.name,
-        type: 'neighbourhood',
-        subtitle: [n.city, n.province].filter(Boolean).join(', '),
-      }))
 
-    const results = [...cities.slice(0, 6), ...hoodSuggestions].slice(0, 10)
+    // Partition into municipalities (name === city) and sub-areas, collapsing
+    // duplicate city rows (e.g. several Vancouver neighbourhoods share a city).
+    const dbCities: { id: string; label: string; type: string; subtitle: string }[] = []
+    const neighbourhoods: { id: string; label: string; type: string; subtitle: string }[] = []
+    const seenCity = new Set<string>()
+    const seenHood = new Set<string>()
+
+    for (const n of hoods) {
+      const isCity = !!n.city && n.name === n.city
+      const key = n.name.toLowerCase()
+      if (isCity) {
+        if (seenCity.has(key)) continue
+        seenCity.add(key)
+        dbCities.push({
+          id: `c-${n.slug}`,
+          label: n.name,
+          type: 'city',
+          subtitle: provinceLabel(n.province),
+        })
+      } else {
+        if (seenHood.has(key)) continue
+        seenHood.add(key)
+        neighbourhoods.push({
+          id: `n-${n.slug}`,
+          label: n.name,
+          type: 'neighbourhood',
+          subtitle: [n.city, provinceLabel(n.province)].filter(Boolean).join(', '),
+        })
+      }
+    }
+
+    // Fallback cities (not already covered by the DB), e.g. metros outside BC.
+    const fallbackCities = CANADIAN_CITIES.filter(
+      (c) =>
+        c.label.toLowerCase().includes(lower) &&
+        !seenCity.has(c.label.toLowerCase()),
+    )
+
+    // Rank cities prefix-first, then sub-area neighbourhoods.
+    const prefixFirst = (
+      a: { label: string },
+      b: { label: string },
+    ): number =>
+      (a.label.toLowerCase().startsWith(lower) ? 0 : 1) -
+      (b.label.toLowerCase().startsWith(lower) ? 0 : 1)
+
+    const cities = [...dbCities, ...fallbackCities].sort(prefixFirst)
+    neighbourhoods.sort(prefixFirst)
+
+    const results = [...cities.slice(0, 6), ...neighbourhoods].slice(0, 10)
     await this.redis.set(cacheKey, JSON.stringify(results), SEARCH_TTL)
     return results
   }
