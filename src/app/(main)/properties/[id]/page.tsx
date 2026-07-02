@@ -1,9 +1,11 @@
 // FE-401: Property Detail Page
 // NOTE: params is a Promise<{ id }> in Next.js 15/16 App Router — must be awaited
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
+import type { PropertyDetail } from '@/types/property'
 import { getPropertyDetail, getListingOpenHouses, getNearbyOpenHouses, getPropertyAiSummary, getMarketContext } from '@/lib/api/properties'
 import OpenHouseSchedule from '@/components/property/OpenHouseSchedule'
 import PropertyGallery from '@/components/property/PropertyGallery'
@@ -43,6 +45,39 @@ export async function generateMetadata({
   }
 }
 
+// ─── Streamed sections ──────────────────────────────────────────────────────
+// These fetch independently and are wrapped in <Suspense> below so the core
+// property (gallery, stats, agent, facts) renders immediately instead of the
+// whole page blocking on the slowest call — the AI summary regenerates on a
+// cold cache and can take ~8s (see api RedisService / REDIS_URL).
+
+function SectionSkeleton({ className = 'h-40' }: { className?: string }) {
+  return <div className={`animate-pulse rounded-2xl bg-[#F2F0EB] ${className}`} />
+}
+
+async function OpenHouseSection({ id }: { id: string }) {
+  const slots = await getListingOpenHouses(id)
+  if (slots.length === 0) return null
+  return <OpenHouseSchedule slots={slots} />
+}
+
+async function AiSummarySection({ id }: { id: string }) {
+  const summary = await getPropertyAiSummary(id)
+  if (!summary) return null
+  return <PropertySummary summary={summary} />
+}
+
+async function NearbyOpenHousesSection({ id }: { id: string }) {
+  const nearby = await getNearbyOpenHouses(id)
+  if (nearby.length === 0) return null
+  return <NearbyOpenHouses openHouses={nearby} />
+}
+
+async function MarketContextSection({ id, property }: { id: string; property: PropertyDetail }) {
+  const data = await getMarketContext(id)
+  return <MarketContext property={property} data={data} />
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function PropertyDetailPage({
@@ -53,17 +88,10 @@ export default async function PropertyDetailPage({
   // Next.js 16: params is a Promise — must be awaited
   const { id } = await params
 
-  const [liveProperty, openHouseSlots, liveNearby, aiSummary, marketContext] = await Promise.all([
-    getPropertyDetail(id),
-    getListingOpenHouses(id),
-    getNearbyOpenHouses(id),
-    getPropertyAiSummary(id),
-    getMarketContext(id),
-  ])
-
-  if (!liveProperty) notFound()
-  const property = liveProperty
-  const nearby = liveNearby
+  // Only block the shell on the fast core fetch (~0.5s). Everything slow or
+  // non-critical streams in via Suspense below.
+  const property = await getPropertyDetail(id)
+  if (!property) notFound()
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-32 font-ui">
@@ -105,10 +133,14 @@ export default async function PropertyDetailPage({
         {property.details && <PropertyFacts details={property.details} />}
 
         {/* ── Open House schedule (live DDF, only if upcoming) ──────────── */}
-        {openHouseSlots.length > 0 && <OpenHouseSchedule slots={openHouseSlots} />}
+        <Suspense fallback={null}>
+          <OpenHouseSection id={id} />
+        </Suspense>
 
-        {/* ── AI Property Summary ───────────────────────────────────────── */}
-        {aiSummary && <PropertySummary summary={aiSummary} />}
+        {/* ── AI Property Summary (streams in — cold gen can take ~8s) ───── */}
+        <Suspense fallback={<SectionSkeleton className="h-56" />}>
+          <AiSummarySection id={id} />
+        </Suspense>
 
         {/* ── Divider ───────────────────────────────────────────────────── */}
         <div className="border-t border-[#E8E6E1]" />
@@ -120,10 +152,14 @@ export default async function PropertyDetailPage({
         <MortgageAnalysis price={property.price} />
 
         {/* ── Nearby Open Houses (live DDF, falls back to mock for demo) ── */}
-        {nearby.length > 0 && <NearbyOpenHouses openHouses={nearby} />}
+        <Suspense fallback={null}>
+          <NearbyOpenHousesSection id={id} />
+        </Suspense>
 
         {/* ── Market Context ────────────────────────────────────────────── */}
-        <MarketContext property={property} data={marketContext} />
+        <Suspense fallback={<SectionSkeleton className="h-64" />}>
+          <MarketContextSection id={id} property={property} />
+        </Suspense>
 
         {/* ── Assessment History ────────────────────────────────────────── */}
         {property.assessmentHistory && property.assessmentHistory.length > 0 && (
