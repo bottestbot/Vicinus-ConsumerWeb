@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "prisma generate && nest build",
+    "db:seed:neighbourhoods": "ts-node prisma/seeds/metro-vancouver-neighbourhoods.ts && ts-node prisma/seeds/bc-neighbourhoods.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
