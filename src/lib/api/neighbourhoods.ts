@@ -108,15 +108,6 @@ const MOCK_AGENTS: NeighbourhoodAgent[] = [
   { id: '3', name: 'Diana Rodriguez', title: 'Luxury Specialist, REALTOR®', listingsCount: 11, phone: '(416) 555-0312', email: 'diana.r@vicinus.ca' },
 ]
 
-const MOCK_NEIGHBOURHOODS: Neighbourhood[] = [
-  { slug: 'rosedale', name: 'Rosedale', city: 'Toronto', province: 'ON', imageUrl: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80', medianPrice: 4800000 },
-  { slug: 'forest-hill', name: 'Forest Hill', city: 'Toronto', province: 'ON', imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80', medianPrice: 3900000 },
-  { slug: 'shaughnessy', name: 'Shaughnessy', city: 'Vancouver', province: 'BC', imageUrl: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80', medianPrice: 6200000 },
-  { slug: 'westmount', name: 'Westmount', city: 'Montreal', province: 'QC', imageUrl: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80', medianPrice: 2800000 },
-  { slug: 'rockcliffe-park', name: 'Rockcliffe Park', city: 'Ottawa', province: 'ON', imageUrl: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80', medianPrice: 2100000 },
-  { slug: 'mount-royal', name: 'Mount Royal', city: 'Calgary', province: 'AB', imageUrl: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80', medianPrice: 1800000 },
-]
-
 // ─── Backend → frontend shape mappers ─────────────────────────────────────────
 
 interface ApiNeighbourhood {
@@ -237,7 +228,9 @@ export async function getNeighbourhoodAgents(slug: string): Promise<Neighbourhoo
 
 export async function getNeighbourhoods(): Promise<Neighbourhood[]> {
   const data = await apiFetch<ApiNeighbourhood[]>('/neighbourhoods', [])
-  if (data.length === 0) return MOCK_NEIGHBOURHOODS
+  // Return real data only. Previously fell back to MOCK_NEIGHBOURHOODS on an
+  // empty response, which leaked 6 fake neighbourhoods into prod (their slugs
+  // 404 on click). The client renders a proper empty state for [] instead.
   return data.map(mapNeighbourhood)
 }
 
