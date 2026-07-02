@@ -1,12 +1,13 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { clerkMiddleware } from '@clerk/nextjs/server'
 
-// Clerk auth is handled at the page/layout level via auth() from @clerk/nextjs/server.
-// Keeping middleware as a pass-through avoids edge function network calls to Clerk
-// on every request, which caused timeouts on Netlify's edge runtime.
-export function proxy(request: NextRequest) {
-  return NextResponse.next()
-}
+// clerkMiddleware() processes the production session handshake (__clerk_handshake)
+// that sets the session cookie after sign-in, and makes auth() work in server
+// components. It's required with pk_live_/sk_live_ instances — without it, sign-in
+// completes on Clerk's side but the session cookie is never set, so the app stays
+// signed out. In Next.js 16 this proxy file runs on the Node.js runtime (not the
+// Edge runtime), so it no longer triggers the Netlify edge-function timeouts that
+// previously forced us to a pass-through.
+export default clerkMiddleware()
 
 export const config = {
   matcher: [
