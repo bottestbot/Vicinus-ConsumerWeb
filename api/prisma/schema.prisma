@@ -231,6 +231,19 @@ model SellerLead {
   createdAt          DateTime @default(now())
 }
 
+// Realtor Hub coming-soon page — early-access / founding-member signups.
+model RealtorWaitlist {
+  id         String   @id @default(uuid())
+  fullName   String
+  email      String   @unique
+  brokerage  String?
+  cityMarket String?
+  // Where the signup originated (e.g. "realtor-hub"). Useful once other
+  // surfaces feed the same list.
+  source     String?
+  createdAt  DateTime @default(now())
+}
+
 model DdfSyncLog {
   id                    String    @id @default(uuid())
   entity                String

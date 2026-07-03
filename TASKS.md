@@ -1,9 +1,89 @@
 # Vicinus — Task Tracker
-_Last updated: 2026-06-14_
+_Last updated: 2026-07-03_
 
 ## Legend
 - Severity: P0 (blocking) · P1 (significant) · P2 (polish)
-- Status: [x] done · [ ] todo
+- Status: [x] done · [~] partial · [ ] todo
+
+## 🚀 Realtor Hub — coming-soon landing + waitlist (2026-07-03)
+_Rename the home navbar "Agents Hub" item to "Realtor Hub" and repoint it from `/search` to a new professionals coming-soon page (the "Vicinus is coming for real estate professionals" design). Page is a marketing landing with hero, 3 feature cards (Augmented Neighbourhood Data · Neighbourhood Bidding · Short-Form Listing Content), a Founding Member band, and a "Join the Waitlist" form (Full Name · Professional Email · Brokerage · City/Market) that POSTs to a new lead-capture endpoint. Backend mirrors the existing `sell` module / `SellerLead` pattern. Route: `/realtor-hub`. Sizes: S ≤0.5d · M 1–2d._
+
+### Frontend
+- [x] **RH-FE-01** [P1] Rename nav item "Agents Hub" → "Realtor Hub" and repoint `href` `/search` → `/realtor-hub` — update both the desktop link and the mobile-menu array entry. `S` · _src/components/landing/HomeNavbar.tsx (lines 51–53 desktop, 109 mobile)_
+- [x] **RH-FE-02** [P1] Scaffold `/realtor-hub` route + page shell — new App Router segment rendering the section components below; reuse `HomeNavbar` + footer; server component wrapper, client only where the form needs it. `S` · deps: RH-FE-01 · _src/app/realtor-hub/page.tsx_
+- [x] **RH-FE-03** [P1] Hero section — dark-green band, headline "Vicinus is coming for real estate professionals.", subcopy, "Get Early Access" CTA (scrolls to waitlist form), and the product-preview mockup with the "PREDICTIVE HEAT +24% Intent" badge. `M` · deps: RH-FE-02 · _src/components/realtor-hub/RealtorHubHero.tsx_
+- [x] **RH-FE-04** [P1] Feature cards section — "Designed for those who curate the market." heading + 3 cards (Augmented Neighbourhood Data · Neighbourhood Bidding · Short-Form Listing Content) with image, title, body; responsive 1→3 column grid. `M` · deps: RH-FE-02 · _src/components/realtor-hub/RealtorHubFeatures.tsx_
+- [x] **RH-FE-05** [P2] Founding Member band — dark card "Join as a Founding Member." + copy + "Limited Access" CTA (scrolls to form). `S` · deps: RH-FE-02 · _src/components/realtor-hub/FoundingMemberBand.tsx_
+- [x] **RH-FE-06** [P1] Waitlist form (client) — Full Name · Professional Email · Brokerage · City/Market; client-side validation (required + email), submit → RH-FE-07, loading/success/error states, disable-on-submit, honeypot field. `M` · deps: RH-FE-02, RH-FE-07 · _src/components/realtor-hub/WaitlistForm.tsx_
+- [x] **RH-FE-07** [P1] API client `submitRealtorWaitlist()` — typed fetch wrapper POSTing to the BE endpoint (RH-BE-02), matching the existing `src/lib/api/*` pattern. `S` · deps: RH-BE-02 · _src/lib/api/waitlist.ts_
+- [x] **RH-FE-08** [P2] Responsive + design-token polish — mobile/tablet layout, brand colours (`#1C3829` etc.), 44px tap targets, focus states; screenshot-verify against the design. `S` · deps: RH-FE-03…06 · _src/components/realtor-hub/*_
+- [x] **RH-FE-09** [P2] Emit `realtor_waitlist_submitted` analytics event on success — ✅ guarded no-op hook in place (`window.posthog?.capture(...)` in a try/catch); becomes live automatically once DATA-08 mounts posthog. `S` · deps: RH-FE-06, DATA-08 · _src/components/realtor-hub/WaitlistForm.tsx_
+
+### Backend
+- [x] **RH-BE-01** [P1] `RealtorWaitlist` Prisma model + migration — fields: `id`, `fullName`, `email`, `brokerage?`, `cityMarket?`, `source?`, `createdAt`; unique index on `email` for dedupe (mirror `SellerLead`). `S` · _api/prisma/schema.prisma_
+- [x] **RH-BE-02** [P1] `WaitlistModule` + `POST /waitlist/realtor` — controller + DTO with `class-validator` (`@IsString`, `@IsEmail`, `@MinLength`), Swagger `@ApiTags/@ApiOperation`; wire module into `app.module.ts` (mirror `sell` module). `M` · deps: RH-BE-01 · _api/src/modules/waitlist/*_
+- [x] **RH-BE-03** [P1] `WaitlistService.join()` — persist lead, idempotent upsert on `email` (re-submit returns 200 without dup), return `{ ok: true }`; no PII in logs. `S` · deps: RH-BE-02 · _api/src/modules/waitlist/waitlist.service.ts_
+- [~] **RH-BE-04** [P2] Spam / abuse protection — ✅ honeypot done (service silently drops when `company` filled). ⏳ Rate limit deferred: `@nestjs/throttler` isn't installed yet — left as a TODO consistent with the existing `main.ts` throttler note; wire on RH-BE-04b / DATA-06. `S` · deps: RH-BE-02 · _api/src/modules/waitlist/*, api/src/app.module.ts_
+- [ ] **RH-BE-05** [P2] Server-side `realtor_waitlist_submitted` conversion event + optional ops notification (email/Slack) on new signup — follow the DATA-11 server-event pattern. Deferred: blocked on the (unbuilt) analytics pipeline; a labelled TODO + `logger.log` hook is in place in the service. `S` · deps: RH-BE-03, DATA-07 · _api/src/modules/waitlist/waitlist.service.ts_
+
+## 📊 Data Pipeline — analytics + personalization (2026-07-01)
+_Stand up a product-analytics + personalization data pipeline. Full plan: `docs/data-pipeline-plan.md`. **Proposal — nothing built; do not implement until approved.** Recommended stack: PostHog (EU Cloud) as primary product-analytics/dashboard tool + an owned `AnalyticsEvent` Postgres table; server-side capture for conversion events; deterministic rules-based feed ranker in v1. **DATA-01 is a decision gate — several tasks are blocked on it.** Sizes: S ≤0.5d · M 1–2d · L 3–5d._
+
+### Phase 0 — Foundations & Consent
+- [x] **DATA-01** [P0] Decide analytics vendor & data-residency — ✅ **DECIDED 2026-07-01: PostHog EU Cloud.** No existing analytics stack; EU region for PIPEDA-defensibility. Budget ceiling + session-replay on/off still TBD. `S` · _decision/infra_
+- [ ] **DATA-02** [P1] Consent banner + store (PIPEDA) — accept/reject/manage, first-party cookie, Zustand store; gates all non-essential tracking. `M` · deps: DATA-01 · _src/components/consent/, src/store/_
+- [ ] **DATA-03** [P1] Install & init posthog-js behind consent — `opt_out_capturing_by_default`, `identify(clerkId)` on sign-in, mint `anonymous_id`. `M` · deps: DATA-02 · _src/lib/analytics/, src/app/layout.tsx, providers_
+- [ ] **DATA-04** [P1] AnalyticsModule + `POST /events` — public endpoint, opportunistic Clerk-token read for `user_id`, DTO validation. `M` · deps: DATA-01 · _api/src/modules/analytics/_
+- [ ] **DATA-05** [P1] `AnalyticsEvent` Prisma model + migration — append-only, indexes per plan §7.2. `S` · deps: DATA-04 · _api/prisma/schema.prisma_
+- [ ] **DATA-06** [P1] Install & wire `@nestjs/throttler` — tight rate limit on `/events` (closes main.ts TODO). `S` · deps: DATA-04 · _api/src/main.ts, app.module.ts_
+- [ ] **DATA-07** [P1] posthog-node in API + `AnalyticsService.track()` — dual-write Postgres + PostHog. `M` · deps: DATA-04, DATA-05 · _api/src/modules/analytics/_
+
+### Phase 1 — Taxonomy & Conversion
+- [ ] **DATA-08** [P1] Typed `track()` wrapper + event-name enum — single source of truth for event schema (plan §2). `M` · deps: DATA-03 · _src/lib/analytics/_
+- [ ] **DATA-09** [P1] Instrument lifecycle/page/search/feed/property events (client) — full §2 catalog. `L` · deps: DATA-08 · _src/app/**, src/components/feed/*, property/*_
+- [ ] **DATA-10** [P1] Onboarding per-step events — started/step/skip/complete/abandon. `M` · deps: DATA-08 · _src/components/onboarding/OnboardingWizard.tsx_
+- [ ] **DATA-11** [P1] Server-side conversion events — signed_up, property_saved, search_performed, seller_lead_submitted. `M` · deps: DATA-07 · _api/.../users.service.ts, sell.service.ts, search.service.ts_
+- [ ] **DATA-12** [P1] Link `SellerLead` → `User` — nullable `userId` FK + attribute when authed. `S` · deps: DATA-05 · _api/prisma/schema.prisma, sell.*_
+- [ ] **DATA-13** [P1] Forward `anonymous_id` on public search — header client→`search_performed`. `S` · deps: DATA-08 · _src/lib/api/*, api/.../search.controller.ts_
+- [ ] **DATA-14** [P1] Build Growth / Conversion / Onboarding dashboards — insights + funnels + cohorts in PostHog. `M` · deps: events flowing · _PostHog config_
+
+### Phase 2 — Profile & Personalized Feed
+- [ ] **DATA-15** [P1] `UserPreferenceProfile` + `UserPreferredNeighbourhood` models + migration. `M` · deps: Phase 1 · _api/prisma/schema.prisma_
+- [ ] **DATA-16** [P1] Dual-write structured profile in `updateOnboarding` — parse budget bands, lifestyle weights. `M` · deps: DATA-15 · _api/.../users.service.ts_
+- [ ] **DATA-17** [P2] Backfill script from `onboardingData` blob — one-off, source blob preserved. `S` · deps: DATA-15 · _api script_
+- [ ] **DATA-18** [P1] `FeedModule GET /feed` with rules-based ranker — scoring per §7.3, weights via flag/config, anon fallback. `L` · deps: DATA-16 · _api/src/modules/feed/_
+- [ ] **DATA-19** [P1] FE feed consumes `/feed` + emits impression/click + `feed_variant` — replace direct searchProperties, reuse IntersectionObserver. `M` · deps: DATA-18 · _src/app/(feed)/feed/page.tsx, src/lib/api/_
+- [ ] **DATA-20** [P2] `feed_ranking_v1` flag + A/B on engagement rate. `S` · deps: DATA-19 · _PostHog flag + dashboard_
+
+### Phase 3 — Ops & Scale
+- [ ] **DATA-21** [P1] `/health` + `/health/deep` endpoints — Postgres + Redis checks. `S` · _api/src/_
+- [ ] **DATA-22** [P2] Sentry APM (errors + perf) + uptime monitor — DDF live-path latency, Web Vitals. `M` · _FE + API + infra_
+- [ ] **DATA-23** [P2] `EventIngestLog` + ingestion-lag alerting — mirror DdfSyncLog pattern. `S` · deps: DATA-04 · _api_
+- [ ] **DATA-24** [P1] Retention prune cron + erasure hook — 13-mo prune; delete-on-account-deletion (Postgres + PostHog). `M` · deps: DATA-05 · _api @nestjs/schedule_
+- [ ] **DATA-25** [P2] (Optional) Metabase companion on Railway — SQL dashboards over AnalyticsEvent. `M` · deps: DATA-05 · _infra_
+
+## 🏘️ Neighbourhoods — 2-level filter redesign (2026-06-29)
+_Province → City two-level filter with context-aware pre-selection, adaptive featured section, and mobile scroll. Based on product spec + UI design approved this session._
+
+- [x] **NBR-01** [P1] Replace region pills with 2-level Province → City filter — refactor `NeighbourhoodsClient.tsx` to derive Level 1 province pills and Level 2 city pills from `Neighbourhood.city` data; selecting a province resets city; Level 2 hidden on "All Canada"; Level 2 skipped when province has only 1 city. — _src/components/neighbourhood/NeighbourhoodsClient.tsx, src/lib/neighbourhood-regions.ts_
+- [x] **NBR-02** [P1] Default-select BC (most-populated province) on page load — when only one province exists pre-select it; when multiple provinces exist default to "All Canada". — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+- [x] **NBR-03** [P1] Context-aware filter pre-selection from search store — on mount read `searchStore.query` / `searchStore.userCity`; if it matches a known `Neighbourhood.city` auto pre-select province + city pills; fall back to default if unrecognised. — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+- [x] **NBR-04** [P1] Adaptive featured section label + content per filter state — "Editor's Picks" (All Canada) · "[Province] Highlights" (province only) · "[City]" (city selected or context-aware); hide section when fewer than 2 neighbourhoods match. — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+- [x] **NBR-05** [P2] Hide city/region tag on grid cards when a specific city is selected — tag is redundant when every card is already scoped to that city; show tag on All Canada + province-level views. — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+- [x] **NBR-06** [P2] Empty state when selected city has no neighbourhoods — dashed-border box with heading "No neighbourhoods in [City] yet", subtext, and two CTA pills ("Browse all [Province]" + "See nearby cities"); hide grid and featured. — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+- [x] **NBR-07** [P2] Sticky filter bar with blur backdrop — `position: sticky; top: 0`; `background: rgba(250,249,246,0.94)`; `backdrop-filter: blur(8px)`; 1px #E8E6E1 bottom border; pills compress to 30px in sticky state. — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+- [x] **NBR-08** [P2] Mobile horizontal-scroll pill rows with fade mask — `overflow-x: auto`; no scrollbar; 24px right-edge fade mask; total sticky area ≤88px on mobile; Level 2 animates in with `max-height 0→40px` + `opacity 0→1` at 160ms ease-out. — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+
+## 🏘️ Neighbourhoods — BC scale-up + search (2026-06-30)
+_Scale BC to 382 neighbourhoods across 157 cities. Structure stays **Province → City → Neighbourhood** (regional-district tier explicitly dropped). The city-pill tier must handle 157 cities: collapsed by default (top cities by count), expandable to a full A–Z list. Also seed the full BC dataset so names surface in the `/search/autocomplete` dropdown. Extends NBR-01…08 — do NOT rebuild the sticky bar, featured/spotlight, count badges, context-aware pre-selection, empty states, or mobile scroll/fade already built._
+
+- [x] **NBR-09** [P1] Rewrite `bc-neighbourhoods.ts` seed to load the full CSV (382 neighbourhoods / 157 cities) — replace the hardcoded municipality arrays with a parse of `bc_municipalities_neighbourhoods.csv` (cols: neighbourhood, municipality, type, regional_district). Seed one `Neighbourhood` row per CSV line: `name` = neighbourhood, `city` = municipality, `province` = 'BC'; keep idempotent slug upsert + optional Mapbox geocode. Cities with a single neighbourhood should still produce a browsable row. Confirm the CSV path (currently `~/Downloads/…`) is moved into the repo (e.g. `api/prisma/seeds/data/`) so the seed is reproducible. — _api/prisma/seeds/bc-neighbourhoods.ts, api/prisma/seeds/data/bc_municipalities_neighbourhoods.csv_
+- [x] **NBR-10** [P1] Run the BC seed and verify data flows into the index — execute the NBR-09 seed against the dev DB; confirm `getNeighbourhoods()` returns the 382 rows and the index page renders them (no MOCK fallback). Blocker check: seed must run (needs `DATABASE_URL`; Mapbox token optional — coords null is acceptable). — _src/lib/api/neighbourhoods.ts, src/app/(main)/neighbourhoods/page.tsx_
+- [x] **NBR-11** [P1] Drop the regional-district (Level 2) tier from `NeighbourhoodsClient.tsx` — remove `districtOptions`/`selectedDistrict`/`showDistrictRow` and the district PillRow so the filter is a clean two-level Province → City per the agreed design. `districtForCity`/`DISTRICT_MUNICIPALITIES` in `neighbourhood-regions.ts` become dead once unused — remove or leave a note. Ripple through `deriveFilters`, `filterNeighbourhoods`, `pickFeatured`, `buildFeaturedLabel`, and the empty-state CTAs. — _src/components/neighbourhood/NeighbourhoodsClient.tsx, src/lib/neighbourhood-regions.ts_
+- [x] **NBR-12** [P1] Replace the municipality combobox with a collapsed city-pill tier — swap `MunicipalityCombobox` for a pill row showing top cities ranked by neighbourhood count, gated to cities with **≥2 neighbourhoods** (adjustable threshold — expose as a named const, e.g. `MIN_CITY_PILL_COUNT = 2`, and note it can be tuned). Keep the "All British Columbia" pill (existing all-cities pill) and reuse the existing `Pill`, `PillRow`, count badges, sticky compaction, and mobile fade mask. — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+- [x] **NBR-13** [P1] Add "Show all 157 ›" expand / "Collapse" behaviour for the city tier — a trailing affordance after the collapsed pills reveals the full **alphabetical (A–Z)** list of every city as pills; a "Collapse" control returns to the NBR-12 default. No search box (explicitly decided against). Manage expanded/collapsed via local state; count in the label should reflect the actual city total. — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+- [ ] **NBR-14** [P2] Optional: A–Z section headings in the expanded city list — group the full expanded pill list under letter headers (A, B, C…) for scannability. Sub-task of NBR-13; skip if it complicates the mobile horizontal-scroll row. — _src/components/neighbourhood/NeighbourhoodsClient.tsx_
+- [x] **NBR-15** [P1] Verify BC city + neighbourhood names surface in the search dropdown — after NBR-10, confirm `/search/autocomplete` returns both cities (rows where `name === city`) and sub-area neighbourhoods (rows where `name !== city`) for BC queries, and that `SearchBar` + `HeroSearchBar` render them (city vs neighbourhood icon/type). No FE or BE-endpoint change expected — the endpoint is already DB-driven and partitions city vs neighbourhood; this is verification of the NBR-09/10 seed. — _api/src/modules/search/search.service.ts (read-only verify), src/components/search/SearchBar.tsx, src/components/landing/HeroSearchBar.tsx_
 
 ## 🛠️ Backend — new endpoints (2026-06-19)
 _New BE work to replace mock/static data (see mock-data audit). "Wiring-only" items excluded — those have endpoints already._
