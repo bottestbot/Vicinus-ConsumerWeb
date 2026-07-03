@@ -48,8 +48,8 @@ export default function HomeNavbar() {
           <Link href="/sell" className={`${navLink} transition-colors`}>
             Sell
           </Link>
-          <Link href="/search" className={`${navLink} transition-colors`}>
-            Agents Hub
+          <Link href="/realtor-hub" className={`${navLink} transition-colors`}>
+            Realtor Hub
           </Link>
         </nav>
 
@@ -106,7 +106,7 @@ export default function HomeNavbar() {
           {[
             { label: 'Buy', href: '/search?listingType=For+Sale' },
             { label: 'Sell', href: '/sell' },
-            { label: 'Agents Hub', href: '/search' },
+            { label: 'Realtor Hub', href: '/realtor-hub' },
           ].map((item) => (
             <Link
               key={item.label}

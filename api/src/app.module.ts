@@ -13,6 +13,7 @@ import { EditorialModule } from './modules/editorial/editorial.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { AiModule } from './modules/ai/ai.module'
 import { SellModule } from './modules/sell/sell.module'
+import { WaitlistModule } from './modules/waitlist/waitlist.module'
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { SellModule } from './modules/sell/sell.module'
     DdfSyncModule,
     AiModule,
     SellModule,
+    WaitlistModule,
   ],
 })
 export class AppModule {}
