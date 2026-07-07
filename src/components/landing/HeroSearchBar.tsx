@@ -43,12 +43,12 @@ export default function HeroSearchBar() {
   }, [])
 
   const handleSelect = (s: AutocompleteSuggestion) => {
+    // Only fill the field with the picked location — do NOT navigate.
+    // Navigation to /search happens exclusively on Discover (form submit).
     setInputValue(s.label)
     setSuggestions([])
     setIsOpen(false)
-    const params = new URLSearchParams({ q: s.label })
-    if (priceRange) params.set('priceRange', priceRange)
-    router.push(`/search?${params}`)
+    inputRef.current?.focus()
   }
 
   const handleSubmit = (e: React.FormEvent) => {

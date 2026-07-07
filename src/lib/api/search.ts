@@ -11,6 +11,8 @@ export interface SearchParams {
   baths?: number
   /** Comma-separated property sub-types, e.g. "Single Family,Condo" */
   propertyType?: string
+  /** Comma-separated DDF StructureType values, e.g. "House,Apartment" */
+  structureType?: string
   status?: string
   /** "For Sale" | "For Rent" — distinguishes sale vs lease listings */
   listingType?: string

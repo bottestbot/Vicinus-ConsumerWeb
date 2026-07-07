@@ -32,17 +32,30 @@ const MAPBOX_STYLE = 'mapbox://styles/mapbox/light-v11'
 export default function MapView({ properties, pins = [], fitSignal = '' }: MapViewProps) {
   const mapRef = useRef<MapRef>(null)
   const lastFitSignal = useRef<string | null>(null)
+  const didLocateRef = useRef(false)
   const {
     mapCenter,
     setMapCenter,
     setMapBounds,
     geocodedCenter,
     setGeocodedCenter,
+    userCoords,
     hoveredPropertyId,
     setHoveredProperty,
     selectedPropertyId,
     setSelectedProperty,
   } = useSearchStore()
+
+  // BUG-03: when geolocation resolves AFTER the map has mounted (and there's no
+  // active text search driving the view), recenter to the user's location once.
+  // The initial view already falls back to Vancouver via the store default.
+  useEffect(() => {
+    if (didLocateRef.current || fitSignal || !userCoords) return
+    const map = mapRef.current
+    if (!map) return
+    didLocateRef.current = true
+    map.flyTo({ center: [userCoords.longitude, userCoords.latitude], zoom: 11, duration: 800 })
+  }, [userCoords, fitSignal])
 
   // Fly instantly to geocoded city coords — fires before DDF responds
   useEffect(() => {

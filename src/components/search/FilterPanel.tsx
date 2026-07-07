@@ -107,42 +107,10 @@ function Popover({
 
 // ─── Individual Filter Groups ─────────────────────────────────────────────────
 
-function ListingTypeFilter() {
-  const { filters, setFilter } = useSearchStore()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const types = ['For Sale', 'For Rent']
-
-  return (
-    <div ref={ref} className="relative">
-      <FilterChip
-        label={filters.listingType || 'For Sale'}
-        active={!!filters.listingType && filters.listingType !== 'For Sale'}
-        onClick={() => setOpen((v) => !v)}
-        onClear={() => setFilter('listingType', 'For Sale')}
-      />
-      <Popover isOpen={open} onClose={() => setOpen(false)}>
-        <p className="text-xs font-semibold text-[#6B6B6B] mb-3 uppercase tracking-wide">Listing Type</p>
-        <div className="flex gap-2">
-          {types.map((t) => (
-            <button
-              key={t}
-              onClick={() => { setFilter('listingType', t); setOpen(false) }}
-              className={[
-                'flex-1 py-2 rounded-lg text-sm font-medium border transition-colors',
-                filters.listingType === t
-                  ? 'bg-[#1C3829] text-white border-[#1C3829]'
-                  : 'border-[#E8E6E1] text-[#111111] hover:border-[#1C3829]/40',
-              ].join(' ')}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </Popover>
-    </div>
-  )
-}
+// NOTE: The For Sale / For Rent (Buy/Rent) filter was removed — Vicinus has no
+// rental inventory yet (DDF residential is sale-only). `listingType` stays
+// pinned to 'For Sale' in the store so the DDF query keeps excluding leases.
+// Re-introduce this filter once rental data exists.
 
 function PriceRangeFilter() {
   const { filters, setFilter } = useSearchStore()
@@ -255,42 +223,59 @@ function BedsAndBathsFilter() {
   )
 }
 
+// Friendly home-type labels → real DDF `StructureType` values (verified against
+// the live feed). This is the field that actually distinguishes House / Condo /
+// Townhouse — `PropertySubType` files them all as "Single Family". A label may
+// map to several StructureType values (e.g. mobile homes).
+const HOME_TYPES: { label: string; values: string[] }[] = [
+  { label: 'House', values: ['House'] },
+  { label: 'Condo / Apartment', values: ['Apartment'] },
+  { label: 'Townhouse', values: ['Row / Townhouse'] },
+  { label: 'Duplex', values: ['Duplex'] },
+  { label: 'Multi-Family', values: ['Multi-Family'] },
+  { label: 'Mobile / Manufactured', values: ['Mobile Home', 'Manufactured Home', 'Park Model Mobile Home'] },
+]
+
 function HomeTypeFilter() {
   const { filters, setFilter } = useSearchStore()
   const [open, setOpen] = useState(false)
 
-  const types = ['Single Family', 'Condominium', 'Townhouse', 'Multi-Family', 'Land', 'Mobile/Manufactured']
-  const hasValue = filters.propertyType.length > 0
+  const selected = filters.structureType
+  // A label is "on" when all its underlying StructureType values are selected.
+  const isOn = (values: string[]) => values.every((v) => selected.includes(v))
+  const selectedLabelCount = HOME_TYPES.filter((t) => isOn(t.values)).length
+  const hasValue = selected.length > 0
 
-  const toggle = (t: string) => {
-    const current = filters.propertyType
-    const next = current.includes(t) ? current.filter((x) => x !== t) : [...current, t]
-    setFilter('propertyType', next)
+  const toggle = (values: string[]) => {
+    const next = isOn(values)
+      ? selected.filter((v) => !values.includes(v))
+      : [...new Set([...selected, ...values])]
+    setFilter('structureType', next)
   }
 
   return (
     <div className="relative">
       <FilterChip
-        label={hasValue ? `Type (${filters.propertyType.length})` : 'Home Type'}
+        label={hasValue ? `Type (${selectedLabelCount})` : 'Home Type'}
         active={hasValue}
         onClick={() => setOpen((v) => !v)}
-        onClear={() => setFilter('propertyType', [])}
+        onClear={() => setFilter('structureType', [])}
       />
       <Popover isOpen={open} onClose={() => setOpen(false)}>
-        <p className="text-xs font-semibold text-[#6B6B6B] mb-3 uppercase tracking-wide">Property Type</p>
+        <p className="text-xs font-semibold text-[#6B6B6B] mb-3 uppercase tracking-wide">Home Type</p>
         <div className="grid grid-cols-2 gap-2">
-          {types.map((t) => (
+          {HOME_TYPES.map((t) => (
             <button
-              key={t}
-              onClick={() => toggle(t)}
+              key={t.label}
+              onClick={() => toggle(t.values)}
               className={[
                 'py-2 px-3 rounded-lg text-xs font-medium border text-left transition-colors',
-                filters.propertyType.includes(t)
+                isOn(t.values)
                   ? 'bg-[#1C3829] text-white border-[#1C3829]'
                   : 'border-[#E8E6E1] text-[#111111] hover:border-[#1C3829]/40',
               ].join(' ')}
             >
-              {t}
+              {t.label}
             </button>
           ))}
         </div>
@@ -539,16 +524,6 @@ function AdvancedFilters() {
             />
           </div>
 
-          {filters.listingType === 'For Rent' && (
-            <div className="border-t border-[#E8E6E1] pt-4">
-              <p className="text-sm font-semibold text-[#111111] mb-2">Rental Preferences</p>
-              <ToggleRow label="Pet-friendly" value={filters.petFriendly} onToggle={() => setFilter('petFriendly', !filters.petFriendly)} />
-              <ToggleRow label="In-unit laundry" value={filters.laundry} onToggle={() => setFilter('laundry', !filters.laundry)} />
-              <ToggleRow label="Utilities included" value={filters.utilitiesIncluded} onToggle={() => setFilter('utilitiesIncluded', !filters.utilitiesIncluded)} />
-              <ToggleRow label="Furnished" value={filters.furnished} onToggle={() => setFilter('furnished', !filters.furnished)} />
-              <ToggleRow label="Short-term rental" value={filters.shortTerm} onToggle={() => setFilter('shortTerm', !filters.shortTerm)} />
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -562,12 +537,11 @@ export default function FilterPanel() {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const hasAnyFilter =
-    filters.listingType !== 'For Sale' ||
     filters.minPrice !== null ||
     filters.maxPrice !== null ||
     filters.beds !== null ||
     filters.baths !== null ||
-    filters.propertyType.length > 0 ||
+    filters.structureType.length > 0 ||
     filters.minSqft !== null ||
     filters.maxSqft !== null
 
@@ -587,7 +561,6 @@ export default function FilterPanel() {
         className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0"
         style={{ scrollbarWidth: 'none' }}
       >
-        <ListingTypeFilter />
         <PriceRangeFilter />
         <BedsAndBathsFilter />
         <HomeTypeFilter />

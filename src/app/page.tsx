@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronRight, Bed, Bath, Square } from 'lucide-react'
-import HomeNavbar from '@/components/landing/HomeNavbar'
+import Navbar from '@/components/layout/Navbar'
 import HeroSearchBar from '@/components/landing/HeroSearchBar'
 import Footer from '@/components/layout/Footer'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
@@ -116,7 +116,7 @@ export default async function LandingPage() {
 
   return (
     <main className="bg-[#FAF9F6] text-[#111111]">
-      <HomeNavbar />
+      <Navbar overHero />
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex flex-col">

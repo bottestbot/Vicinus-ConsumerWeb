@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import type { DashboardData } from '@/types/dashboard'
-import DashboardNavbar from '@/components/dashboard/DashboardNavbar'
+import Navbar from '@/components/layout/Navbar'
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner'
 import FeaturedProperty from '@/components/dashboard/FeaturedProperty'
 import NotificationsPanel from '@/components/dashboard/NotificationsPanel'
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#FAF9F6]">
       {/* Dashboard-specific navbar (no main site nav) */}
-      <DashboardNavbar />
+      <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-12">
 

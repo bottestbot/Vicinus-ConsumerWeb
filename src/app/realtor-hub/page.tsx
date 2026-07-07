@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import HomeNavbar from '@/components/landing/HomeNavbar'
+import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import RealtorHubHero from '@/components/realtor-hub/RealtorHubHero'
 import RealtorHubFeatures from '@/components/realtor-hub/RealtorHubFeatures'
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function RealtorHubPage() {
   return (
     <main className="bg-[#FAF9F6] text-[#111111]">
-      <HomeNavbar />
+      <Navbar overHero />
 
       <RealtorHubHero />
       <RealtorHubFeatures />
