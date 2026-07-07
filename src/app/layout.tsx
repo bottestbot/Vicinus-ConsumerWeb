@@ -3,6 +3,8 @@ import { Inter, Playfair_Display } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import QueryProvider from '@/components/providers/QueryProvider'
 import LocationProvider from '@/components/providers/LocationProvider'
+import OnboardingGate from '@/components/onboarding/OnboardingGate'
+import OnboardingModal from '@/components/onboarding/OnboardingModal'
 import './globals.css'
 
 const inter = Inter({
@@ -40,7 +42,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body className="font-sans">
           <QueryProvider>
             <LocationProvider />
+            <OnboardingGate />
             {children}
+            <OnboardingModal />
           </QueryProvider>
         </body>
       </html>

@@ -19,6 +19,9 @@ model User {
   loginCount           Int      @default(0)
   onboardingCompleted  Boolean  @default(false)
   onboardingData       Json?
+  // Clerk session id of the last ping. loginCount is bumped only when a ping
+  // arrives from a new session, so it counts login-sessions (not page loads).
+  lastSessionId        String?
 
   savedProperties   SavedProperty[]
   visitedProperties VisitedProperty[]
