@@ -46,3 +46,23 @@ export async function createSellValuation(answers: SellAnswers): Promise<SellVal
   const res = await apiClient.post('/sell/valuation', answers)
   return res.data as SellValuation
 }
+
+export interface SellPreviewAnswers {
+  address: string
+  sellingPriority?: string
+  biggestHurdle?: string
+  advisoryPreference?: string
+}
+
+export interface SellPreviewRange {
+  low: number
+  high: number
+  currency: string
+}
+
+// POST /sell/preview — returns a real, model-derived estimate range for the
+// address without capturing a lead. Powers the teaser above the lead form.
+export async function getSellPreview(answers: SellPreviewAnswers): Promise<SellPreviewRange> {
+  const res = await apiClient.post('/sell/preview', answers)
+  return res.data as SellPreviewRange
+}

@@ -40,8 +40,12 @@ function mapListing(l: RawListing): Property {
   const images = Array.isArray(l.images)
     ? (l.images as Array<{ url?: string } | string>)
         .map((m) => (typeof m === 'string' ? m : (m.url ?? '')))
-        // filter out matterport / non-image URLs (keep only http image CDN links with image extensions)
-        .filter((u) => u && /\.(jpe?g|png|webp|gif)(\?.*)?$/i.test(u))
+        // Keep any http(s) media URL. DDF images live on unbounded third-party
+        // hosts (onikon storyboard, realtyninja, agent CMS) whose URLs often
+        // have no file extension — matching Search, we don't require one, and
+        // only exclude obvious non-photo tours (matterport). A dead host is
+        // handled by FeedCard's onError fallback rather than pre-filtered here.
+        .filter((u) => /^https?:\/\//i.test(u) && !/matterport\.com/i.test(u))
     : []
 
   const allowedStatus = ['Active', 'Sold', 'Coming Soon', 'Open House'] as const

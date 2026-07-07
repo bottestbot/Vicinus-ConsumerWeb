@@ -75,9 +75,9 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
 
         {/* Content */}
         <div className="p-3.5">
-          {/* Price */}
+          {/* Price — DDF sometimes omits ListPrice; show a label instead of $0 */}
           <p className="font-heading text-xl font-semibold text-[#111111] mb-0.5">
-            {formatFullPrice(property.price)}
+            {property.price > 0 ? formatFullPrice(property.price) : 'Price on request'}
           </p>
 
           {/* Address */}
@@ -95,10 +95,14 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
             <span className="flex items-center gap-1">
               <Bath size={12} /> {property.baths} ba
             </span>
-            <span className="text-[#E8E6E1]">|</span>
-            <span className="flex items-center gap-1">
-              <Maximize2 size={12} /> {property.sqft.toLocaleString()} sqft
-            </span>
+            {property.sqft > 0 && (
+              <>
+                <span className="text-[#E8E6E1]">|</span>
+                <span className="flex items-center gap-1">
+                  <Maximize2 size={12} /> {property.sqft.toLocaleString()} sqft
+                </span>
+              </>
+            )}
           </div>
 
           {/* Agent / CREA compliance footer */}

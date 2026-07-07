@@ -17,7 +17,8 @@ export default function PropertyStats({ property }: PropertyStatsProps) {
     {
       icon: <Home size={14} className="text-[#6B6B6B]" />,
       label: 'Price',
-      value: formatFullPrice(property.price),
+      // DDF sometimes omits ListPrice — show a label instead of "$0".
+      value: property.price > 0 ? formatFullPrice(property.price) : 'Price on request',
     },
     {
       icon: <Bed size={14} className="text-[#6B6B6B]" />,
@@ -29,11 +30,16 @@ export default function PropertyStats({ property }: PropertyStatsProps) {
       label: 'Baths',
       value: `${property.baths} Bath`,
     },
-    {
-      icon: <Maximize2 size={14} className="text-[#6B6B6B]" />,
-      label: 'Size',
-      value: `${property.sqft.toLocaleString()} sqft`,
-    },
+    // Only show Size when DDF supplies LivingArea — otherwise it reads "0 sqft".
+    ...(property.sqft > 0
+      ? [
+          {
+            icon: <Maximize2 size={14} className="text-[#6B6B6B]" />,
+            label: 'Size',
+            value: `${property.sqft.toLocaleString()} sqft`,
+          },
+        ]
+      : []),
     ...(property.parking != null
       ? [
           {

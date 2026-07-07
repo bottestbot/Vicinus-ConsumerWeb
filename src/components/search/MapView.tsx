@@ -193,7 +193,7 @@ export default function MapView({ properties, pins = [], fitSignal = '' }: MapVi
             }}
           >
             <PricePin
-              price={m.price ?? 0}
+              price={m.price}
               isActive={hoveredPropertyId === m.id || selectedPropertyId === m.id}
               onMouseEnter={() => setHoveredProperty(m.id)}
               onMouseLeave={() => setHoveredProperty(null)}
