@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import HomeNavbar from '@/components/landing/HomeNavbar'
+import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import SellIntro from '@/components/sell/SellIntro'
 import SellWizard from '@/components/sell/SellWizard'
@@ -37,7 +37,7 @@ export default function SellPage() {
 
   return (
     <>
-      <HomeNavbar />
+      <Navbar overHero />
 
       {stage === 'intro' && <SellIntro onExplore={startWizard} />}
 

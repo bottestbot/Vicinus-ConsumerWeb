@@ -8,7 +8,7 @@ import type { Property, MapPinResponse } from '@/types/search'
 import { searchProperties, getMapPins } from '@/lib/api/search'
 import FilterPanel from '@/components/search/FilterPanel'
 import ResultsList from '@/components/search/ResultsList'
-import DashboardNavbar from '@/components/dashboard/DashboardNavbar'
+import Navbar from '@/components/layout/Navbar'
 
 // Dynamically import map to avoid SSR issues with mapbox-gl
 const MapView = dynamic(() => import('@/components/search/MapView'), {
@@ -104,6 +104,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     beds: filters.beds ?? undefined,
     baths: filters.baths ?? undefined,
     propertyType: filters.propertyType.length > 0 ? filters.propertyType.join(',') : undefined,
+    structureType: filters.structureType.length > 0 ? filters.structureType.join(',') : undefined,
     status: filters.status || undefined,
     listingType: filters.listingType || undefined,
     minSqft: filters.minSqft ?? undefined,
@@ -157,7 +158,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-[#FAF9F6] font-ui">
       {/* ── Shared Navbar ─────────────────────────────────────────────────── */}
-      <DashboardNavbar />
+      <Navbar />
 
       {/* ── Filter Bar: SearchBar + filter chips + ViewToggle ────────────── */}
       <div className="shrink-0 z-10">

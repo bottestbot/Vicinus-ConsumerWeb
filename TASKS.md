@@ -1,9 +1,38 @@
 # Vicinus — Task Tracker
-_Last updated: 2026-07-03_
+_Last updated: 2026-07-06_
 
 ## Legend
 - Severity: P0 (blocking) · P1 (significant) · P2 (polish)
 - Status: [x] done · [~] partial · [ ] todo
+- Sizes: S ≤0.5d · M 1–2d · L 3–5d · XL >5d (verification passes carry a QA size, not a build estimate)
+
+## 🐞 QA Bug Sweep — Web (2026-07-06)
+_Six user-reported web bugs (issue table 001–006). All `Web`. Code locations verified this session. Sizes: S ≤0.5d · M 1–2d._
+_**Implemented 2026-07-06.** FE + API type-check clean. BUG-04/05 verified via SSR (navbar consistent across landing/search/sell/neighbourhoods; rent filter gone). BUG-06 OData filter verified against the **live DDF feed** (`House OR Apartment` → HTTP 200, 92,282 rows; `any()` lambda supported — one transient 500 on retry only). BUG-01/03/06 full end-to-end confirmation needs the API running/deployed (FE dev proxies to the remote Railway API, which won't know `structureType` until deployed)._
+
+- [~] **BUG-01** [P1] _(#001 Neighbourhood)_ Live listing not showing in neighbourhood detail's Live Listings — `getListings` matches `Property` by **exact `city` string** only (`city: neighbourhood.city`), so a listing that belongs to the neighbourhood by location but carries a differing/mismatched-case city string never surfaces. Make it location-aware: city match **+ lat/lng radius fallback** off the neighbourhood coords. `M` · _api/src/modules/neighbourhoods/neighbourhoods.service.ts:78-118, src/components/neighbourhood/LiveListings.tsx_
+- [x] **BUG-02** [P1] _(#002 Home hero)_ Selecting a city in the hero search auto-navigates to `/search` — `HeroSearchBar.handleSelect` calls `router.push` on suggestion click. Should only fill the input + keep the selection; navigate to `/search` **only** on Discover (submit). `S` · _src/components/landing/HeroSearchBar.tsx:45-52_
+- [~] **BUG-03** [P1] _(#003 Search)_ Search map default city hardcoded to Toronto — `searchStore.mapCenter` is Toronto (`-79.38, 43.65`). Default should be **the user's city via geolocation**; fall back to **Vancouver** (not Toronto) when unavailable. `M` · _src/store/searchStore.ts:87, src/app/(main)/search/SearchPageClient.tsx, MapView.tsx_
+- [x] **BUG-04** [P1] _(#004 Global)_ Nav bar inconsistent across pages — three navbars in use (`HomeNavbar`, `layout/Navbar`, `DashboardNavbar`) with different links. Consolidate to **one** navbar: centre = **Home · Buy · Sell · Realtor Hub · Neighbourhood** (logged-out, sign-in/sign-up right) / **Home · Buy · Sell · Neighbourhood** (logged-in, Dashboard right). Buy→`/search?listingType=For+Sale`, Neighbourhood→`/neighbourhoods`. Keep a transparent-over-hero variant for the landing page. `M` · _src/components/landing/HomeNavbar.tsx, src/components/layout/Navbar.tsx, src/components/dashboard/DashboardNavbar.tsx, all page/layout consumers_
+- [x] **BUG-05** [P1] _(#005 Search)_ Remove the Buy/Rent filter — no rental data yet. Drop `ListingTypeFilter` (For Sale/For Rent chip) from the filter row and pin `listingType` to `For Sale`; hide the For-Rent-only "Rental Preferences" block. `S` · _src/components/search/FilterPanel.tsx:110-145,542-551,590_
+- [~] **BUG-06** [P1] _(#006 Search)_ Home Type filter doesn't filter — root cause: FE `propertyType` options don't map to what DDF can filter; `PropertySubType` (the only synced class field) files condos/townhouses all as "Single Family". **Decision (2026-07-06): build the real filter off DDF `StructureType`** (House/Condo/Townhouse/Apartment/Duplex/Mobile). **Architecture note:** search is **DDF-OData-live** (`ddfQuery.searchProperties`/`getMapPins`), not Postgres — so the fix is an **OData collection filter** (`StructureType/any(s:s eq '…')`), *not* a schema migration/re-sync. Add a `structureType` DTO param, thread FE `HomeTypeFilter` → list + map, keep the residential `PropertySubType` guard as the base. ⚠️ **Verify the `any()` lambda against the live DDF feed** — gate the clause so a rejection can't break unfiltered search. `M` · _api/src/modules/ddf-sync/ddf-query.service.ts:77-127, api/src/modules/search/dto/search-query.dto.ts, src/components/search/FilterPanel.tsx:258-300, src/store/searchStore.ts, src/app/(main)/search/SearchPageClient.tsx_
+
+## 🔎 Co-Founder Product Review — QA verification pass (2026-07-06)
+_Screen-by-screen verification of the live site from the co-founder review (`Vicinus_Combined_Review_and_Pipeline_Plan.docx`, Part A). These are **verification passes**, not builds — walk each screen on phone + desktop, run the test cases, and log Bugs/Improvements/Missing/Remove. P0/P1 assigned here as PE agent (matches the doc's Master Prioritized Backlog). Some items overlap the QA-Audit backlog below (code-level findings) — cross-reference rather than duplicate._
+
+- [ ] **REV-01** [P0] Home / Landing — hero search → `/search` (autocomplete + Enter), featured cards load & click through, navbar + footer links, images, <3s first load. `S` · _vicinus.ca/_
+- [ ] **REV-02** [P0] Search — city fly-to, skeleton → real cards <2s, map pins <2s + popups, price/beds/type/for-rent filters, More Filters, list/map/both views, pagination, save-search, autocomplete, clear-resets. `M` · _vicinus.ca/search_
+- [ ] **REV-03** [P0] Property Detail — photo gallery scroll, price/beds/baths/sqft/address, location map, agent card, save/share, open houses, tour/video, mortgage calc, MLS #, back-nav, facts accuracy, <3s load. `M` · _vicinus.ca/properties/[id]_
+- [ ] **REV-04** [P0] Auth (Sign In + Sign Up) — login/signup succeed, email verification arrives & completes, wrong-password + duplicate-email errors, forgot-password reset e2e, Google (if shown), redirect to `/dashboard`. `S` · _vicinus.ca/sign-in, /sign-up_
+- [ ] **REV-05** [P0] Onboarding — wizard advances/back/skip, progress indicator correct, completes → `/dashboard`, answers affect dashboard, resume-on-refresh, mobile fit. `S` · _vicinus.ca/onboarding_
+- [ ] **REV-06** [P1] Feed — first card loads, scroll-snap, images, price/beds/baths, video indicator + playback, filter bar (city/sale-rent/price), infinite scroll, card → detail, portrait/expand, end state. `M` · _vicinus.ca/feed_
+- [ ] **REV-07** [P1] Neighbourhoods (grid + detail) — real Canadian data (no placeholders), card → detail, AI summaries (Safety/Daily Life/Schools/Growth), real walk/transit scores, listings, essentials w/ distances, agents, map. `M` · _vicinus.ca/neighbourhoods, /neighbourhoods/[slug]_
+- [ ] **REV-08** [P1] Dashboard — loads signed-in, welcome name, saved properties, recently-visited (real), recent searches, featured (not blank), notifications, remove-saved, sign out. `S` · _vicinus.ca/dashboard_
+- [ ] **REV-09** [P1] Sell / Valuation — intro → wizard, steps advance/back, processing state, real estimate (not $0), API error state, next-step CTA. `S` · _vicinus.ca/sell_
+- [ ] **REV-10** [P1] Mobile responsiveness sweep — hero/nav/forms/map-list/feed/cards stack cleanly on phone across all 11 screens; 44px tap targets. `M` · _all screens_
+- [ ] **REV-11** [P1] Latency verification — search list & map pins <2s, property detail <3s, feed first card, neighbourhood AI summary; record actuals. `S` · _perf pass_
+- [ ] **REV-12** [P2] Remove premature/clutter — "Coming Soon" home block, empty Intelligence Panel, placeholder neighbourhood agents, empty Assessment History; hide-when-empty. `S` · _multiple_
+- [ ] **REV-13** [P2] Missing niceties — sort on search, save-from-feed card, valuation confidence range, neighbourhood search/filter. `M` · _multiple_
 
 ## 🚀 Realtor Hub — coming-soon landing + waitlist (2026-07-03)
 _Rename the home navbar "Agents Hub" item to "Realtor Hub" and repoint it from `/search` to a new professionals coming-soon page (the "Vicinus is coming for real estate professionals" design). Page is a marketing landing with hero, 3 feature cards (Augmented Neighbourhood Data · Neighbourhood Bidding · Short-Form Listing Content), a Founding Member band, and a "Join the Waitlist" form (Full Name · Professional Email · Brokerage · City/Market) that POSTs to a new lead-capture endpoint. Backend mirrors the existing `sell` module / `SellerLead` pattern. Route: `/realtor-hub`. Sizes: S ≤0.5d · M 1–2d._
@@ -61,6 +90,14 @@ _Stand up a product-analytics + personalization data pipeline. Full plan: `docs/
 - [ ] **DATA-23** [P2] `EventIngestLog` + ingestion-lag alerting — mirror DdfSyncLog pattern. `S` · deps: DATA-04 · _api_
 - [ ] **DATA-24** [P1] Retention prune cron + erasure hook — 13-mo prune; delete-on-account-deletion (Postgres + PostHog). `M` · deps: DATA-05 · _api @nestjs/schedule_
 - [ ] **DATA-25** [P2] (Optional) Metabase companion on Railway — SQL dashboards over AnalyticsEvent. `M` · deps: DATA-05 · _infra_
+
+### Phase 4 — AI / Learned Reranker (v2 · next release)
+_The **AI effort** broken out from the plan (§7.4 / §11 of `docs/data-pipeline-plan.md` + combined doc). Deferred until v1 (deterministic, DATA-15…20) is live and ≥3–6 months of `AnalyticsEvent` history exist — the owned event log is the training substrate. **Total AI effort ≈ 15–25 eng-days (XL).** All P2 (post-v1)._
+- [ ] **AI-01** [P2] Prereq gate — accumulate ≥3–6 mo `AnalyticsEvent` history + a stable v1 deterministic **engagement-rate baseline** for the learned model to beat; go/no-go. _Gating milestone (not eng-days)._ · deps: DATA-18, DATA-19, DATA-20 · _decision gate_
+- [ ] **AI-02** [P2] Feature & embedding pipeline — listing2vec + user vectors from view/save/impression sequences in `AnalyticsEvent`; offline feature store. `L` _(3–5d)_ · deps: AI-01 · _api analytics + offline job_
+- [ ] **AI-03** [P2] Offline training + eval harness — train candidate learned reranker; replay/holdout eval vs the v1 ranker on the engagement proxy; model selection. `L` _(3–5d)_ · deps: AI-02 · _ml/offline_
+- [ ] **AI-04** [P2] Online serving — serve the learned reranker in `FeedModule` behind a `feed_ranking_v2` flag; shadow-mode → A/B vs v1; hold a p95 latency budget. `L` _(3–5d)_ · deps: AI-03, DATA-18 · _api/src/modules/feed/_
+- [ ] **AI-05** [P2] Guardrails & monitoring — preserve CREA/DDF attribution on ranked cards, explainable/deterministic fallback, drift + ranking-quality monitoring, one-flag rollback. `M` _(1–2d)_ · deps: AI-04 · _api + PostHog_
 
 ## 🏘️ Neighbourhoods — 2-level filter redesign (2026-06-29)
 _Province → City two-level filter with context-aware pre-selection, adaptive featured section, and mobile scroll. Based on product spec + UI design approved this session._
@@ -198,6 +235,9 @@ _Enumerated findings: 2 P0 · 14 P1 · 11 P2 = 27. (Audit header stated "3 P0, 1
 - [x] **BE-604** — User dashboard aggregate
 
 ## Summary
+- **Co-Founder Review (QA verification pass):** 13 tasks — 5 P0 · 6 P1 · 2 P2 (REV-01..REV-13)
+- **Data Pipeline v1 (deterministic):** 25 tasks (DATA-01..DATA-25) — ~33.5 eng-days
+- **AI / Learned Reranker v2 (next release):** 5 tasks (AI-01..AI-05) — **AI effort ≈ 15–25 eng-days (XL)**
 - **Backlog (QA Audit):** 27 tasks — 2 P0 · 14 P1 · 11 P2
 - **Completed this session:** 3 (FIX-01..FIX-03)
 - **Previous-sprint tickets shipped:** 33 (16 FE · 17 BE)

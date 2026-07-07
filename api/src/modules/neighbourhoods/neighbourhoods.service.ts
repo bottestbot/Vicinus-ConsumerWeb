@@ -82,11 +82,34 @@ export class NeighbourhoodsService {
 
     const neighbourhood = await this.requireBySlug(slug)
 
+    // BUG-01: match live listings by LOCATION, not just an exact city string.
+    // An exact `city` equality missed listings whose stored city differed only
+    // in casing, or that sit inside the neighbourhood but carry an adjacent
+    // municipality name. Match on either (a) a case-insensitive city equality,
+    // or (b) a lat/lng radius around the neighbourhood's own coordinates.
+    const orClauses: Prisma.PropertyWhereInput[] = []
+    if (neighbourhood.city) {
+      orClauses.push({ city: { equals: neighbourhood.city, mode: 'insensitive' } })
+    }
+    if (neighbourhood.lat != null && neighbourhood.lng != null) {
+      const RADIUS_KM = 8
+      const latDelta = RADIUS_KM / 111
+      const lngDelta = RADIUS_KM / (111 * Math.cos((neighbourhood.lat * Math.PI) / 180) || 111)
+      orClauses.push({
+        lat: { gte: neighbourhood.lat - latDelta, lte: neighbourhood.lat + latDelta },
+        lng: { gte: neighbourhood.lng - lngDelta, lte: neighbourhood.lng + lngDelta },
+      })
+    }
+
+    // No location signal at all → nothing to scope by; return empty rather than
+    // every active listing in the country.
+    if (orClauses.length === 0) return []
+
     const properties = await this.prisma.property.findMany({
       where: {
-        city: neighbourhood.city ?? undefined,
         status: 'Active',
         displayOnInternet: true,
+        OR: orClauses,
       },
       select: {
         id: true,
@@ -185,7 +208,7 @@ export class NeighbourhoodsService {
   private async requireBySlug(slug: string) {
     const row = await this.prisma.neighbourhood.findUnique({
       where: { slug },
-      select: { id: true, city: true, province: true },
+      select: { id: true, city: true, province: true, lat: true, lng: true },
     })
     if (!row) throw new NotFoundException(`Neighbourhood "${slug}" not found`)
     return row

@@ -52,6 +52,7 @@ const defaultFilters: SearchFiltersExtended = {
   beds: null,
   baths: null,
   propertyType: [],
+  structureType: [],
   status: 'Active',
   listingType: 'For Sale',
   minSqft: null,
@@ -84,7 +85,10 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   userCity: null,
   userCoords: null,
   mapBounds: null,
-  mapCenter: { longitude: -79.3832, latitude: 43.6532, zoom: 11 },
+  // Default fallback = Vancouver (BUG-03). LocationProvider overwrites this with
+  // the user's own location once geolocation resolves; Vancouver is only used
+  // when geolocation is unavailable/denied.
+  mapCenter: { longitude: -123.1207, latitude: 49.2827, zoom: 11 },
   geocodedCenter: null,
   hoveredPropertyId: null,
   selectedPropertyId: null,

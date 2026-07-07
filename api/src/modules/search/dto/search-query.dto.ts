@@ -29,6 +29,16 @@ export class SearchQueryDto {
   @IsString()
   propertyType?: string
 
+  /**
+   * Comma-separated DDF `StructureType` values (dwelling form) — the field that
+   * actually distinguishes House / Condo / Townhouse etc.
+   * e.g. `structureType=House,Apartment`
+   */
+  @ApiPropertyOptional({ description: 'Comma-separated StructureType: House, Apartment, Row / Townhouse, …' })
+  @IsOptional()
+  @IsString()
+  structureType?: string
+
   /** Listing status — defaults to "Active" */
   @ApiPropertyOptional({ example: 'Active' }) @IsOptional() @IsString() status?: string
 

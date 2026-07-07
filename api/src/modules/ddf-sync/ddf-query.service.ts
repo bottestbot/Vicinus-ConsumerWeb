@@ -59,6 +59,27 @@ export interface NearbyOpenHouse {
  */
 const RESIDENTIAL_SUBTYPES = ['Single Family', 'Multi-family', 'Recreational']
 
+/**
+ * DDF `StructureType` is the field that distinguishes dwelling form (House vs
+ * Condo/Apartment vs Townhouse), which `PropertySubType` cannot — condos and
+ * townhouses are all filed as "Single Family". It is a **collection** field, so
+ * it's filtered with the OData `any()` lambda. These are the real values present
+ * in the live feed (verified against the DDF API); the whitelist also guards the
+ * OData clause against arbitrary input.
+ */
+const KNOWN_STRUCTURE_TYPES = [
+  'House',
+  'Apartment',
+  'Row / Townhouse',
+  'Duplex',
+  'Multi-Family',
+  'Mobile Home',
+  'Manufactured Home',
+  'Park Model Mobile Home',
+  'Recreational',
+  'Other',
+]
+
 @Injectable()
 export class DdfQueryService {
   private readonly logger = new Logger(DdfQueryService.name)
@@ -125,6 +146,20 @@ export class DdfQueryService {
       .map((t) => `PropertySubType eq '${this.sanitize(t)}'`)
       .join(' or ')
     filterParts.push(`(${typeFilter})`)
+
+    // Home-type filter (BUG-06): StructureType is a DDF collection field, so it
+    // is filtered with the OData `any()` lambda. Layered on top of the
+    // residential PropertySubType guard above. Only whitelisted values are used.
+    const structureTypes = (dto.structureType ?? '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => KNOWN_STRUCTURE_TYPES.includes(t))
+    if (structureTypes.length > 0) {
+      const structureFilter = structureTypes
+        .map((t) => `StructureType/any(s:s eq '${this.sanitize(t)}')`)
+        .join(' or ')
+      filterParts.push(`(${structureFilter})`)
+    }
 
     if (dto.bbox) {
       const coords = this.parseBbox(dto.bbox)

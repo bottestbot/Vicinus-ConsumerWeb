@@ -42,6 +42,8 @@ export interface SearchFiltersExtended {
   beds: number | null
   baths: number | null
   propertyType: string[]
+  /** DDF StructureType values (dwelling form) — powers the Home Type filter. */
+  structureType: string[]
   status: string
   listingType: string
   minSqft: number | null
