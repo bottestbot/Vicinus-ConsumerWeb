@@ -7,12 +7,16 @@ interface AgentCardProps {
 }
 
 export default function AgentCard({ property }: AgentCardProps) {
-  const initials = property.agentName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
+  // DDF sometimes omits the agent name but supplies the brokerage. Fall back to
+  // the brokerage for the primary line + avatar so the card is never blank.
+  const primaryName = property.agentName || property.brokerageName || 'Listing Brokerage'
+  const initials =
+    primaryName
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'RE'
 
   return (
     <div className="bg-white rounded-2xl border border-[#E8E6E1] shadow-sm p-5 sticky top-20">
@@ -22,9 +26,12 @@ export default function AgentCard({ property }: AgentCardProps) {
           {initials}
         </div>
         <div className="min-w-0">
-          <p className="font-semibold text-[#111111] text-sm truncate">{property.agentName}</p>
+          <p className="font-semibold text-[#111111] text-sm truncate">{primaryName}</p>
           <p className="text-xs text-[#6B6B6B] truncate">{property.agentTitle}</p>
-          <p className="text-[10px] text-[#6B6B6B] truncate">{property.brokerageName}</p>
+          {/* Only repeat the brokerage line when it differs from the primary name */}
+          {property.brokerageName && property.brokerageName !== primaryName && (
+            <p className="text-[10px] text-[#6B6B6B] truncate">{property.brokerageName}</p>
+          )}
         </div>
       </div>
 

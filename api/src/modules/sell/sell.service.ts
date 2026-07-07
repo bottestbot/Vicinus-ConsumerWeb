@@ -4,6 +4,7 @@ import { GoogleGenerativeAI, Schema, SchemaType } from '@google/generative-ai'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { SellValuationDto } from './dto/sell-valuation.dto'
+import { SellPreviewDto } from './dto/sell-preview.dto'
 
 // Shape Gemini must return — drives the valuation detail screen.
 const VALUATION_SCHEMA: Schema = {
@@ -72,6 +73,20 @@ export class SellService {
     this.genAI = new GoogleGenerativeAI(this.config.getOrThrow('GEMINI_API_KEY'))
   }
 
+  // Lead-free preview: runs the genuine valuation model and returns only a range
+  // (a confidence band around the real estimate). Persists NOTHING and needs no
+  // contact details — powers the teaser shown above the lead-capture form.
+  async previewEstimate(dto: SellPreviewDto): Promise<{ low: number; high: number; currency: string }> {
+    const valuation = await this.generateValuation(dto)
+
+    // Widen the model's tight range slightly into a preview band, so the precise
+    // low/high stay gated behind the full lead-captured valuation.
+    const low = Math.round((valuation.estimatedValueLow * 0.97) / 1_000) * 1_000
+    const high = Math.round((valuation.estimatedValueHigh * 1.03) / 1_000) * 1_000
+
+    return { low, high, currency: 'CAD' }
+  }
+
   // Persists the seller lead, generates a Gemini valuation, caches it on the lead, returns it.
   async createValuation(dto: SellValuationDto) {
     const valuation = await this.generateValuation(dto)
@@ -100,7 +115,7 @@ export class SellService {
 
   // ---------------------------------------------------------------------------
 
-  private async generateValuation(dto: SellValuationDto) {
+  private async generateValuation(dto: SellPreviewDto) {
     const model = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
       generationConfig: {
@@ -118,7 +133,7 @@ export class SellService {
     }
   }
 
-  private buildPrompt(dto: SellValuationDto): string {
+  private buildPrompt(dto: SellPreviewDto): string {
     return [
       'You are a senior Canadian real-estate valuation analyst for Vicinus, a luxury property platform.',
       'A homeowner is considering selling and has given the details below. Produce a realistic, illustrative',
@@ -144,7 +159,7 @@ export class SellService {
   }
 
   // Used when GEMINI_API_KEY is a placeholder or the call fails, so the flow still renders.
-  private fallbackValuation(dto: SellValuationDto) {
+  private fallbackValuation(dto: SellPreviewDto) {
     return {
       tagline: 'A distinctive home positioned in a sought-after Canadian market.',
       estimatedValueLow: 2_850_000,

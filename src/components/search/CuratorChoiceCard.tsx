@@ -10,6 +10,9 @@ interface CuratorChoiceCardProps {
   property: Property
 }
 
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80'
+
 export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) {
   return (
     <div className="bg-white rounded-xl overflow-hidden border border-[#E8E6E1] shadow-sm">
@@ -25,7 +28,7 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
       <Link href={`/properties/${property.id}`}>
         <div className="relative h-52 overflow-hidden bg-[#1C2020] group">
           <Image
-            src={property.imageUrl}
+            src={property.imageUrl || FALLBACK_IMAGE}
             alt={property.address}
             fill
             sizes="400px"
@@ -70,7 +73,7 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
         <div className="flex items-start justify-between mb-2">
           <div>
             <p className="font-heading text-2xl font-semibold text-[#111111]">
-              {formatFullPrice(property.price)}
+              {property.price > 0 ? formatFullPrice(property.price) : 'Price on request'}
             </p>
             <p className="text-sm text-[#111111] mt-0.5">{property.address}</p>
             <p className="text-xs text-[#6B6B6B]">
@@ -88,8 +91,12 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
           <span className="flex items-center gap-1">
             <Bath size={12} /> {property.baths} ba
           </span>
-          <span className="text-[#E8E6E1]">|</span>
-          <span>{property.sqft.toLocaleString()} sqft</span>
+          {property.sqft > 0 && (
+            <>
+              <span className="text-[#E8E6E1]">|</span>
+              <span>{property.sqft.toLocaleString()} sqft</span>
+            </>
+          )}
         </div>
 
         {/* Features */}

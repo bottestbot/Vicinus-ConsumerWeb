@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Banknote, Zap, ArrowLeftRight, Wrench, Home, Receipt, Rocket,
-  Mail, PhoneCall, CalendarCheck, ArrowRight, ArrowLeft, Check,
+  Mail, PhoneCall, CalendarCheck, ArrowRight, ArrowLeft, Check, Sparkles, Loader2,
 } from 'lucide-react'
-import type { SellAnswers } from '@/lib/api/sell'
+import type { SellAnswers, SellPreviewRange } from '@/lib/api/sell'
+import { getSellPreview } from '@/lib/api/sell'
 
 interface Choice {
   key: string
@@ -32,6 +33,61 @@ const ADVISORY: Choice[] = [
   { key: 'phone', title: 'Quick Phone Review', desc: 'Let an expert call me to answer questions and verify details.', icon: <PhoneCall size={20} /> },
   { key: 'in-person', title: 'In-Person Assessment', desc: 'Schedule a walk-through for a firm, non-contingent cash offer.', icon: <CalendarCheck size={20} /> },
 ]
+
+function formatM(n: number): string {
+  return `$${(n / 1_000_000).toFixed(2)}M`
+}
+
+interface PreviewState {
+  status: 'loading' | 'ready' | 'error'
+  range?: SellPreviewRange
+}
+
+// Real, model-derived preliminary range fetched from the backend (POST /sell/preview).
+// No lead is captured to produce it — the precise valuation with confidence score and
+// comparables stays gated behind the lead-capture form below.
+function PreliminaryEstimate({ address, preview }: { address: string; preview: PreviewState }) {
+  // Degrade gracefully: if the preview couldn't be fetched, hide the estimate block
+  // entirely rather than showing a fabricated number.
+  if (preview.status === 'error') return null
+
+  return (
+    <div className="bg-[#1C2C1A] rounded-2xl p-7 max-w-xl mx-auto mb-6 text-center">
+      <div className="flex items-center justify-center gap-2 mb-3">
+        <Sparkles size={16} className="text-[#A3E635]" />
+        <span className="text-[11px] font-bold uppercase tracking-widest text-[#A3E635]">
+          Preliminary Estimate
+        </span>
+      </div>
+      {preview.status === 'loading' || !preview.range ? (
+        <div className="flex items-center justify-center gap-2 h-10 text-white/60">
+          <Loader2 size={20} className="animate-spin" />
+          <span className="text-sm">Estimating your home’s value…</span>
+        </div>
+      ) : (
+        <p className="font-heading text-4xl font-bold text-white leading-tight">
+          {formatM(preview.range.low)} – {formatM(preview.range.high)}
+        </p>
+      )}
+      <p className="text-white/60 text-sm mt-3 max-w-sm mx-auto leading-relaxed">
+        An early range for <span className="text-white/85 font-medium">{address}</span>, based on
+        comparable market activity. Share your details below to unlock your full editorial-grade
+        analysis with confidence score and comparables.
+      </p>
+    </div>
+  )
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-[#6B6B6B] hover:text-[#1C3829] transition-colors"
+    >
+      <ArrowLeft size={16} /> Previous step
+    </button>
+  )
+}
 
 function ProgressHeader({ step }: { step: number }) {
   const pct = Math.round((step / 3) * 100)
@@ -89,6 +145,28 @@ export default function SellWizard({ address, onComplete, onBack }: Props) {
   const [biggestHurdle, setBiggestHurdle] = useState<string>()
   const [advisoryPreference, setAdvisoryPreference] = useState<string>('phone')
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '' })
+  const [preview, setPreview] = useState<PreviewState>({ status: 'loading' })
+
+  // Fetch the real, model-derived preview range once the seller reaches step 3.
+  // Runs only after priority/hurdle are chosen so the estimate reflects them.
+  useEffect(() => {
+    if (step !== 3) return
+    let cancelled = false
+    setPreview({ status: 'loading' })
+    getSellPreview({ address, sellingPriority, biggestHurdle, advisoryPreference })
+      .then((range) => {
+        if (!cancelled) setPreview({ status: 'ready', range })
+      })
+      .catch(() => {
+        if (!cancelled) setPreview({ status: 'error' })
+      })
+    return () => {
+      cancelled = true
+    }
+    // Intentionally excludes advisoryPreference — it can change on step 3 without
+    // needing to re-run the estimate, which depends mainly on address + priorities.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, address, sellingPriority, biggestHurdle])
 
   function prev() {
     if (step === 1) onBack()
@@ -131,6 +209,7 @@ export default function SellWizard({ address, onComplete, onBack }: Props) {
       {/* Step 2 */}
       {step === 2 && (
         <div className="max-w-3xl mx-auto">
+          <BackButton onClick={prev} />
           <h1 className="font-heading text-4xl font-bold text-[#1C3829] leading-tight mb-3">
             What is the biggest hurdle we can help you solve right now?
           </h1>
@@ -146,6 +225,7 @@ export default function SellWizard({ address, onComplete, onBack }: Props) {
       {/* Step 3 */}
       {step === 3 && (
         <div className="max-w-3xl mx-auto">
+          <BackButton onClick={prev} />
           <h1 className="font-heading text-4xl font-bold text-[#1C3829] leading-tight mb-3 text-center">
             How would you prefer to explore your home’s value and offers?
           </h1>
@@ -158,10 +238,13 @@ export default function SellWizard({ address, onComplete, onBack }: Props) {
             ))}
           </div>
 
+          {/* Preliminary estimate — real model-derived range, shown BEFORE the lead-capture form */}
+          <PreliminaryEstimate address={address} preview={preview} />
+
           {/* Lead form */}
           <div className="bg-white rounded-2xl border border-[#E8E6E1] p-8 max-w-xl mx-auto shadow-sm">
             <h2 className="font-heading text-2xl font-bold text-[#111111] text-center mb-6">
-              Ready to unlock your analysis?
+              Unlock your full analysis
             </h2>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <Field label="First Name" placeholder="John" value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />

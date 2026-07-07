@@ -125,21 +125,41 @@ function toPropertyDetail(l: ApiListing): PropertyDetail {
 
 /**
  * Fetch full detail for a live DDF listing by its key (the `id` returned by
- * search). Returns null when the listing isn't a DDF key or is unavailable —
- * the caller can then fall back to mock/demo data.
+ * search). Returns null when the listing genuinely isn't found (404) so the
+ * caller renders the not-found UI.
+ *
+ * The remote API (Railway) can be slow to respond on a cold instance, which
+ * previously surfaced as an intermittent "page couldn't load" that a manual
+ * reload fixed (QA-07). We now bound each attempt with a timeout and retry once
+ * on a transient failure (network error / 5xx) before giving up, so navigation
+ * renders reliably on the first try.
  */
 export async function getPropertyDetail(id: string): Promise<PropertyDetail | null> {
-  try {
-    const res = await fetch(`${API_BASE}/search/listing/${encodeURIComponent(id)}`, {
-      next: { revalidate: 300 },
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as ApiListing
-    if (!data || !data.id) return null
-    return toPropertyDetail(data)
-  } catch {
-    return null
+  const url = `${API_BASE}/search/listing/${encodeURIComponent(id)}`
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, {
+        next: { revalidate: 300 },
+        signal: AbortSignal.timeout(8000),
+      })
+      // 404 = genuinely not a live listing; don't retry, fall back to not-found.
+      if (res.status === 404) return null
+      // Transient upstream failure — retry once before giving up.
+      if (!res.ok) {
+        if (attempt === 0) continue
+        return null
+      }
+      const data = (await res.json()) as ApiListing
+      if (!data || !data.id) return null
+      return toPropertyDetail(data)
+    } catch {
+      // Network error / timeout — retry once, then fall back.
+      if (attempt === 0) continue
+      return null
+    }
   }
+  return null
 }
 
 // ─── Featured highlights (BE-H) ───────────────────────────────────────────────

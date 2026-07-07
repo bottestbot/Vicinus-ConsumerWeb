@@ -20,6 +20,12 @@ interface Props {
   isSaved?: boolean
 }
 
+// Same fallback used by SearchResultCard — swapped in when a listing's
+// third-party image host is dead / hotlink-protected so the card never gets
+// stuck on a black background with a hanging image request.
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80'
+
 function formatPrice(p: number): string {
   if (p >= 1_000_000) return `$${(p / 1_000_000).toFixed(p % 1_000_000 === 0 ? 0 : 2)}M`
   if (p >= 1_000) return `$${(p / 1_000).toFixed(0)}K`
@@ -83,10 +89,12 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
   const [likeCount] = useState(() => Math.floor(Math.random() * 2000) + 200)
   const [muted, setMuted] = useState(true)
   const [saved, setSaved] = useState(isSaved)
+  const [videoFailed, setVideoFailed] = useState(false)
 
   const images = property.images?.length ? property.images : property.imageUrl ? [property.imageUrl] : []
   const youtubeUrl = property.youtubeUrl ?? null
-  const hasVideo = !!property.virtualTourUrl
+  // If the native video URL is dead, fall back to the image/YouTube slides.
+  const hasVideo = !!property.virtualTourUrl && !videoFailed
   const tags = deriveTags(property)
 
   // slides: 0 = YouTube iframe (if present), 1+ = images
@@ -180,6 +188,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             src={property.virtualTourUrl!}
             className="absolute inset-0 w-full h-full object-cover"
             loop muted={muted} playsInline autoPlay={isActive}
+            onError={() => setVideoFailed(true)}
           />
         ) : (
           <>
@@ -211,6 +220,12 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
                   !isOnYoutube && i === imageSlideIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
                 }`}
                 draggable={false}
+                onError={(e) => {
+                  // Dead / hotlink-protected DDF host — swap to the fallback so
+                  // the card doesn't sit on a black background forever.
+                  const img = e.currentTarget
+                  if (img.src !== FALLBACK_IMAGE) img.src = FALLBACK_IMAGE
+                }}
               />
             ))}
 
@@ -238,9 +253,15 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
               <button onClick={nextImg} className="absolute right-0 top-0 h-full w-10 z-30" aria-label="Next" />
             )}
 
-            {/* Fallback empty bg */}
+            {/* Fallback image when a listing has no photos or YouTube slide
+                (e.g. a video-only listing whose native video failed to load) */}
             {images.length === 0 && !youtubeUrl && (
-              <div className="absolute inset-0 bg-[#1C3829]/30" />
+              <img
+                src={FALLBACK_IMAGE}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover z-0"
+                draggable={false}
+              />
             )}
           </>
         )}

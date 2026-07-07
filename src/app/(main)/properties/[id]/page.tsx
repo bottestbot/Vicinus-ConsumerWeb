@@ -188,9 +188,11 @@ export default async function PropertyDetailPage({
             <div>
               <p className="text-xs text-[#6B6B6B]">
                 Listing provided by{' '}
-                <span className="font-semibold text-[#111111]">{property.agentName}</span>
-                {' '}·{' '}
-                <span className="font-semibold text-[#111111]">{property.brokerageName}</span>
+                <span className="font-semibold text-[#111111]">
+                  {[property.agentName, property.brokerageName]
+                    .filter(Boolean)
+                    .join(' · ') || 'Listing Brokerage'}
+                </span>
               </p>
               <p className="text-[10px] text-[#6B6B6B] mt-0.5">
                 MLS® {property.mlsNumber} · Data provided by CREA and may not reflect all available listings. Information is deemed reliable but not guaranteed.

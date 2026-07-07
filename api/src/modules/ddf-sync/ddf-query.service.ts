@@ -357,6 +357,8 @@ export class DdfQueryService {
 
   private mapProperty(p: Record<string, unknown>): Record<string, unknown> {
     const media = (p['Media'] as Record<string, unknown>[]) ?? []
+    const agentName = this.resolveAgentName(p)
+    const officeName = this.resolveOfficeName(p, media)
     return {
       id: String(p['ListingKey']),
       ddfListingKey: String(p['ListingKey']),
@@ -392,9 +394,47 @@ export class DdfQueryService {
       taxAnnual: (p['TaxAnnualAmount'] as number | null) ?? null,
       taxYear: (p['TaxYear'] as number | null) ?? null,
       listedAt: p['OriginalEntryTimestamp'] ? new Date(p['OriginalEntryTimestamp'] as string) : null,
-      agent: p['ListAgentFullName'] ? { fullName: String(p['ListAgentFullName']) } : null,
-      office: p['ListOfficeName'] ? { name: String(p['ListOfficeName']) } : null,
+      agent: agentName ? { fullName: agentName } : null,
+      office: officeName ? { name: officeName } : null,
     }
+  }
+
+  /**
+   * Resolve the listing agent's full name. DDF usually exposes
+   * `ListAgentFullName`, but some records only carry the split first/last name
+   * fields — fall back to those so the agent line isn't blank (QA-09).
+   */
+  private resolveAgentName(p: Record<string, unknown>): string | null {
+    const full = (p['ListAgentFullName'] as string | null) ?? null
+    if (full && full.trim()) return full.trim()
+    const first = ((p['ListAgentFirstName'] as string | null) ?? '').trim()
+    const last = ((p['ListAgentLastName'] as string | null) ?? '').trim()
+    const joined = [first, last].filter(Boolean).join(' ')
+    return joined || null
+  }
+
+  /**
+   * Resolve the listing brokerage name (QA-09). Prefer `ListOfficeName`; when
+   * absent, DDF often still names the brokerage in a photo caption
+   * (`Media[].ShortDescription`, e.g. "RE/MAX Rouge River Realty Ltd."), so fall
+   * back to the first caption that looks like a brokerage name.
+   */
+  private resolveOfficeName(
+    p: Record<string, unknown>,
+    media: Record<string, unknown>[],
+  ): string | null {
+    const direct = (p['ListOfficeName'] as string | null) ?? null
+    if (direct && direct.trim()) return direct.trim()
+
+    const BROKERAGE_HINT = /realty|brokerage|real estate|remax|re\/max|royal lepage|century 21|sotheby|keller williams|realtor|properties|homes|group|inc\.?|ltd\.?/i
+    for (const m of media) {
+      const caption =
+        ((m['ShortDescription'] as string | null) ??
+          (m['LongDescription'] as string | null) ??
+          '').trim()
+      if (caption && BROKERAGE_HINT.test(caption)) return caption
+    }
+    return null
   }
 
   /**
@@ -683,8 +723,8 @@ export class DdfQueryService {
           openHouseDate: oh.date,
           openHouseStartTime: oh.startTime,
           openHouseEndTime: oh.endTime,
-          agentName: (p['ListAgentFullName'] as string | null) ?? '',
-          brokerageName: (p['ListOfficeName'] as string | null) ?? '',
+          agentName: this.resolveAgentName(p) ?? '',
+          brokerageName: this.resolveOfficeName(p, media) ?? '',
         })
       }
 
