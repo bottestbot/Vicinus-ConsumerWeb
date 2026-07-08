@@ -178,19 +178,25 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   const totalCount: number = data?.total ?? 0
   const totalPages: number = data?.totalPages ?? Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
-  // Map pins: ALL listings in the current viewport (up to 500), independent of
-  // the list page — so the map stays fully populated like Zillow's. Carries the
-  // same filters as the list so applying a filter updates the map too.
-  // Use live map bounds when available, else the default (device/Vancouver) box
-  // so pins (a) load on first paint before any pan — the map never mounts empty
-  // (BUY-02), and (b) prefetch in the background while the user is on the Feed,
-  // so switching to Map has no API wait (BUY-04). React Query dedupes the cache.
+  // Map pins: ALL listings in the current viewport (up to 500). In the Map view
+  // they load immediately. On the Feed view we still prefetch them so switching
+  // to Map has no API wait (BUY-04) — but *deferred*, so this heavy 500-row DDF
+  // query doesn't compete with the feed's own first-page load on a cold API and
+  // make the feed feel slow. Once armed it stays armed, keeping pins warm.
+  const [pinsArmed, setPinsArmed] = useState(false)
+  useEffect(() => {
+    // Map view: arm now (0ms). Feed view: wait until the feed has had a chance
+    // to paint before firing the background prefetch.
+    const t = setTimeout(() => setPinsArmed(true), viewMode === 'both' ? 0 : 2500)
+    return () => clearTimeout(t)
+  }, [viewMode])
+
   const bbox = mapBoundsStr ?? defaultBbox
   const pinParams = { ...queryParams, bbox }
   const { data: pinsData } = useQuery({
     queryKey: ['map-pins', pinParams],
     queryFn: () => getMapPins(pinParams).then((r) => r.data as MapPinResponse[]),
-    enabled: !!bbox,
+    enabled: !!bbox && pinsArmed,
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   })
