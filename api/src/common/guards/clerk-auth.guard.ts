@@ -5,6 +5,7 @@ import { Request } from 'express'
 
 interface AuthRequest extends Request {
   userId?: string
+  sessionId?: string
 }
 
 @Injectable()
@@ -20,6 +21,9 @@ export class ClerkAuthGuard implements CanActivate {
         secretKey: this.config.get<string>('CLERK_SECRET_KEY') ?? '',
       })
       request.userId = payload.sub
+      // `sid` is the Clerk session id — used to count login-sessions (not
+      // page loads) for the onboarding re-prompt cadence.
+      request.sessionId = payload.sid
       return true
     } catch {
       throw new UnauthorizedException()

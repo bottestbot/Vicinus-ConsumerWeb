@@ -288,14 +288,28 @@ export class UsersService {
 
   // ─── Onboarding ──────────────────────────────────────────────────────────
 
-  async ping(clerkId: string) {
+  async ping(clerkId: string, sessionId?: string) {
     const user = await this.getMe(clerkId)
-    const loginCount = user.loginCount + 1
-    const updated = await this.prisma.user.update({
-      where: { id: user.id },
-      data: { loginCount },
-    })
-    const showOnboarding = !updated.onboardingCompleted
+
+    // `loginCount` is a login-SESSION counter, not a page-load counter. Bump it
+    // only when this ping comes from a session we haven't seen before — i.e. the
+    // incoming Clerk sessionId differs from the stored `lastSessionId`. A null
+    // `lastSessionId` (brand-new user / pre-migration existing user) counts as a
+    // new session. Repeat pings within the same session (reloads, route changes)
+    // leave the count untouched.
+    const isNewSession = !user.lastSessionId || user.lastSessionId !== sessionId
+    const loginCount = isNewSession ? user.loginCount + 1 : user.loginCount
+
+    const updated =
+      isNewSession
+        ? await this.prisma.user.update({
+            where: { id: user.id },
+            data: { loginCount, lastSessionId: sessionId ?? null },
+          })
+        : user
+
+    // Re-prompt cadence: show on sessions 1, 6, 11, 16… until completed.
+    const showOnboarding = !updated.onboardingCompleted && loginCount % 5 === 1
     return {
       loginCount,
       onboardingCompleted: updated.onboardingCompleted,

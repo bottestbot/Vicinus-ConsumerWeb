@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
+import { CurrentSessionId } from '../../common/decorators/current-session.decorator'
 import { UsersService } from './users.service'
 import { CreateSavedSearchDto } from '../search/dto/create-saved-search.dto'
 
@@ -77,9 +78,9 @@ export class UsersController {
   // ─── Onboarding ──────────────────────────────────────────────────────────
 
   @Post('me/ping')
-  @ApiOperation({ summary: 'Record a login and return whether to show onboarding' })
-  ping(@CurrentUser() clerkId: string) {
-    return this.users.ping(clerkId)
+  @ApiOperation({ summary: 'Record a login-session and return whether to show onboarding' })
+  ping(@CurrentUser() clerkId: string, @CurrentSessionId() sessionId?: string) {
+    return this.users.ping(clerkId, sessionId)
   }
 
   @Patch('me/onboarding')

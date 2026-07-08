@@ -44,29 +44,9 @@ export default async function DashboardPage() {
 
   const token = await getToken()
 
-  // Ping session — increments loginCount and checks if onboarding is needed.
-  // NOTE: redirect() throws internally, so it must live outside any try/catch.
-  if (token) {
-    let showOnboarding = false
-    try {
-      const pingRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001'}/users/me/ping`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          cache: 'no-store',
-        }
-      )
-      if (pingRes.ok) {
-        const body = (await pingRes.json()) as { showOnboarding: boolean }
-        showOnboarding = body.showOnboarding
-      }
-    } catch {
-      // Never block dashboard load if ping fails
-    }
-    if (showOnboarding) redirect('/onboarding')
-  }
-
+  // Onboarding is handled globally by <OnboardingGate> (root layout), which pings
+  // the session and opens the onboarding modal over the current route when due —
+  // so there's no per-page ping or redirect here anymore.
   const data = token ? await fetchDashboard(token) : null
 
   // Fallback data when API is unavailable
