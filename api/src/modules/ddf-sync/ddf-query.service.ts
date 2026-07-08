@@ -369,6 +369,10 @@ export class DdfQueryService {
       leaseAmount: (p['LeaseAmount'] as number | null) ?? null,
       leaseFrequency: (p['LeaseAmountFrequency'] as string | null) ?? null,
       propertySubType: (p['PropertySubType'] as string | null) ?? null,
+      // StructureType (collection) is the real dwelling-form field — surfaced on
+      // the flat search payload so the FE can label House/Condo/Townhouse
+      // instead of the catch-all "Single Family" PropertySubType.
+      structureType: (p['StructureType'] as string[] | null) ?? null,
       beds: (p['BedroomsTotal'] as number | null) ?? null,
       baths: (p['BathroomsTotalInteger'] as number | null) ?? null,
       bathsPartial: (p['BathroomsPartial'] as number | null) ?? null,

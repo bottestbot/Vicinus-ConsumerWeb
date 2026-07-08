@@ -1,5 +1,6 @@
 import apiClient from './client'
 import type { OpenHouseProperty, PropertyDetail, PropertyFactsDetails } from '@/types/property'
+import { propertyTypeLabel } from '@/types/search'
 
 export const getProperty = (id: string) => apiClient.get(`/properties/${id}`)
 export const getProperties = (params?: Record<string, unknown>) => apiClient.get('/properties', { params })
@@ -103,7 +104,9 @@ function toPropertyDetail(l: ApiListing): PropertyDetail {
     beds: l.beds ?? 0,
     baths: l.baths ?? 0,
     sqft,
-    propertyType: l.propertySubType ?? '',
+    // Prefer StructureType (real dwelling form) over PropertySubType, which
+    // files condos/townhouses all as "Single Family". Same map as the filter.
+    propertyType: propertyTypeLabel(l.details?.exterior?.structureType, l.propertySubType),
     status,
     daysOnMarket: daysSince(l.listedAt),
     listingType: l.leaseAmount != null ? 'For Rent' : 'For Sale',

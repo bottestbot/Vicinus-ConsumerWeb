@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  Heart,
   Bookmark,
   Share2,
   MessageSquare,
   Volume2,
   VolumeX,
+  Pause,
 } from 'lucide-react'
 import type { Property } from '@/types/search'
 
@@ -66,7 +66,8 @@ function ActionBtn({
     >
       <div
         className={[
-          'w-10 h-10 rounded-full flex items-center justify-center transition-all',
+          'w-11 h-11 rounded-full flex items-center justify-center transition-all',
+          'focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black',
           active ? 'bg-[#1C3829]' : 'bg-black/50 backdrop-blur-sm group-hover:bg-black/70',
         ].join(' ')}
       >
@@ -85,17 +86,28 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
   const videoRef = useRef<HTMLVideoElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [imgIndex, setImgIndex] = useState(0)
-  const [liked, setLiked] = useState(false)
-  const [likeCount] = useState(() => Math.floor(Math.random() * 2000) + 200)
   const [muted, setMuted] = useState(true)
   const [saved, setSaved] = useState(isSaved)
   const [videoFailed, setVideoFailed] = useState(false)
+  // User-initiated pause of the native video (tap-to-pause). Lets buyers dwell
+  // on a frame instead of being carried along by autoplay.
+  const [paused, setPaused] = useState(false)
 
   const images = property.images?.length ? property.images : property.imageUrl ? [property.imageUrl] : []
   const youtubeUrl = property.youtubeUrl ?? null
   // If the native video URL is dead, fall back to the image/YouTube slides.
   const hasVideo = !!property.virtualTourUrl && !videoFailed
   const tags = deriveTags(property)
+
+  // Full address: street line + "City, Province". Falls back gracefully when
+  // any part is missing so we never render a stray comma or empty line.
+  const cityProvince = [property.city, property.province].filter(Boolean).join(', ')
+  const streetLine = property.address || cityProvince
+  const showCityLine = !!property.address && !!cityProvince
+
+  // Blurred backdrop source — fills any letterbox gap (esp. on wide desktop
+  // viewports) with a soft version of the frame instead of flat black.
+  const backdropSrc = images[0] ?? null
 
   // slides: 0 = YouTube iframe (if present), 1+ = images
   // imgIndex tracks position across all slides
@@ -146,12 +158,16 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
     return () => clearInterval(t)
   }, [isActive, isOnYoutube, hasVideo, images.length, totalSlides, youtubeUrl])
 
-  // Play/pause native video based on active state
+  // Play/pause native video based on active state + user tap-to-pause
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    if (isActive) { v.play().catch(() => {}) } else { v.pause(); v.currentTime = 0 }
-  }, [isActive])
+    if (isActive && !paused) { v.play().catch(() => {}) }
+    else { v.pause(); if (!isActive) { v.currentTime = 0 } }
+  }, [isActive, paused])
+
+  // Reset the manual pause whenever this card scrolls out of view.
+  useEffect(() => { if (!isActive) setPaused(false) }, [isActive])
 
   const prevImg = useCallback(() => setImgIndex((i) => {
     const prev = i - 1
@@ -180,16 +196,42 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
           height: '100%',
         }}
       >
+        {/* Blurred cover backdrop — soft-fills any letterbox gap instead of
+            flat black on wide viewports. Sits behind all media (z-0). */}
+        {backdropSrc && (
+          <img
+            src={backdropSrc}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-70 z-0"
+            draggable={false}
+          />
+        )}
+
         {/* ── Media ─────────────────────────────────── */}
         {hasVideo ? (
           /* Legacy native video (VirtualTourURLBranded) */
-          <video
-            ref={videoRef}
-            src={property.virtualTourUrl!}
-            className="absolute inset-0 w-full h-full object-cover"
-            loop muted={muted} playsInline autoPlay={isActive}
-            onError={() => setVideoFailed(true)}
-          />
+          <>
+            <video
+              ref={videoRef}
+              src={property.virtualTourUrl!}
+              className="absolute inset-0 w-full h-full object-cover"
+              loop muted={muted} playsInline autoPlay={isActive}
+              onError={() => setVideoFailed(true)}
+            />
+            {/* Tap anywhere on the video to pause/resume so buyers can dwell */}
+            <button
+              onClick={() => setPaused((p) => !p)}
+              className="absolute inset-0 z-10 flex items-center justify-center"
+              aria-label={paused ? 'Resume video' : 'Pause video'}
+            >
+              {paused && (
+                <span className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                  <Pause size={28} className="text-white fill-white" />
+                </span>
+              )}
+            </button>
+          </>
         ) : (
           <>
             {/* YouTube iframe slide — scaled up to bleed outside card so YouTube
@@ -278,21 +320,13 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
         )}
 
         {/* ── Gradients ─────────────────────────────── */}
-        <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/40 to-transparent z-10 pointer-events-none" />
-        <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/50 to-transparent z-10 pointer-events-none" />
+        {/* Persistent bottom scrim — keeps price/address ≥4.5:1 legible over any
+            underlying video frame, bright or dark. */}
+        <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/95 via-black/55 to-transparent z-10 pointer-events-none" />
 
-        {/* ── Right action rail ─────────────────────── */}
-        <div className="absolute right-3 bottom-24 z-20 flex flex-col items-center gap-4">
-          {/* Like */}
-          <div className="flex flex-col items-center gap-0.5">
-            <ActionBtn
-              icon={<Heart size={19} className={liked ? 'fill-white text-white' : 'text-white'} />}
-              label={String(likeCount + (liked ? 1 : 0))}
-              onClick={() => setLiked((l) => !l)}
-              active={liked}
-            />
-          </div>
-
+        {/* ── Right action rail — utilities only (Save / Share) ─────── */}
+        <div className="absolute right-3 bottom-28 z-20 flex flex-col items-center gap-4">
           <ActionBtn
             icon={<Bookmark size={19} className={saved ? 'fill-white text-white' : 'text-white'} />}
             label="Save"
@@ -305,32 +339,30 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             label="Share"
             onClick={() => {
               if (navigator.share) {
-                navigator.share({ title: property.address, url: `/properties/${property.id}` }).catch(() => {})
+                navigator.share({ title: streetLine, url: `/properties/${property.id}` }).catch(() => {})
               }
             }}
           />
-
-          <Link href={`/properties/${property.id}`} className="flex flex-col items-center gap-1">
-            <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition-all">
-              <MessageSquare size={19} className="text-white" />
-            </div>
-            <span className="text-white text-[10px] font-semibold drop-shadow-sm leading-none">Inquire</span>
-          </Link>
         </div>
 
         {/* ── Bottom info ───────────────────────────── */}
         <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-5 pr-16">
           <Link href={`/properties/${property.id}`} className="block group mb-1">
             <h2 className="font-heading text-white text-lg font-semibold leading-snug group-hover:underline line-clamp-1">
-              {property.address || `${property.city}, ${property.province}`}
+              {streetLine}
             </h2>
+            {showCityLine && (
+              <p className="text-white/80 text-sm font-medium leading-snug line-clamp-1">
+                {cityProvince}
+              </p>
+            )}
           </Link>
 
-          <p className="text-white text-xl font-bold mb-2">
+          <p className="text-white text-xl font-bold mb-2 mt-1">
             {formatPrice(property.price)}
           </p>
 
-          <div className="flex items-center gap-2.5 text-white/90 text-xs font-semibold mb-2.5">
+          <div className="flex items-center gap-2.5 text-white/90 text-xs font-semibold mb-2.5" aria-hidden="true">
             {property.beds > 0 && <span>{property.beds} BD</span>}
             {property.beds > 0 && property.baths > 0 && <span className="text-white/40">|</span>}
             {property.baths > 0 && <span>{property.baths} BA</span>}
@@ -338,6 +370,14 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
               <><span className="text-white/40">|</span><span>{property.sqft.toLocaleString()} SQFT</span></>
             )}
           </div>
+          {/* Screen-reader equivalent with expanded, non-abbreviated units */}
+          <span className="sr-only">
+            {[
+              property.beds > 0 ? `${property.beds} bedrooms` : null,
+              property.baths > 0 ? `${property.baths} bathrooms` : null,
+              property.sqft > 0 ? `${property.sqft.toLocaleString()} square feet` : null,
+            ].filter(Boolean).join(', ')}
+          </span>
 
           {/* Tags */}
           {tags.length > 0 && (
@@ -353,11 +393,29 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             </div>
           )}
 
-          {/* Brokerage + MLS */}
+          {/* Brokerage + MLS — demoted trust/reference line */}
           <p className="text-white/55 text-[10px] leading-tight">
             {[property.brokerageName, property.mlsNumber ? `MLS: ${property.mlsNumber}` : null]
               .filter(Boolean).join(' · ')}
           </p>
+
+          {/* ── Primary CTA + route back to full listing ─────────── */}
+          <div className="mt-3 flex items-center gap-3">
+            <Link
+              href={`/properties/${property.id}#contact`}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#1C3829] px-4 py-2.5 text-white text-sm font-semibold shadow-lg transition-all hover:bg-[#24493594] hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              aria-label={`Inquire about ${streetLine}`}
+            >
+              <MessageSquare size={16} />
+              Inquire
+            </Link>
+            <Link
+              href={`/properties/${property.id}`}
+              className="shrink-0 text-white/80 text-xs font-semibold underline underline-offset-2 hover:text-white"
+            >
+              See full listing
+            </Link>
+          </div>
 
           {/* Progress bar — slide position indicator */}
           {totalSlides > 1 && (

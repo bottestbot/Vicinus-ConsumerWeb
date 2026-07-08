@@ -5,6 +5,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property, MapPinResponse } from '@/types/search'
+import { propertyTypeLabel } from '@/types/search'
 import { searchProperties, getMapPins, type SearchParams } from '@/lib/api/search'
 import FilterPanel from '@/components/search/FilterPanel'
 import ResultsList from '@/components/search/ResultsList'
@@ -53,7 +54,9 @@ function toFrontendProperty(p: ApiProperty): Property {
     beds: (p.beds as number | null) ?? 0,
     baths: (p.baths as number | null) ?? 0,
     sqft: (p.sqft as number | null) ?? 0,
-    propertyType: (p.propertySubType as string | null) ?? '',
+    // Prefer StructureType (real dwelling form) over PropertySubType, which
+    // files condos/townhouses all as "Single Family". Same map as the filter.
+    propertyType: propertyTypeLabel(p.structureType as string[] | null, p.propertySubType as string | null),
     status: ((p.status as string | null) ?? 'Active') as Property['status'],
     daysOnMarket,
     listingType: p.leaseAmount != null ? 'For Rent' : 'For Sale',

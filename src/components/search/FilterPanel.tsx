@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, X, SlidersHorizontal } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
+import { HOME_TYPES } from '@/types/search'
 import SaveSearch from './SaveSearch'
 import SearchBar from './SearchBar'
 import ViewToggle from './ViewToggle'
@@ -223,18 +224,8 @@ function BedsAndBathsFilter() {
   )
 }
 
-// Friendly home-type labels → real DDF `StructureType` values (verified against
-// the live feed). This is the field that actually distinguishes House / Condo /
-// Townhouse — `PropertySubType` files them all as "Single Family". A label may
-// map to several StructureType values (e.g. mobile homes).
-const HOME_TYPES: { label: string; values: string[] }[] = [
-  { label: 'House', values: ['House'] },
-  { label: 'Condo / Apartment', values: ['Apartment'] },
-  { label: 'Townhouse', values: ['Row / Townhouse'] },
-  { label: 'Duplex', values: ['Duplex'] },
-  { label: 'Multi-Family', values: ['Multi-Family'] },
-  { label: 'Mobile / Manufactured', values: ['Mobile Home', 'Manufactured Home', 'Park Model Mobile Home'] },
-]
+// Home-type labels ↔ DDF `StructureType` values live in @/types/search
+// (HOME_TYPES) so the filter and the display label stay in sync.
 
 function HomeTypeFilter() {
   const { filters, setFilter } = useSearchStore()

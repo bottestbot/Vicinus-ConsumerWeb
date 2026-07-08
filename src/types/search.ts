@@ -214,3 +214,44 @@ export function formatPrice(price: number | null | undefined): string {
 export function formatFullPrice(price: number): string {
   return `$${price.toLocaleString()}`
 }
+
+// Friendly home-type labels → real DDF `StructureType` values (verified against
+// the live feed). `StructureType` is the field that actually distinguishes
+// House / Condo / Townhouse — `PropertySubType` files them all as "Single
+// Family". This is the single source of truth shared by the Home Type filter
+// and the property-type display label. A label may map to several values.
+export const HOME_TYPES: { label: string; values: string[] }[] = [
+  { label: 'House', values: ['House'] },
+  { label: 'Condo / Apartment', values: ['Apartment'] },
+  { label: 'Townhouse', values: ['Row / Townhouse'] },
+  { label: 'Duplex', values: ['Duplex'] },
+  { label: 'Multi-Family', values: ['Multi-Family'] },
+  { label: 'Mobile / Manufactured', values: ['Mobile Home', 'Manufactured Home', 'Park Model Mobile Home'] },
+]
+
+// Reverse lookup: a DDF StructureType value → its friendly display label.
+const STRUCTURE_TYPE_LABEL = new Map<string, string>(
+  HOME_TYPES.flatMap((t) => t.values.map((v) => [v, t.label] as const)),
+)
+
+/**
+ * Derive the display property-type label. Prefers `StructureType` (the real
+ * dwelling-form field) and falls back to the raw `PropertySubType` only when
+ * StructureType is missing or unrecognised — so a condo no longer shows as
+ * "Single Family". Uses the same HOME_TYPES mapping as the Home Type filter.
+ */
+export function propertyTypeLabel(
+  structureType?: string | string[] | null,
+  propertySubType?: string | null,
+): string {
+  const values = Array.isArray(structureType)
+    ? structureType
+    : structureType
+    ? [structureType]
+    : []
+  for (const v of values) {
+    const label = STRUCTURE_TYPE_LABEL.get(v)
+    if (label) return label
+  }
+  return propertySubType ?? ''
+}
