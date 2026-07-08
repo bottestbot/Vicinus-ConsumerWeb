@@ -5,9 +5,10 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property, MapPinResponse } from '@/types/search'
-import { searchProperties, getMapPins } from '@/lib/api/search'
+import { searchProperties, getMapPins, type SearchParams } from '@/lib/api/search'
 import FilterPanel from '@/components/search/FilterPanel'
 import ResultsList from '@/components/search/ResultsList'
+import FeedView from '@/components/search/FeedView'
 import Navbar from '@/components/layout/Navbar'
 
 // Dynamically import map to avoid SSR issues with mapbox-gl
@@ -143,6 +144,17 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     bbox: !query ? defaultBbox : undefined,
   }
 
+  // Params for the Feed view. Same filters as the list, but city-scoped rather
+  // than bbox-bound (the feed has no map): a text search drives `city`, and when
+  // browsing we default to the device city / Vancouver so the feed is never
+  // global. Shares the store filters so switching Feed↔Map keeps the query.
+  const feedParams: SearchParams = {
+    ...queryParams,
+    bbox: undefined,
+    status: queryParams.status || 'Active',
+    city: query ? undefined : (userCity || 'Vancouver'),
+  }
+
   // Numbered pagination for the list pane. Reset to page 1 whenever the query
   // or filters change (serialised key) so a new search starts at the top.
   const [page, setPage] = useState(1)
@@ -155,6 +167,9 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     queryKey: ['search', queryParams, page],
     queryFn: () =>
       searchProperties({ ...queryParams, page, limit: PAGE_SIZE }).then((r) => r.data as SearchResponse),
+    // The list only renders in the Map (split-pane) view; skip the fetch on the
+    // Feed, which loads its own data via FeedView.
+    enabled: viewMode === 'both',
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   })
@@ -191,36 +206,43 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
         <FilterPanel />
       </div>
 
-      {/* ── Main Split Pane ──────────────────────────────────────────────── */}
+      {/* ── Main body: Feed (default) or Map (split-pane) ────────────────── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Map pane — only in the "Map" (split-pane) view */}
-        {viewMode === 'both' && (
-          <div
-            className="relative overflow-hidden h-full"
-            style={{ width: '58%' }}
-          >
-            {/* Only signal a fit once the data for this query is fresh — while
-                `keepPreviousData` shows the prior city's listings, suppress the
-                signal so the map doesn't fly to the wrong (stale) results. */}
-            <MapView properties={properties} pins={pins} fitSignal={isPlaceholderData ? '' : query} />
+        {viewMode === 'list' ? (
+          /* Feed view — full-width vertical listing feed */
+          <div className="w-full h-full">
+            <FeedView params={feedParams} />
           </div>
-        )}
+        ) : (
+          <>
+            {/* Map pane */}
+            <div
+              className="relative overflow-hidden h-full"
+              style={{ width: '58%' }}
+            >
+              {/* Only signal a fit once the data for this query is fresh — while
+                  `keepPreviousData` shows the prior city's listings, suppress the
+                  signal so the map doesn't fly to the wrong (stale) results. */}
+              <MapView properties={properties} pins={pins} fitSignal={isPlaceholderData ? '' : query} />
+            </div>
 
-        {/* List pane — the Feed; full width on its own, 42% next to the map */}
-        <div
-          className="overflow-hidden border-l border-[#E8E6E1]"
-          style={{ width: viewMode === 'list' ? '100%' : '42%' }}
-        >
-          <ResultsList
-            properties={properties}
-            totalCount={totalCount}
-            locationLabel={query || userCity || 'Vancouver'}
-            isLoading={isLoading || isPlaceholderData}
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </div>
+            {/* List pane */}
+            <div
+              className="overflow-hidden border-l border-[#E8E6E1]"
+              style={{ width: '42%' }}
+            >
+              <ResultsList
+                properties={properties}
+                totalCount={totalCount}
+                locationLabel={query || userCity || 'Vancouver'}
+                isLoading={isLoading || isPlaceholderData}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
