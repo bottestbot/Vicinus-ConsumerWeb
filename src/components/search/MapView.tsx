@@ -127,6 +127,20 @@ export default function MapView({ properties, pins = [], fitSignal = '' }: MapVi
     [setMapBounds, setMapCenter]
   )
 
+  // BUY-02: seed mapBounds as soon as the map is ready. `onMoveEnd` only fires on
+  // user pan/zoom, so without this the pins query (gated on bounds) would never
+  // run on first load and the map would mount with no pins until the user moved.
+  const handleLoad = useCallback(() => {
+    const bounds = mapRef.current?.getBounds()
+    if (!bounds) return
+    setMapBounds({
+      west: bounds.getWest(),
+      south: bounds.getSouth(),
+      east: bounds.getEast(),
+      north: bounds.getNorth(),
+    })
+  }, [setMapBounds])
+
   // Prefer viewport pins (all listings in view); fall back to the current
   // list page's properties until the first pins load.
   const markers: MapMarker[] =
@@ -170,6 +184,7 @@ export default function MapView({ properties, pins = [], fitSignal = '' }: MapVi
           latitude: mapCenter.latitude,
           zoom: mapCenter.zoom,
         }}
+        onLoad={handleLoad}
         onMoveEnd={handleMoveEnd}
         onClick={() => setSelectedProperty(null)}
         style={{ width: '100%', height: '100%' }}

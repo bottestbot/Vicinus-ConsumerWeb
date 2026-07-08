@@ -81,7 +81,7 @@ const defaultFilters: SearchFiltersExtended = {
 export const useSearchStore = create<SearchStore>((set, get) => ({
   query: '',
   filters: defaultFilters,
-  viewMode: 'both',
+  viewMode: 'list', // Buy opens on the Feed by default; 'both' = Map (split-pane).
   userCity: null,
   userCoords: null,
   mapBounds: null,

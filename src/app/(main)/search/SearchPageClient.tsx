@@ -80,8 +80,20 @@ export interface InitialSearch {
   propertyType: string[]
 }
 
+// Vancouver fallback (BUG-03 / BUY-03): used to scope default results when no
+// city is searched and no device location is available. Matches the map's
+// default center in searchStore.
+const VANCOUVER = { longitude: -123.1207, latitude: 49.2827 }
+// Roughly a metro-area box around a center point (±lng/±lat degrees).
+function bboxAround(longitude: number, latitude: number): string {
+  const dLng = 0.16
+  const dLat = 0.09
+  return `${longitude - dLng},${latitude - dLat},${longitude + dLng},${latitude + dLat}`
+}
+
 export default function SearchPageClient({ initial }: { initial?: InitialSearch }) {
-  const { viewMode, filters, query, mapBounds, setQuery, setFilter } = useSearchStore()
+  const { viewMode, filters, query, mapBounds, userCity, userCoords, setQuery, setFilter } =
+    useSearchStore()
 
   // Hydrate the store from URL params (e.g. the home-page hero search) once on
   // mount so a city/price/type from the URL drives the initial results.
@@ -97,6 +109,19 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     if (initial.propertyType.length > 0) setFilter('propertyType', initial.propertyType)
   }, [initial, setQuery, setFilter])
 
+  // Effective bounding box when browsing (no text query). Priority:
+  // live map bounds > device location > Vancouver fallback. This scopes both the
+  // Feed and the map pins so that, with no search and no geolocation, Buy loads
+  // Vancouver listings instead of a global "All Properties" set (BUY-03).
+  const mapBoundsStr = mapBounds
+    ? `${mapBounds.west},${mapBounds.south},${mapBounds.east},${mapBounds.north}`
+    : null
+  const defaultBbox =
+    mapBoundsStr ??
+    (userCoords
+      ? bboxAround(userCoords.longitude, userCoords.latitude)
+      : bboxAround(VANCOUVER.longitude, VANCOUVER.latitude))
+
   const queryParams = {
     q: query || undefined,
     minPrice: filters.minPrice ?? undefined,
@@ -111,12 +136,11 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     maxSqft: filters.maxSqft ?? undefined,
     parkingMin: filters.parking ?? undefined,
     yearBuiltMin: filters.minYearBuilt ?? undefined,
-    // Only constrain by the visible map area when the user is browsing the map
-    // (no text query). A text search should return that city's listings
-    // regardless of where the map currently sits, then the map flies to them.
-    bbox: !query && mapBounds
-      ? `${mapBounds.west},${mapBounds.south},${mapBounds.east},${mapBounds.north}`
-      : undefined,
+    // Only constrain by area when the user is browsing (no text query). A text
+    // search should return that city's listings regardless of where the map
+    // currently sits, then the map flies to them. When browsing, fall back to
+    // the device location / Vancouver box so results are never global.
+    bbox: !query ? defaultBbox : undefined,
   }
 
   // Numbered pagination for the list pane. Reset to page 1 whenever the query
@@ -142,9 +166,11 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   // Map pins: ALL listings in the current viewport (up to 500), independent of
   // the list page — so the map stays fully populated like Zillow's. Carries the
   // same filters as the list so applying a filter updates the map too.
-  const bbox = mapBounds
-    ? `${mapBounds.west},${mapBounds.south},${mapBounds.east},${mapBounds.north}`
-    : undefined
+  // Use live map bounds when available, else the default (device/Vancouver) box
+  // so pins (a) load on first paint before any pan — the map never mounts empty
+  // (BUY-02), and (b) prefetch in the background while the user is on the Feed,
+  // so switching to Map has no API wait (BUY-04). React Query dedupes the cache.
+  const bbox = mapBoundsStr ?? defaultBbox
   const pinParams = { ...queryParams, bbox }
   const { data: pinsData } = useQuery({
     queryKey: ['map-pins', pinParams],
@@ -167,11 +193,11 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
 
       {/* ── Main Split Pane ──────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Map pane */}
-        {(viewMode === 'map' || viewMode === 'both') && (
+        {/* Map pane — only in the "Map" (split-pane) view */}
+        {viewMode === 'both' && (
           <div
             className="relative overflow-hidden h-full"
-            style={{ width: viewMode === 'map' ? '100%' : '58%' }}
+            style={{ width: '58%' }}
           >
             {/* Only signal a fit once the data for this query is fresh — while
                 `keepPreviousData` shows the prior city's listings, suppress the
@@ -180,23 +206,21 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
           </div>
         )}
 
-        {/* List pane */}
-        {(viewMode === 'list' || viewMode === 'both') && (
-          <div
-            className="overflow-hidden border-l border-[#E8E6E1]"
-            style={{ width: viewMode === 'list' ? '100%' : '42%' }}
-          >
-            <ResultsList
-              properties={properties}
-              totalCount={totalCount}
-              locationLabel={query || 'All Properties'}
-              isLoading={isLoading || isPlaceholderData}
-              page={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          </div>
-        )}
+        {/* List pane — the Feed; full width on its own, 42% next to the map */}
+        <div
+          className="overflow-hidden border-l border-[#E8E6E1]"
+          style={{ width: viewMode === 'list' ? '100%' : '42%' }}
+        >
+          <ResultsList
+            properties={properties}
+            totalCount={totalCount}
+            locationLabel={query || userCity || 'Vancouver'}
+            isLoading={isLoading || isPlaceholderData}
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        </div>
       </div>
     </div>
   )

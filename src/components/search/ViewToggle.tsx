@@ -4,9 +4,9 @@ import { useSearchStore } from '@/store/searchStore'
 import type { ViewMode } from '@/types/search'
 
 const VIEWS: { id: ViewMode; label: string }[] = [
-  { id: 'list', label: 'List' },
-  { id: 'both', label: 'Both' },
-  { id: 'map', label: 'Map' },
+  // "Feed" = full-width results list; "Map" = the split-pane list+map view.
+  { id: 'list', label: 'Feed' },
+  { id: 'both', label: 'Map' },
 ]
 
 export default function ViewToggle() {

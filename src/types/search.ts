@@ -103,7 +103,9 @@ export interface MapPinResponse {
   price: number | null
 }
 
-export type ViewMode = 'list' | 'map' | 'both'
+// 'list' = Feed (full-width results) · 'both' = Map (split-pane list+map).
+// The former map-only view was dropped.
+export type ViewMode = 'list' | 'both'
 
 
 export const MOCK_AUTOCOMPLETE: AutocompleteSuggestion[] = [
