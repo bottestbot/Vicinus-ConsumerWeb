@@ -178,11 +178,14 @@ function BedsAndBathsFilter() {
 
   const options = [null, 1, 2, 3, 4, 5]
   const hasValue = filters.beds !== null || filters.baths !== null
+  const exact = filters.bedsBathsExact
+  // "1+ bd" (minimum) vs "1 bd" (exact) depending on the toggle.
+  const suffix = (n: number) => (exact ? `${n}` : `${n}+`)
 
   const label = hasValue
     ? [
-        filters.beds !== null ? `${filters.beds}+ bd` : null,
-        filters.baths !== null ? `${filters.baths}+ ba` : null,
+        filters.beds !== null ? `${suffix(filters.beds)} bd` : null,
+        filters.baths !== null ? `${suffix(filters.baths)} ba` : null,
       ].filter(Boolean).join(', ') || 'Beds & Baths'
     : 'Beds & Baths'
 
@@ -192,7 +195,7 @@ function BedsAndBathsFilter() {
         label={label}
         active={hasValue}
         onClick={() => setOpen((v) => !v)}
-        onClear={() => { setFilter('beds', null); setFilter('baths', null) }}
+        onClear={() => { setFilter('beds', null); setFilter('baths', null); setFilter('bedsBathsExact', false) }}
       />
       <Popover isOpen={open} onClose={() => setOpen(false)}>
         <p className="text-xs font-semibold text-[#6B6B6B] mb-3 uppercase tracking-wide">Beds & Baths</p>
@@ -212,12 +215,22 @@ function BedsAndBathsFilter() {
                         : 'border-[#E8E6E1] text-[#111111] hover:border-[#1C3829]/40',
                     ].join(' ')}
                   >
-                    {v === null ? 'Any' : `${v}+`}
+                    {v === null ? 'Any' : exact ? `${v}` : `${v}+`}
                   </button>
                 ))}
               </div>
             </div>
           ))}
+          {/* Exact-match toggle — flips beds/baths from "N+" (minimum) to exactly N. */}
+          <label className="flex items-center gap-2 pt-1 text-sm text-[#111111] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={exact}
+              onChange={(e) => setFilter('bedsBathsExact', e.target.checked)}
+              className="accent-[#1C3829] w-4 h-4"
+            />
+            Use exact match
+          </label>
         </div>
       </Popover>
     </div>

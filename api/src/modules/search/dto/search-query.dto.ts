@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { Transform, Type } from 'class-transformer'
-import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator'
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator'
 
 export class SearchQueryDto {
   /** Free-text — matched against address, city, province, description */
@@ -15,10 +15,17 @@ export class SearchQueryDto {
   @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsNumber() minPrice?: number
   @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsNumber() maxPrice?: number
 
-  /** Minimum bedrooms */
+  /** Bedrooms — minimum by default, exact when `exactBedsBaths` is true */
   @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsInt() @Min(0) beds?: number
-  /** Minimum bathrooms */
+  /** Bathrooms — minimum by default, exact when `exactBedsBaths` is true */
   @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsNumber() baths?: number
+
+  /** When true, beds/baths match exactly (eq) instead of the default "N+" (ge). */
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  exactBedsBaths?: boolean
 
   /**
    * Comma-separated property sub-types.

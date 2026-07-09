@@ -37,10 +37,13 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
   return (
     <>
       {/* ── Gallery Grid ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-1.5 h-[440px] rounded-2xl overflow-hidden">
-        {/* Hero — 2/3 width */}
+      {/* PDP-02: on mobile the fixed 3-col grid crammed hero + thumbs into tiny
+          columns. Stack to a single full-width hero (shorter height) and reveal
+          the thumbnail column only from `sm` up. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 h-[300px] sm:h-[440px] rounded-2xl overflow-hidden">
+        {/* Hero — full width on mobile, 2/3 from sm up */}
         <div
-          className="col-span-2 relative cursor-pointer group"
+          className="col-span-1 sm:col-span-2 relative cursor-pointer group"
           onClick={() => openLightbox(0)}
         >
           {hero && (
@@ -63,8 +66,8 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
           </button>
         </div>
 
-        {/* Thumbnails — 1/3 width, stacked */}
-        <div className="flex flex-col gap-1.5">
+        {/* Thumbnails — 1/3 width, stacked (hidden on mobile) */}
+        <div className="hidden sm:flex flex-col gap-1.5">
           {thumbs.map((src, i) => (
             <div
               key={i}

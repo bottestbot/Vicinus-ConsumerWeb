@@ -3,7 +3,7 @@
 // FE-405: MortgageAnalysis — payment calculator widget
 // Forest green #1C3829 background — intentionally dark
 import { useState, useMemo } from 'react'
-import { DollarSign, Percent, Calendar } from 'lucide-react'
+import { DollarSign, Percent, Calendar, Home } from 'lucide-react'
 
 interface MortgageAnalysisProps {
   price: number
@@ -20,18 +20,39 @@ function calcMonthlyPayment(
   return (principal * (r * Math.pow(1 + r, n))) / (Math.pow(1 + r, n) - 1)
 }
 
+/**
+ * BC Property Transfer Tax on the fair market value:
+ *   1% on the first $200,000, 2% on $200,000–$2,000,000, 3% above $2,000,000,
+ *   plus an additional 2% on the residential portion above $3,000,000.
+ */
+function calcBcPtt(value: number): number {
+  if (value <= 0) return 0
+  let tax = 0
+  tax += Math.min(value, 200_000) * 0.01
+  if (value > 200_000) tax += (Math.min(value, 2_000_000) - 200_000) * 0.02
+  if (value > 2_000_000) tax += (value - 2_000_000) * 0.03
+  if (value > 3_000_000) tax += (value - 3_000_000) * 0.02
+  return Math.round(tax)
+}
+
 export default function MortgageAnalysis({ price }: MortgageAnalysisProps) {
+  // PDP-06: seed the calculator with the listing's asking price, but let the
+  // user edit it (empty string while typing → treated as 0).
+  const [homePrice, setHomePrice] = useState<number>(price > 0 ? price : 0)
   const [downPct, setDownPct] = useState(20)
   const [ratePct, setRatePct] = useState(5.5)
   const [amortYears, setAmortYears] = useState(25)
+  const [includePtt, setIncludePtt] = useState(true)
 
-  const { downAmount, principal, monthly, totalInterest } = useMemo(() => {
-    const downAmount = Math.round(price * (downPct / 100))
-    const principal = price - downAmount
+  const { downAmount, principal, monthly, totalInterest, ptt, cashAtClosing } = useMemo(() => {
+    const downAmount = Math.round(homePrice * (downPct / 100))
+    const principal = Math.max(homePrice - downAmount, 0)
     const monthly = calcMonthlyPayment(principal, ratePct, amortYears)
     const totalInterest = monthly * amortYears * 12 - principal
-    return { downAmount, principal, monthly, totalInterest }
-  }, [price, downPct, ratePct, amortYears])
+    const ptt = includePtt ? calcBcPtt(homePrice) : 0
+    const cashAtClosing = downAmount + ptt
+    return { downAmount, principal, monthly, totalInterest, ptt, cashAtClosing }
+  }, [homePrice, downPct, ratePct, amortYears, includePtt])
 
   function fmt(n: number) {
     return new Intl.NumberFormat('en-CA', {
@@ -62,11 +83,41 @@ export default function MortgageAnalysis({ price }: MortgageAnalysisProps) {
         </div>
       </div>
 
+      {/* ── Home price (editable, defaults to asking price) ─────────────── */}
+      <div className="mb-6">
+        <label className="flex items-center gap-1.5 text-white/60 text-xs mb-2">
+          <Home size={11} />
+          Home price
+        </label>
+        <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2.5 focus-within:ring-1 focus-within:ring-white/40">
+          <span className="text-white/60 text-sm">$</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={1000}
+            value={homePrice === 0 ? '' : homePrice}
+            onChange={(e) => setHomePrice(e.target.value === '' ? 0 : Math.max(Number(e.target.value), 0))}
+            placeholder="Asking price"
+            className="flex-1 bg-transparent text-white font-semibold text-lg outline-none placeholder:text-white/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          {price > 0 && homePrice !== price && (
+            <button
+              onClick={() => setHomePrice(price)}
+              className="text-white/60 text-[11px] underline hover:text-white shrink-0"
+            >
+              Reset to asking
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ── Breakdown pills ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
+      <div className={`grid gap-3 mb-6 ${includePtt ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
         {[
           { label: 'Principal', value: fmt(principal) },
           { label: 'Down Payment', value: fmt(downAmount) },
+          ...(includePtt ? [{ label: 'Property Transfer Tax', value: fmt(ptt) }] : []),
           { label: 'Total Interest', value: fmt(Math.round(totalInterest)) },
         ].map((item) => (
           <div
@@ -77,6 +128,25 @@ export default function MortgageAnalysis({ price }: MortgageAnalysisProps) {
             <p className="text-white/50 text-[10px] mt-0.5">{item.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* ── PTT toggle + cash-at-closing ────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-8">
+        <label className="flex items-center gap-2 text-white/70 text-xs cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={includePtt}
+            onChange={(e) => setIncludePtt(e.target.checked)}
+            className="accent-white w-3.5 h-3.5"
+          />
+          Include BC Property Transfer Tax
+        </label>
+        {includePtt && (
+          <p className="text-white/70 text-xs">
+            Cash at closing{' '}
+            <span className="text-white font-semibold">{fmt(cashAtClosing)}</span>
+          </p>
+        )}
       </div>
 
       {/* ── Inputs ──────────────────────────────────────────────────────── */}

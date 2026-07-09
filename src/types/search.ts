@@ -41,6 +41,8 @@ export interface SearchFiltersExtended {
   maxPrice: number | null
   beds: number | null
   baths: number | null
+  /** When true, beds/baths match the selected value exactly instead of "N+". */
+  bedsBathsExact: boolean
   propertyType: string[]
   /** DDF StructureType values (dwelling form) — powers the Home Type filter. */
   structureType: string[]

@@ -61,6 +61,8 @@ interface ApiListing {
   lng?: number | null
   description?: string | null
   images?: ApiListingImage[] | null
+  virtualTourUrl?: string | null
+  youtubeUrl?: string | null
   listedAt?: string | null
   agent?: { fullName?: string | null } | null
   office?: { name?: string | null } | null
@@ -123,6 +125,8 @@ function toPropertyDetail(l: ApiListing): PropertyDetail {
     description: l.description ?? undefined,
     pricePerSqft: price > 0 && sqft > 0 ? Math.round(price / sqft) : undefined,
     details: l.details ?? undefined,
+    virtualTourUrl: l.virtualTourUrl ?? undefined,
+    youtubeUrl: l.youtubeUrl ?? undefined,
   }
 }
 

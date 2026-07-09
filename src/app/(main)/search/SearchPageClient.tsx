@@ -132,6 +132,8 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     maxPrice: filters.maxPrice ?? undefined,
     beds: filters.beds ?? undefined,
     baths: filters.baths ?? undefined,
+    // Only send the flag when a beds/baths value is actually set.
+    exactBedsBaths: filters.bedsBathsExact && (filters.beds !== null || filters.baths !== null) ? true : undefined,
     propertyType: filters.propertyType.length > 0 ? filters.propertyType.join(',') : undefined,
     structureType: filters.structureType.length > 0 ? filters.structureType.join(',') : undefined,
     status: filters.status || undefined,

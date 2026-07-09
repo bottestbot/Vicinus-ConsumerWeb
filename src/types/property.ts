@@ -163,5 +163,8 @@ export interface PropertyDetail {
   nearbyOpenHouses?: OpenHouseProperty[]
   // Facts & features (live DDF only; mock data lacks it)
   details?: PropertyFactsDetails
+  // Media (live DDF only) — branded/unbranded virtual tour + YouTube video tour
+  virtualTourUrl?: string
+  youtubeUrl?: string
 }
 
