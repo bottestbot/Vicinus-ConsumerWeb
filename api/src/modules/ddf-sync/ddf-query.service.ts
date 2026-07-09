@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { HttpService } from '@nestjs/axios'
 import { firstValueFrom } from 'rxjs'
+import { PrismaService } from '../../prisma/prisma.service'
 import { DdfAuthService } from './ddf-auth.service'
 import { SearchQueryDto } from '../search/dto/search-query.dto'
 
@@ -88,6 +89,7 @@ export class DdfQueryService {
     private auth: DdfAuthService,
     private http: HttpService,
     private config: ConfigService,
+    private prisma: PrismaService,
   ) {}
 
   /**
@@ -208,6 +210,9 @@ export class DdfQueryService {
       const total = (response.data['@odata.count'] as number | undefined) ?? properties.length
       const page = dto.page ?? 1
       const data = properties.map((p) => this.mapProperty(p))
+      // Most live records carry only ListAgentKey / ListOfficeKey, so fill in
+      // the realtor names from the synced Member / Office tables (cheap, batched).
+      await this.enrichRealtorNamesBatch(properties, data)
 
       return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
     } catch (err) {
@@ -300,7 +305,11 @@ export class DdfQueryService {
       )
       const rows = (response.data.value as Record<string, unknown>[]) ?? []
       if (rows.length === 0) return null
-      return this.mapPropertyDetail(rows[0])
+      const mapped = this.mapPropertyDetail(rows[0])
+      // The flat record usually names the realtor only by ListAgentKey /
+      // ListOfficeKey; resolve those to real names (DB first, then live DDF).
+      await this.enrichRealtorNames(rows[0], mapped)
+      return mapped
     } catch (err) {
       const body = (err as { response?: { data?: unknown } }).response?.data
       this.logger.error(
@@ -439,6 +448,166 @@ export class DdfQueryService {
       if (caption && BROKERAGE_HINT.test(caption)) return caption
     }
     return null
+  }
+
+  /**
+   * Fill in a single listing's realtor names from the DDF entity keys. The live
+   * Property record almost always carries only `ListAgentKey` / `ListOfficeKey`
+   * (the denormalized `ListAgentFullName` / `ListOfficeName` are absent), so
+   * when `resolveAgentName` / `resolveOfficeName` come back empty we resolve the
+   * keys against the synced Member (Agent) / Office tables, falling back to a
+   * live DDF fetch that we cache back into those tables. Detail-page path.
+   */
+  private async enrichRealtorNames(
+    raw: Record<string, unknown>,
+    mapped: Record<string, unknown>,
+  ): Promise<void> {
+    const agentKey = raw['ListAgentKey'] ? String(raw['ListAgentKey']) : null
+    const officeKey = raw['ListOfficeKey'] ? String(raw['ListOfficeKey']) : null
+
+    if (!mapped.agent && agentKey) {
+      const name = await this.lookupAgentName(agentKey)
+      if (name) mapped.agent = { fullName: name }
+    }
+    if (!mapped.office && officeKey) {
+      const name = await this.lookupOfficeName(officeKey)
+      if (name) mapped.office = { name }
+    }
+  }
+
+  /**
+   * DB-only, batched variant of {@link enrichRealtorNames} for search results —
+   * one query per entity type instead of a live DDF round-trip per card, so the
+   * list stays fast. Cards whose keys aren't in the synced tables stay blank
+   * (the detail page still resolves them live).
+   */
+  private async enrichRealtorNamesBatch(
+    raw: Record<string, unknown>[],
+    mapped: Record<string, unknown>[],
+  ): Promise<void> {
+    const agentKeys = new Set<string>()
+    const officeKeys = new Set<string>()
+    raw.forEach((p, i) => {
+      if (!mapped[i].agent && p['ListAgentKey']) agentKeys.add(String(p['ListAgentKey']))
+      if (!mapped[i].office && p['ListOfficeKey']) officeKeys.add(String(p['ListOfficeKey']))
+    })
+    if (agentKeys.size === 0 && officeKeys.size === 0) return
+
+    const [agents, offices] = await Promise.all([
+      agentKeys.size
+        ? this.prisma.agent.findMany({
+            where: { ddfMemberKey: { in: [...agentKeys] } },
+            select: { ddfMemberKey: true, fullName: true },
+          })
+        : Promise.resolve([]),
+      officeKeys.size
+        ? this.prisma.office.findMany({
+            where: { ddfOfficeKey: { in: [...officeKeys] } },
+            select: { ddfOfficeKey: true, name: true },
+          })
+        : Promise.resolve([]),
+    ])
+
+    const agentMap = new Map(agents.map((a) => [a.ddfMemberKey, a.fullName?.trim() || null]))
+    const officeMap = new Map(
+      offices.map((o) => [o.ddfOfficeKey, o.name?.trim() && o.name !== 'Unknown' ? o.name.trim() : null]),
+    )
+
+    raw.forEach((p, i) => {
+      if (!mapped[i].agent && p['ListAgentKey']) {
+        const name = agentMap.get(String(p['ListAgentKey']))
+        if (name) mapped[i].agent = { fullName: name }
+      }
+      if (!mapped[i].office && p['ListOfficeKey']) {
+        const name = officeMap.get(String(p['ListOfficeKey']))
+        if (name) mapped[i].office = { name }
+      }
+    })
+  }
+
+  /** Resolve a Member key to a full name — synced Agent table first, then live DDF (cached). */
+  private async lookupAgentName(key: string): Promise<string | null> {
+    const local = await this.prisma.agent.findUnique({
+      where: { ddfMemberKey: key },
+      select: { fullName: true },
+    })
+    if (local?.fullName?.trim()) return local.fullName.trim()
+
+    const m = await this.fetchDdfEntity('Member', 'MemberKey', key)
+    if (!m) return null
+    const name = `${m['MemberFirstName'] || ''} ${m['MemberLastName'] || ''}`.trim()
+    if (!name) return null
+
+    await this.prisma.agent
+      .upsert({
+        where: { ddfMemberKey: key },
+        create: {
+          ddfMemberKey: key,
+          fullName: name,
+          jobTitle: (m['JobTitle'] as string | null) ?? null,
+          phone: (m['MemberOfficePhone'] as string | null) ?? null,
+        },
+        update: { fullName: name },
+      })
+      .catch(() => undefined)
+    return name
+  }
+
+  /** Resolve an Office key to a brokerage name — synced Office table first, then live DDF (cached). */
+  private async lookupOfficeName(key: string): Promise<string | null> {
+    const local = await this.prisma.office.findUnique({
+      where: { ddfOfficeKey: key },
+      select: { name: true },
+    })
+    if (local?.name?.trim() && local.name !== 'Unknown') return local.name.trim()
+
+    const o = await this.fetchDdfEntity('Office', 'OfficeKey', key)
+    if (!o) return null
+    const name = ((o['OfficeName'] as string | null) ?? '').trim()
+    if (!name) return null
+
+    await this.prisma.office
+      .upsert({
+        where: { ddfOfficeKey: key },
+        create: {
+          ddfOfficeKey: key,
+          name,
+          phone: (o['OfficePhone'] as string | null) ?? null,
+          city: (o['OfficeCity'] as string | null) ?? null,
+        },
+        update: { name },
+      })
+      .catch(() => undefined)
+    return name
+  }
+
+  /** Fetch a single DDF entity row by its key field, or null on miss/error. */
+  private async fetchDdfEntity(
+    entity: 'Member' | 'Office',
+    keyField: string,
+    key: string,
+  ): Promise<Record<string, unknown> | null> {
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
+    const url =
+      `${baseUrl}/${entity}` +
+      `?$filter=${encodeURIComponent(`${keyField} eq '${this.sanitize(key)}'`)}` +
+      `&$top=1`
+    try {
+      const token = await this.auth.getToken()
+      const response = await firstValueFrom(
+        this.http.get(url, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        }),
+      )
+      const rows = (response.data.value as Record<string, unknown>[]) ?? []
+      return rows[0] ?? null
+    } catch (err) {
+      const body = (err as { response?: { data?: unknown } }).response?.data
+      this.logger.error(
+        `DDF ${entity} fetch failed for ${key}: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
+      )
+      return null
+    }
   }
 
   /**
