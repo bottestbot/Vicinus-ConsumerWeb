@@ -22,6 +22,8 @@ import ActionBar from '@/components/property/ActionBar'
 import AgentCard from '@/components/property/AgentCard'
 import TrackVisited from '@/components/property/TrackVisited'
 import PropertySummary from '@/components/property/PropertySummary'
+import VirtualTour from '@/components/property/VirtualTour'
+import PropertyLocationLinks from '@/components/property/PropertyLocationLinks'
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
@@ -116,6 +118,13 @@ export default async function PropertyDetailPage({
         {/* ── Gallery ───────────────────────────────────────────────────── */}
         <PropertyGallery images={property.images} address={property.address} />
 
+        {/* ── Street View / map deep-links ──────────────────────────────── */}
+        <PropertyLocationLinks
+          latitude={property.latitude}
+          longitude={property.longitude}
+          address={`${property.address}, ${property.city}, ${property.province}`}
+        />
+
         {/* ── Two-column: stats + agent card ────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* Left: address + stats + description */}
@@ -128,6 +137,12 @@ export default async function PropertyDetailPage({
             <AgentCard property={property} />
           </div>
         </div>
+
+        {/* ── Video & virtual tour (live DDF only; hides when absent) ────── */}
+        <VirtualTour
+          youtubeUrl={property.youtubeUrl}
+          virtualTourUrl={property.virtualTourUrl}
+        />
 
         {/* ── Facts & features (live DDF only; mock data lacks it) ──────── */}
         {property.details && <PropertyFacts details={property.details} />}

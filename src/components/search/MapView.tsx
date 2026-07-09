@@ -26,8 +26,10 @@ interface MapMarker {
   price: number | null
 }
 
-// Warm amber aerial style — Mapbox satellite-streets with a custom warm tint applied via CSS
-const MAPBOX_STYLE = 'mapbox://styles/mapbox/light-v11'
+// SRCH-01: the muted light-v11 "soft sand" palette read as flat/washed-out.
+// Mapbox Standard (mapbox-gl v3) brings richer colour + texture — parks, water,
+// road hierarchy and subtle 3D — without a custom style build.
+const MAPBOX_STYLE = 'mapbox://styles/mapbox/standard'
 
 export default function MapView({ properties, pins = [], fitSignal = '' }: MapViewProps) {
   const mapRef = useRef<MapRef>(null)

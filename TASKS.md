@@ -1,10 +1,33 @@
 # Vicinus — Task Tracker
-_Last updated: 2026-07-07_
+_Last updated: 2026-07-08_
 
 ## Legend
 - Severity: P0 (blocking) · P1 (significant) · P2 (polish)
 - Status: [x] done · [~] partial · [ ] todo
 - Sizes: S ≤0.5d · M 1–2d · L 3–5d · XL >5d (verification passes carry a QA size, not a build estimate)
+
+## 🐞 QA Bug Sweep #3 — Search + Property Detail (2026-07-08)
+_Co-founder QA table: 3 Search items + 6 Property Detail items. Code locations verified this session. Sizes: S ≤0.5d · M 1–2d · L 3–5d._
+
+### Search
+- [ ] **SRCH-01** [P2] _(Improvement)_ **Map colour/texture** — the search map uses the muted `mapbox/light-v11` "soft sand" palette (`MAPBOX_STYLE`). Switch to a richer style with more colour/texture/variation (parks, water, roads, terrain). `S` · _src/components/search/MapView.tsx:30_
+- [ ] **SRCH-02** [P2] _(Missing)_ **Neighbourhood showcase videos** — no area-specific video content in the search experience. Add short videos showcasing specific areas/neighbourhoods. Needs a content source + a `Neighbourhood.showcaseVideoUrl` field (or curated map) before FE work. Deferred — data/content dependency. `L` · _api/prisma/schema.prisma, src/components/search/*, neighbourhood detail_
+- [ ] **SRCH-03** [P2] _(Missing)_ **Draw-your-own search area** — users can't draw a custom boundary on the map to constrain listings. Add a "draw a section" tool (`@mapbox/mapbox-gl-draw`) that emits a polygon, then filter listings/pins to the polygon. Requires a BE polygon/geo filter on the DDF-OData live path (or client-side point-in-polygon on returned pins as v1). Deferred — larger feature. `L` · _src/components/search/MapView.tsx, api/src/modules/ddf-sync/ddf-query.service.ts_
+
+### Property Detail
+- [ ] **PDP-01** [P1] _(Bug)_ **Virtual tour / video doesn't play** — the BE `mapProperty` already resolves `virtualTourUrl` (`VirtualTourURLBranded/Unbranded`) and `youtubeUrl` (Media "Video Tour Website"), but the FE `ApiListing`/`PropertyDetail` types drop both and no component renders them — so tours/videos never appear. Thread the fields FE→type→mapper and render a tour/video block (YouTube embed + branded-tour link). `M` · _src/lib/api/properties.ts:43,90-127, src/types/property.ts, src/app/(main)/properties/[id]/page.tsx, new src/components/property/VirtualTour.tsx_
+- [ ] **PDP-02** [P1] _(Bug · Mobile)_ **Mobile layout doesn't stack cleanly** — `PropertyGallery` is a fixed `grid-cols-3 h-[440px]` regardless of viewport, so on phones the hero + 2 thumbs cram into 3 tiny columns. Make it stack: full-width hero + responsive height, thumbnails hidden/collapsed on mobile. `S` · _src/components/property/PropertyGallery.tsx:40-95_
+- [ ] **PDP-03** [P2] _(Improvement)_ **Floor plan not prominently displayed** — floor plans (when present) aren't surfaced. Extract floor-plan media (DDF `MediaCategory` "Floor plan") in the BE mapper, thread a `floorPlans[]` field, and render a dedicated prominent block on the detail page. Deferred — needs BE media extraction + deploy. `M` · _api/src/modules/ddf-sync/ddf-query.service.ts, src/lib/api/properties.ts, src/components/property/*_
+- [ ] **PDP-04** [P2] _(Improvement)_ **Add Street View + map buttons** — the detail page has no Street View or "view on map" affordance. Add a Google Street View button + a "view on map" button using the listing `latitude`/`longitude`. `S` · _src/app/(main)/properties/[id]/page.tsx, new src/components/property/PropertyLocationLinks.tsx_
+- [ ] **PDP-05** [P2] _(Improvement)_ **Facts & Features spacing too loose** — `GroupBlock` rows use `justify-between` inside a 2-column layout, spreading label↔value to opposite edges (e.g. "Bathrooms" … "1"). Tighten to a compact left-aligned label/value pairing. `S` · _src/components/property/PropertyFacts.tsx:319-340_
+- [ ] **PDP-06** [P2] _(Improvement)_ **Mortgage calculator missing asking price / PTT** — the calculator has no editable home-price input (can't see/change the asking price) and ignores BC Property Transfer Tax. Default an editable price input to the listing's asking price and add an optional PTT line (BC: 1% ≤$200k, 2% $200k–$2M, 3% >$2M). `M` · _src/components/property/MortgageAnalysis.tsx_
+
+## ⚡ API cold-start — kill the first-load latency (2026-07-07)
+_The single biggest source of "slow first load" (Feed, search, property detail — see QA-07) is the Railway API **cold-starting** after it sleeps: the first request after idle takes ~2s+ while the instance boots, vs ~0.4–0.9s warm. This is infra, not frontend — client-side parallelism (BUY-04) can't fix it. Config reviewed this session: `api/railway.toml` / `api/railway.json` set only build/start/restart; there is **no** min-instance or keep-warm field (App Sleeping is a per-service **dashboard** toggle), and there is **no health endpoint** to ping. Sizes: S ≤0.5d · M 1–2d._
+
+- [ ] **OPS-01** [P1] Eliminate API cold-start — pick one: **(a)** disable **App Sleeping** on the Railway API service (dashboard → service → Settings; keeps it always-on — simplest, may cost more), or **(b)** keep sleeping but add an external **keep-warm cron** (e.g. Railway cron / UptimeRobot / GitHub Action) hitting a cheap endpoint every ~4 min so the instance never idles out. (b) depends on OPS-02. `S` · _Railway dashboard / infra_
+- [ ] **OPS-02** [P1] Add a lightweight `GET /health` endpoint — returns `200 {status:'ok'}` with **no DB/DDF work** so it's cheap enough for a frequent keep-warm ping and for Railway's healthcheck. Then set `healthcheckPath = "/health"` in `api/railway.toml` + `api/railway.json` so deploys only cut over once the app is actually serving. This is the cheap subset of the planned [[project_data_pipeline]] **DATA-21** (`/health` + `/health/deep`) — build the shallow one now, leave `/health/deep` (Postgres/Redis checks) to DATA-21. `S` · deps for OPS-01(b) · _api/src/ (new health controller/module), api/railway.toml, api/railway.json_
+- [ ] **OPS-03** [P2] Fix stale start command in `api/nixpacks.toml` — `[start] cmd = "node dist/main"` points at the wrong path (real entry is `dist/src/main`, per `railway.*` and `package.json` `start:prod`). Currently harmless because `railway.json`/`toml` `startCommand` overrides it, but it's a latent footgun if the Railway config is ever removed. `S` · _api/nixpacks.toml_
 
 ## 🗺️ Buy/Search — Map+Feed toggle + default city + map pins (2026-07-07)
 _Founder request on the Buy (`/search`) screen: (1) collapse the view toggle to **just two options — Map and Feed — with Feed as the default**; (2) when no city/neighbourhood is searched and no device location is available, **default-load Vancouver listings**; (3) fix the bug where **no pins render on the map until a city is searched**. Code locations verified this session. Sizes: S ≤0.5d · M 1–2d._

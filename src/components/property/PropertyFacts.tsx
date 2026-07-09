@@ -327,9 +327,9 @@ function GroupBlock({ group }: { group: FactGroup }) {
       {group.rows.length > 0 && (
         <dl className="space-y-1">
           {group.rows.map((row) => (
-            <div key={row.label} className="flex items-start justify-between gap-4 text-sm">
-              <dt className="text-[#6B6B6B]">{row.label}</dt>
-              <dd className="text-[#111111] text-right font-medium">{String(row.value)}</dd>
+            <div key={row.label} className="flex items-baseline gap-x-3 text-sm">
+              <dt className="text-[#6B6B6B] shrink-0">{row.label}</dt>
+              <dd className="text-[#111111] font-medium">{String(row.value)}</dd>
             </div>
           ))}
         </dl>
