@@ -77,13 +77,22 @@ export default function HeroSearchBar() {
   }, [])
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col sm:flex-row gap-2 w-full max-w-2xl mx-auto"
-    >
+    <div className="w-full max-w-3xl mx-auto">
+      {/* Explicit label so the search reads as the hero's primary action (DSGN-01) */}
+      <p
+        id="hero-search-label"
+        className="text-white text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] mb-3"
+      >
+        Find your home
+      </p>
+      <form
+        onSubmit={handleSubmit}
+        aria-labelledby="hero-search-label"
+        className="flex flex-col sm:flex-row gap-2 w-full"
+      >
       <div ref={containerRef} className="relative flex-1">
-        <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-xl px-4 py-3">
-          <MapPin size={16} className="text-[#9B9B9B] shrink-0" />
+        <div className="flex items-center gap-2.5 bg-white/95 backdrop-blur-sm rounded-xl px-5 py-4 shadow-lg">
+          <MapPin size={18} className="text-[#9B9B9B] shrink-0" />
           <input
             ref={inputRef}
             value={inputValue}
@@ -91,8 +100,9 @@ export default function HeroSearchBar() {
             onKeyDown={handleKeyDown}
             onFocus={() => inputValue && fetchSuggestions(inputValue)}
             type="text"
-            placeholder="Neighbourhood, City, or ZIP"
-            className="flex-1 text-sm text-[#111111] placeholder-[#9B9B9B] bg-transparent focus:outline-none"
+            aria-label="Search by neighbourhood, city, or postal code"
+            placeholder="Neighbourhood, City, or Postal Code"
+            className="flex-1 text-base text-[#111111] placeholder-[#9B9B9B] bg-transparent focus:outline-none"
             autoComplete="off"
           />
           {inputValue && (
@@ -126,7 +136,8 @@ export default function HeroSearchBar() {
       <select
         value={priceRange}
         onChange={(e) => setPriceRange(e.target.value)}
-        className="sm:w-40 px-4 py-3 bg-white/95 backdrop-blur-sm rounded-xl text-sm text-[#6B6B6B] focus:outline-none cursor-pointer"
+        aria-label="Price range"
+        className="sm:w-40 px-4 py-4 bg-white/95 backdrop-blur-sm rounded-xl text-sm text-[#6B6B6B] focus:outline-none cursor-pointer shadow-lg"
       >
         <option value="">Price Range</option>
         <option value="0-1000000">Under $1M</option>
@@ -137,11 +148,12 @@ export default function HeroSearchBar() {
 
       <button
         type="submit"
-        className="flex items-center justify-center gap-2 px-6 py-3 bg-[#1C3829] text-white text-sm font-semibold rounded-xl hover:bg-[#2D5A3D] transition-colors shrink-0"
+        className="flex items-center justify-center gap-2 px-7 py-4 bg-[#1C3829] text-white text-base font-semibold rounded-xl hover:bg-[#2D5A3D] transition-colors shrink-0 shadow-lg"
       >
-        <Search size={16} />
-        Discover
+        <Search size={18} />
+        Search
       </button>
-    </form>
+      </form>
+    </div>
   )
 }

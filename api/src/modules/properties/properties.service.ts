@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { RedisService } from '../../common/redis/redis.service'
+import { DdfQueryService } from '../ddf-sync/ddf-query.service'
+import { SearchQueryDto } from '../search/dto/search-query.dto'
 
 /** 10-minute TTL for full property detail (BE-408) */
 const PROPERTY_DETAIL_TTL = 10 * 60
@@ -13,12 +15,17 @@ const NEARBY_DEGREES = 0.05
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Extract the primary (or first) image URL from a Property.images JSON array. */
-function firstImageUrl(images: Prisma.JsonValue): string | null {
+/**
+ * Extract the primary (or first) http(s) image URL from the DDF search mapper's
+ * `images` (unknown-typed `Array<{ url, order, isPrimary }>`). Only returns
+ * http(s) URLs so blank/relative entries don't render as broken cards.
+ */
+function firstFeaturedImage(images: unknown): string | null {
   if (!Array.isArray(images)) return null
-  const imgs = images as Array<{ url?: string; isPrimary?: boolean }>
-  const primary = imgs.find((m) => m?.isPrimary && m.url) ?? imgs.find((m) => m?.url)
-  return primary?.url ?? null
+  const imgs = images as Array<{ url?: unknown; isPrimary?: unknown }>
+  const isUrl = (u: unknown): u is string => typeof u === 'string' && /^https?:\/\//.test(u)
+  const primary = imgs.find((m) => m?.isPrimary && isUrl(m?.url)) ?? imgs.find((m) => isUrl(m?.url))
+  return primary && isUrl(primary.url) ? primary.url : null
 }
 
 function median(values: number[]): number {
@@ -39,6 +46,7 @@ export class PropertiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly ddfQuery: DdfQueryService,
   ) {}
 
   // ── BE-401 ──────────────────────────────────────────────────────────────
@@ -116,60 +124,70 @@ export class PropertiesService {
 
   // ── BE-H ────────────────────────────────────────────────────────────────
   // GET /properties/featured — highlight listings for the landing page.
-  // Prefers curator-flagged listings; falls back to top-priced active
-  // residential BC listings with photos so the home page never shows mocks.
+  // Queried LIVE from the DDF feed (the Postgres Property table is no longer
+  // synced — search/feed/detail all read DDF on demand), so this now reuses the
+  // same DdfQueryService the search uses. Prefers premium active residential BC
+  // listings with photos; relaxes the filter if too few come back so the home
+  // page's "Curated Highlights" never silently disappears. Cached 10 min.
   // ────────────────────────────────────────────────────────────────────────
   async getFeatured() {
-    const baseWhere: Prisma.PropertyWhereInput = {
+    const cacheKey = 'properties:featured'
+    const cached = await this.redis.get(cacheKey)
+    if (cached) return JSON.parse(cached)
+
+    // Premium pass first, then a relaxed fallback if it yields too few.
+    const premium: SearchQueryDto = {
+      listingType: 'For Sale',
+      province: 'British Columbia',
       status: 'Active',
-      displayOnInternet: true,
-      price: { gt: 0 },
-      sqft: { gt: 1000 },
-      beds: { gte: 3 },
-      images: { not: Prisma.JsonNull },
+      minPrice: 1_000_000,
+      minSqft: 1000,
+      beds: 3,
     }
-    const select = {
-      id: true,
-      ddfListingKey: true,
-      address: true,
-      city: true,
-      province: true,
-      price: true,
-      beds: true,
-      baths: true,
-      sqft: true,
-      images: true,
-      editorialTag: true,
-      isCuratorPick: true,
+    const relaxed: SearchQueryDto = {
+      listingType: 'For Sale',
+      province: 'British Columbia',
+      status: 'Active',
     }
 
-    let rows = await this.prisma.property.findMany({
-      where: { ...baseWhere, isCuratorPick: true },
-      select,
-      orderBy: { price: 'desc' },
-      take: 6,
-    })
-    if (rows.length === 0) {
-      rows = await this.prisma.property.findMany({
-        where: { ...baseWhere, province: 'British Columbia' },
-        select,
-        orderBy: { price: 'desc' },
-        take: 6,
+    let featured = this.pickFeatured(await this.fetchFeaturedRows(premium))
+    if (featured.length < 3) {
+      featured = this.pickFeatured(await this.fetchFeaturedRows(relaxed))
+    }
+
+    // Short cache so we don't hammer DDF on every landing-page render.
+    if (featured.length > 0) {
+      await this.redis.set(cacheKey, JSON.stringify(featured), 600)
+    }
+    return featured
+  }
+
+  private async fetchFeaturedRows(dto: SearchQueryDto): Promise<Record<string, unknown>[]> {
+    // Fetch a generous page so we have enough photo-bearing listings to pick 6.
+    const { data } = await this.ddfQuery.searchProperties(dto, 0, 24)
+    return data as Record<string, unknown>[]
+  }
+
+  private pickFeatured(rows: Record<string, unknown>[]) {
+    return rows
+      .map((p) => ({ p, image: firstFeaturedImage(p['images']) }))
+      .filter((r): r is { p: Record<string, unknown>; image: string } => Boolean(r.image))
+      .slice(0, 6)
+      .map(({ p, image }) => {
+        const key = String(p['ddfListingKey'] ?? p['id'])
+        return {
+          id: key,
+          name: (p['address'] as string | null) ?? 'Featured Residence',
+          location: [p['city'], p['province']].filter(Boolean).join(', '),
+          price: (p['price'] as number | null) ?? null,
+          beds: (p['beds'] as number | null) ?? null,
+          baths: (p['baths'] as number | null) ?? null,
+          sqft: (p['sqft'] as number | null) ?? null,
+          image,
+          badge: 'Featured',
+          href: `/properties/${key}`,
+        }
       })
-    }
-
-    return rows.map((p) => ({
-      id: p.ddfListingKey,
-      name: p.address ?? 'Featured Residence',
-      location: [p.city, p.province].filter(Boolean).join(', '),
-      price: p.price,
-      beds: p.beds,
-      baths: p.baths,
-      sqft: p.sqft,
-      image: firstImageUrl(p.images),
-      badge: p.editorialTag ?? (p.isCuratorPick ? 'Curator Pick' : 'Featured'),
-      href: `/properties/${p.ddfListingKey}`,
-    }))
   }
 
   // ── BE-403 ──────────────────────────────────────────────────────────────
