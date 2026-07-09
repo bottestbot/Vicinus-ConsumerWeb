@@ -10,13 +10,17 @@ import Footer from '@/components/layout/Footer'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
 import { getFeaturedProperties, type FeaturedProperty } from '@/lib/api/properties'
 import { formatPrice } from '@/types/search'
-import type { Neighbourhood } from '@/types/neighbourhood'
 
 export const metadata: Metadata = {
   title: 'Vicinus | Luxury Canadian Real Estate',
   description:
     "Beyond data. The Vicinus standard — intelligent curation of Canada's finest properties.",
 }
+
+// Safe fallback image for a city card when no representative neighbourhood
+// image is available (e.g. the neighbourhoods API returns []).
+const CITY_FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=900&q=80'
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -69,37 +73,39 @@ function PropertyCard({ p }: { p: FeaturedProperty }) {
   )
 }
 
-function NeighbourhoodCard({ n }: { n: Neighbourhood }) {
+interface CityCardData {
+  name: string
+  province: string
+  imageUrl: string
+  href: string
+  neighbourhoodCount: number
+}
+
+function CityCard({ c }: { c: CityCardData }) {
   return (
-    <Link href={`/neighbourhoods/${n.slug}`} className="group">
+    <Link href={c.href} className="group">
       <article className="relative rounded-2xl overflow-hidden h-64 bg-[#E8E6E1]">
-        {n.imageUrl && (
+        {c.imageUrl && (
           <Image
-            src={n.imageUrl}
-            alt={n.name}
+            src={c.imageUrl}
+            alt={c.name}
             fill
-            sizes="(max-width: 640px) 100vw, 33vw"
+            sizes="(max-width: 640px) 100vw, 25vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
         <div className="absolute bottom-0 left-0 p-5">
-          <p className="font-heading text-xl font-bold text-white leading-tight">{n.name}</p>
-          <p className="text-white/60 text-xs mt-0.5">
-            {n.city}, {n.province}
-          </p>
-          {n.medianPrice && (
-            <p className="text-white/80 text-sm font-semibold mt-1">
-              {formatPrice(n.medianPrice)}
-              <span className="text-white/40 font-normal text-xs ml-1">med.</span>
-            </p>
-          )}
+          <p className="font-heading text-xl font-bold text-white leading-tight">{c.name}</p>
+          <p className="text-white/60 text-xs mt-0.5">{c.province}</p>
         </div>
-        <div className="absolute top-3 left-3">
-          <span className="bg-[#A3E635] text-[#111111] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-            {Math.floor(Math.random() * 20) + 8} Active Editorials
-          </span>
-        </div>
+        {c.neighbourhoodCount > 0 && (
+          <div className="absolute top-3 left-3">
+            <span className="bg-[#A3E635] text-[#111111] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              {c.neighbourhoodCount} {c.neighbourhoodCount === 1 ? 'Neighbourhood' : 'Neighbourhoods'}
+            </span>
+          </div>
+        )}
       </article>
     </Link>
   )
@@ -112,7 +118,22 @@ export default async function LandingPage() {
     getNeighbourhoods(),
     getFeaturedProperties(),
   ])
-  const featured = neighbourhoods.slice(0, 3)
+  // "Contextual Living" cities (not neighbourhoods). Image + province sourced
+  // from a representative neighbourhood in each city when available, else a safe
+  // fallback; each card links to a city-scoped search.
+  // TODO: replace with a proper curated selection later.
+  const FEATURED_CITIES = ['Vancouver', 'Kelowna', 'West Vancouver', 'Whistler']
+  const cities = FEATURED_CITIES.map((name) => {
+    const inCity = neighbourhoods.filter((n) => n.city?.toLowerCase() === name.toLowerCase())
+    const match = inCity[0]
+    return {
+      name,
+      province: match?.province ?? 'British Columbia',
+      imageUrl: match?.imageUrl ?? CITY_FALLBACK_IMAGE,
+      href: `/search?q=${encodeURIComponent(name)}`,
+      neighbourhoodCount: inCity.length,
+    }
+  })
 
   return (
     <main className="bg-[#FAF9F6] text-[#111111]">
@@ -230,7 +251,7 @@ export default async function LandingPage() {
       )}
 
       {/* ── Contextual Living ─────────────────────────────────────────────── */}
-      {featured.length > 0 && (
+      {cities.length > 0 && (
         <section className="pb-20 px-6">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
@@ -239,13 +260,13 @@ export default async function LandingPage() {
               </h2>
               <p className="text-[#6B6B6B] max-w-md mx-auto text-sm leading-relaxed">
                 Luxury isn&apos;t just four walls. It&apos;s the street, the air, and the
-                community. Explore our preferred enclaves.
+                community. Explore our preferred cities.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-              {featured.map((n) => (
-                <NeighbourhoodCard key={n.slug} n={n} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {cities.map((c) => (
+                <CityCard key={c.name} c={c} />
               ))}
             </div>
 

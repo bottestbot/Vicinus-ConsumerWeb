@@ -25,14 +25,17 @@ interface NavLink {
   match: string
   /** Hide this link once the user is signed in. */
   hideWhenSignedIn?: boolean
+  /** Visually separate + mute this link (B2B path, not the consumer journey). */
+  deEmphasize?: boolean
 }
 
 const CENTER_LINKS: NavLink[] = [
   { label: 'Home', href: '/', match: '/' },
   { label: 'Buy', href: '/search?listingType=For+Sale', match: '/search' },
   { label: 'Sell', href: '/sell', match: '/sell' },
-  { label: 'Realtor Hub', href: '/realtor-hub', match: '/realtor-hub', hideWhenSignedIn: true },
   { label: 'Neighbourhoods', href: '/neighbourhoods', match: '/neighbourhoods' },
+  // B2B destination — grouped apart from the consumer links below (DSGN-04).
+  { label: 'Realtor Hub', href: '/realtor-hub', match: '/realtor-hub', hideWhenSignedIn: true, deEmphasize: true },
 ]
 
 export default function Navbar({ overHero = false }: { overHero?: boolean }) {
@@ -53,6 +56,8 @@ export default function Navbar({ overHero = false }: { overHero?: boolean }) {
   const solid = !overHero || scrolled
 
   const links = CENTER_LINKS.filter((l) => !(l.hideWhenSignedIn && isSignedIn))
+  const consumerLinks = links.filter((l) => !l.deEmphasize)
+  const proLinks = links.filter((l) => l.deEmphasize)
 
   const isActive = (l: NavLink) =>
     l.match === '/' ? pathname === '/' : pathname.startsWith(l.match)
@@ -64,6 +69,14 @@ export default function Navbar({ overHero = false }: { overHero?: boolean }) {
         : 'text-[#6B6B6B] hover:text-[#111111]'
     }
     return active ? 'text-white font-semibold' : 'text-white/80 hover:text-white'
+  }
+
+  // Muted, lower-emphasis variant for the B2B "Realtor Hub" link (DSGN-04).
+  const proLinkClass = (active: boolean) => {
+    if (solid) {
+      return active ? 'text-[#6B6B6B] font-medium' : 'text-[#9B9B9B] hover:text-[#6B6B6B]'
+    }
+    return active ? 'text-white/80 font-medium' : 'text-white/55 hover:text-white/80'
   }
 
   return (
@@ -80,10 +93,26 @@ export default function Navbar({ overHero = false }: { overHero?: boolean }) {
         {/* Logo */}
         <Logo href="/" variant={solid ? 'dark' : 'light'} className="text-xl" />
 
-        {/* Desktop centre nav */}
+        {/* Desktop centre nav — consumer links first, B2B "Realtor Hub" grouped
+            apart behind a divider and visually de-emphasized (DSGN-04). */}
         <nav className="hidden md:flex items-center gap-8 text-sm">
-          {links.map((l) => (
+          {consumerLinks.map((l) => (
             <Link key={l.label} href={l.href} className={`${linkClass(isActive(l))} transition-colors`}>
+              {l.label}
+            </Link>
+          ))}
+          {proLinks.length > 0 && (
+            <span
+              aria-hidden
+              className={`h-4 w-px ${solid ? 'bg-[#E8E6E1]' : 'bg-white/25'}`}
+            />
+          )}
+          {proLinks.map((l) => (
+            <Link
+              key={l.label}
+              href={l.href}
+              className={`${proLinkClass(isActive(l))} text-xs transition-colors`}
+            >
               {l.label}
             </Link>
           ))}
@@ -140,7 +169,7 @@ export default function Navbar({ overHero = false }: { overHero?: boolean }) {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="md:hidden bg-white border-t border-[#E8E6E1] px-6 py-4 flex flex-col gap-0">
-          {links.map((l) => (
+          {consumerLinks.map((l) => (
             <Link
               key={l.label}
               href={l.href}
@@ -148,6 +177,20 @@ export default function Navbar({ overHero = false }: { overHero?: boolean }) {
               className={[
                 'text-sm py-3 border-b border-[#F2F0EB] transition-colors',
                 isActive(l) ? 'text-[#111111] font-semibold' : 'text-[#6B6B6B] hover:text-[#111111]',
+              ].join(' ')}
+            >
+              {l.label}
+            </Link>
+          ))}
+          {/* B2B link de-emphasized under a small label (DSGN-04) */}
+          {proLinks.map((l) => (
+            <Link
+              key={l.label}
+              href={l.href}
+              onClick={() => setMobileOpen(false)}
+              className={[
+                'text-xs py-3 border-b border-[#F2F0EB] transition-colors',
+                isActive(l) ? 'text-[#6B6B6B] font-medium' : 'text-[#9B9B9B] hover:text-[#6B6B6B]',
               ].join(' ')}
             >
               {l.label}
