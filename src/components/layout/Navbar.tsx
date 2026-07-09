@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserButton, useUser } from '@clerk/nextjs'
 import { Menu, X } from 'lucide-react'
+import Logo from '@/components/brand/Logo'
 
 /**
  * Single, consistent navbar used across every screen (BUG-04).
@@ -77,15 +78,7 @@ export default function Navbar({ overHero = false }: { overHero?: boolean }) {
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
-        <Link
-          href="/"
-          className={[
-            'font-heading text-xl transition-colors shrink-0',
-            solid ? 'text-[#1C3829]' : 'text-white',
-          ].join(' ')}
-        >
-          Vicinus
-        </Link>
+        <Logo href="/" variant={solid ? 'dark' : 'light'} className="text-xl" />
 
         {/* Desktop centre nav */}
         <nav className="hidden md:flex items-center gap-8 text-sm">

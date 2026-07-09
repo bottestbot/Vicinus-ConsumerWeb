@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter, Playfair_Display } from 'next/font/google'
+import { Inter, Playfair_Display, Space_Grotesk } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import QueryProvider from '@/components/providers/QueryProvider'
 import LocationProvider from '@/components/providers/LocationProvider'
@@ -16,6 +16,14 @@ const inter = Inter({
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
+  display: 'swap',
+})
+
+// Brand wordmark — Space Grotesk Bold with the lime full-stop (brand guide §02).
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['500', '700'],
+  variable: '--font-space-grotesk',
   display: 'swap',
 })
 
@@ -38,7 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
     >
-      <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+      <html lang="en" className={`${inter.variable} ${playfair.variable} ${spaceGrotesk.variable}`}>
         <body className="font-sans">
           <QueryProvider>
             <LocationProvider />

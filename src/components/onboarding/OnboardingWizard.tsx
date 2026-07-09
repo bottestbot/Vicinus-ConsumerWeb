@@ -9,6 +9,7 @@ import {
   ChevronLeft, ChevronRight, X, Landmark, UserCheck,
 } from 'lucide-react'
 import { updateOnboarding } from '@/lib/api/users'
+import Logo from '@/components/brand/Logo'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -176,7 +177,7 @@ function LifestyleTile({
 function StepNav({ step, total, onSaveExit }: { step: number; total: number; onSaveExit: () => void }) {
   return (
     <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8E6E1]">
-      <span className="font-heading text-lg font-bold text-[#1C3829] tracking-tight">Vicinus</span>
+      <Logo className="text-lg" />
       <div className="flex-1 mx-10">
         <div className="flex items-center gap-1 mb-1">
           <span className="text-[10px] font-bold text-[#6B6B6B] uppercase tracking-widest">
@@ -212,7 +213,7 @@ function Step1({
     <div className="min-h-screen flex">
       {/* Left panel */}
       <div className="hidden md:flex w-[420px] shrink-0 bg-[#1C3829] flex-col justify-between p-10">
-        <span className="font-heading text-2xl font-bold text-white tracking-tight">Vicinus</span>
+        <Logo variant="light" className="text-2xl" />
         <div>
           <p className="font-heading text-3xl font-bold text-white leading-snug mb-4">
             An intelligent curator for your real estate journey.

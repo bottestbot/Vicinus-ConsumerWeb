@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { SignUp } from '@clerk/nextjs'
+import Logo from '@/components/brand/Logo'
 
 export default function SignUpPage() {
   return (
@@ -19,11 +20,9 @@ export default function SignUpPage() {
       >
         <div className="absolute inset-0 bg-black/45" />
 
-        {/* Logo — lime green */}
+        {/* Logo */}
         <div className="relative z-10">
-          <span className="font-heading text-3xl font-bold text-[#A3E635] tracking-tight uppercase">
-            VICINUS
-          </span>
+          <Logo href="/" variant="light" className="text-3xl" />
         </div>
 
         {/* Bottom tagline */}
@@ -39,9 +38,9 @@ export default function SignUpPage() {
       <div className="flex-1 bg-[#F5F3EE] flex flex-col items-center justify-center px-8 py-12 overflow-y-auto">
 
         {/* Mobile logo */}
-        <Link href="/" className="lg:hidden font-heading text-2xl font-bold text-[#A3E635] uppercase mb-8">
-          VICINUS
-        </Link>
+        <div className="lg:hidden mb-8">
+          <Logo href="/" className="text-2xl" />
+        </div>
 
         <SignUp
           fallbackRedirectUrl="/dashboard"

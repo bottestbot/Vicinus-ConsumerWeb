@@ -2,17 +2,7 @@
 
 import Link from 'next/link'
 import { SignIn } from '@clerk/nextjs'
-
-function GridIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="white" aria-hidden="true">
-      <rect x="0" y="0" width="8" height="8" rx="1.5" />
-      <rect x="10" y="0" width="8" height="8" rx="1.5" />
-      <rect x="0" y="10" width="8" height="8" rx="1.5" />
-      <rect x="10" y="10" width="8" height="8" rx="1.5" />
-    </svg>
-  )
-}
+import Logo from '@/components/brand/Logo'
 
 export default function SignInPage() {
   return (
@@ -31,13 +21,8 @@ export default function SignInPage() {
         <div className="absolute inset-0 bg-black/50" />
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-white/15 rounded-md flex items-center justify-center">
-            <GridIcon />
-          </div>
-          <span className="text-white font-semibold tracking-[0.2em] text-sm uppercase">
-            VICINUS
-          </span>
+        <div className="relative z-10">
+          <Logo href="/" variant="light" className="text-2xl" />
         </div>
 
         {/* Tagline */}
@@ -65,13 +50,8 @@ export default function SignInPage() {
       <div className="flex-1 bg-[#F5F3EE] flex flex-col items-center justify-center px-8 py-12 overflow-y-auto">
 
         {/* Mobile logo */}
-        <div className="lg:hidden flex items-center gap-2 mb-10">
-          <div className="w-7 h-7 bg-[#1C3829] rounded flex items-center justify-center">
-            <GridIcon />
-          </div>
-          <span className="font-semibold tracking-[0.2em] text-sm uppercase text-[#1C3829]">
-            VICINUS
-          </span>
+        <div className="lg:hidden mb-10">
+          <Logo href="/" className="text-xl" />
         </div>
 
         <SignIn
