@@ -124,8 +124,11 @@ export class DdfQueryService {
     const priceField = dto.listingType === 'For Rent' ? 'LeaseAmount' : 'ListPrice'
     if (dto.minPrice !== undefined) filterParts.push(`${priceField} ge ${dto.minPrice}`)
     if (dto.maxPrice !== undefined) filterParts.push(`${priceField} le ${dto.maxPrice}`)
-    if (dto.beds !== undefined) filterParts.push(`BedroomsTotal ge ${dto.beds}`)
-    if (dto.baths !== undefined) filterParts.push(`BathroomsTotalInteger ge ${dto.baths}`)
+    // Beds/baths are a minimum ("N+") by default, or an exact match when the
+    // FE sends exactBedsBaths=true (the "Use exact match" toggle).
+    const bedBathOp = dto.exactBedsBaths ? 'eq' : 'ge'
+    if (dto.beds !== undefined) filterParts.push(`BedroomsTotal ${bedBathOp} ${dto.beds}`)
+    if (dto.baths !== undefined) filterParts.push(`BathroomsTotalInteger ${bedBathOp} ${dto.baths}`)
     if (dto.minSqft !== undefined) filterParts.push(`LivingArea ge ${dto.minSqft}`)
     if (dto.maxSqft !== undefined) filterParts.push(`LivingArea le ${dto.maxSqft}`)
     if (dto.yearBuiltMin !== undefined) filterParts.push(`YearBuilt ge ${dto.yearBuiltMin}`)

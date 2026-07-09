@@ -51,6 +51,7 @@ const defaultFilters: SearchFiltersExtended = {
   maxPrice: null,
   beds: null,
   baths: null,
+  bedsBathsExact: false,
   propertyType: [],
   structureType: [],
   status: 'Active',

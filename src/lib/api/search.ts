@@ -9,6 +9,8 @@ export interface SearchParams {
   maxPrice?: number
   beds?: number
   baths?: number
+  /** When true, beds/baths match exactly (eq) instead of the default "N+" (ge). */
+  exactBedsBaths?: boolean
   /** Comma-separated property sub-types, e.g. "Single Family,Condo" */
   propertyType?: string
   /** Comma-separated DDF StructureType values, e.g. "House,Apartment" */
