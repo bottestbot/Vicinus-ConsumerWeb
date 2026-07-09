@@ -14,6 +14,7 @@ import { AuthModule } from './modules/auth/auth.module'
 import { AiModule } from './modules/ai/ai.module'
 import { SellModule } from './modules/sell/sell.module'
 import { WaitlistModule } from './modules/waitlist/waitlist.module'
+import { HealthModule } from './modules/health/health.module'
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { WaitlistModule } from './modules/waitlist/waitlist.module'
     AiModule,
     SellModule,
     WaitlistModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
