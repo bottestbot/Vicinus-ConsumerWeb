@@ -4,13 +4,15 @@ import { useState } from 'react'
 import { Bookmark, BookmarkCheck, X, Bell } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { useUser } from '@clerk/nextjs'
+import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
 
-export default function SaveSearch() {
+export default function SaveSearch({ theme = 'dark' }: { theme?: GlassTheme }) {
   const { saveSearch, savedSearches, query } = useSearchStore()
   const { isSignedIn } = useUser()
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
   const [saved, setSaved] = useState(false)
+  const t = glass(theme)
 
   const handleSave = () => {
     if (!name.trim()) return
@@ -29,7 +31,7 @@ export default function SaveSearch() {
     return (
       <a
         href="/sign-in"
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white border border-[#E8E6E1] text-[#6B6B6B] hover:border-[#1C3829]/40 hover:text-[#111111] transition-colors whitespace-nowrap"
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${t.chipIdle}`}
       >
         <Bookmark size={12} />
         Save Search
@@ -44,9 +46,7 @@ export default function SaveSearch() {
         className={[
           'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium',
           'border whitespace-nowrap transition-colors',
-          saved
-            ? 'bg-[#1C3829] text-white border-[#1C3829]'
-            : 'bg-white text-[#111111] border-[#E8E6E1] hover:border-[#1C3829]/40',
+          saved ? PILL_ACTIVE : t.chipIdle,
         ].join(' ')}
       >
         {saved ? (
@@ -64,18 +64,18 @@ export default function SaveSearch() {
 
       {/* Save dialog */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 bg-white rounded-xl border border-[#E8E6E1] shadow-xl shadow-black/10 z-50 w-72 p-4">
+        <div className={`absolute top-full left-0 mt-2 rounded-xl z-50 w-72 p-4 ${t.surface} ${t.text}`}>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-[#111111]">Save this search</p>
+            <p className={`text-sm font-semibold ${t.text}`}>Save this search</p>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-[#6B6B6B] hover:text-[#111111] transition-colors"
+              className={`transition-colors ${t.icon} ${t.iconHover}`}
             >
               <X size={14} />
             </button>
           </div>
 
-          <p className="text-xs text-[#6B6B6B] mb-3">
+          <p className={`text-xs mb-3 ${t.textMuted}`}>
             Get notified when new listings match your criteria.
           </p>
 
@@ -86,10 +86,10 @@ export default function SaveSearch() {
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             autoFocus
-            className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2 text-sm text-[#111111] placeholder:text-[#9B9B9B] focus:outline-none focus:border-[#1C3829] focus:ring-1 focus:ring-[#1C3829]/20 mb-3"
+            className={`w-full rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none ${t.input}`}
           />
 
-          <div className="flex items-center gap-1.5 mb-4 text-xs text-[#6B6B6B]">
+          <div className={`flex items-center gap-1.5 mb-4 text-xs ${t.textMuted}`}>
             <Bell size={11} />
             <span>Email alerts for new matches</span>
           </div>
@@ -104,17 +104,17 @@ export default function SaveSearch() {
 
           {/* Existing saved searches */}
           {savedSearches.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[#F2F0EB]">
-              <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-wide mb-2">
+            <div className={`mt-3 pt-3 border-t ${t.borderSoft}`}>
+              <p className={`text-[10px] font-semibold uppercase tracking-wide mb-2 ${t.textFaint}`}>
                 Saved Searches ({savedSearches.length})
               </p>
               <div className="space-y-1 max-h-28 overflow-y-auto">
                 {savedSearches.map((ss) => (
                   <div key={ss.id} className="flex items-center justify-between py-1">
-                    <span className="text-xs text-[#111111] truncate">{ss.name}</span>
+                    <span className={`text-xs truncate ${t.text}`}>{ss.name}</span>
                     <button
                       onClick={() => useSearchStore.getState().removeSavedSearch(ss.id)}
-                      className="text-[#6B6B6B] hover:text-red-500 transition-colors ml-2 shrink-0"
+                      className={`transition-colors ml-2 shrink-0 ${t.icon} hover:text-red-400`}
                     >
                       <X size={11} />
                     </button>

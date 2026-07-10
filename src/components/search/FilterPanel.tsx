@@ -6,25 +6,28 @@ import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { HOME_TYPES } from '@/types/search'
 import { searchProperties, type SearchParams } from '@/lib/api/search'
+import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
 import SaveSearch from './SaveSearch'
 import SearchBar from './SearchBar'
 import ViewToggle from './ViewToggle'
 
 // ─── Small building blocks ────────────────────────────────────────────────────
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ theme, children }: { theme: GlassTheme; children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold text-[#6B6B6B] mb-2 uppercase tracking-wide">{children}</p>
+    <p className={`text-xs font-semibold ${glass(theme).textMuted} mb-2 uppercase tracking-wide`}>{children}</p>
   )
 }
 
 // A row of pill buttons where exactly one value is selected (single-select).
 function Segmented<T extends string | number | boolean | null>({
+  theme,
   options,
   value,
   onChange,
   render,
 }: {
+  theme: GlassTheme
   options: T[]
   value: T
   onChange: (v: T) => void
@@ -38,9 +41,7 @@ function Segmented<T extends string | number | boolean | null>({
           onClick={() => onChange(v)}
           className={[
             'flex-1 py-1.5 rounded-full text-xs font-medium border transition-colors',
-            value === v
-              ? 'bg-[#1C3829] text-white border-[#1C3829]'
-              : 'border-[#E8E6E1] text-[#111111] hover:border-[#1C3829]/40',
+            value === v ? PILL_ACTIVE : glass(theme).pillIdle,
           ].join(' ')}
         >
           {render(v)}
@@ -51,20 +52,23 @@ function Segmented<T extends string | number | boolean | null>({
 }
 
 function ToggleRow({
+  theme,
   label,
   value,
   onToggle,
 }: {
+  theme: GlassTheme
   label: string
   value: boolean
   onToggle: () => void
 }) {
+  const t = glass(theme)
   return (
     <label className="flex items-center justify-between py-1.5 cursor-pointer group">
-      <span className="text-sm text-[#111111] group-hover:text-[#1C3829] transition-colors">{label}</span>
+      <span className={`text-sm ${t.text} opacity-90 group-hover:opacity-100 transition-opacity`}>{label}</span>
       <button
         onClick={onToggle}
-        className={['w-9 h-5 rounded-full transition-colors relative', value ? 'bg-[#1C3829]' : 'bg-[#E8E6E1]'].join(' ')}
+        className={['w-9 h-5 rounded-full transition-colors relative', value ? 'bg-[#1C3829]' : t.toggleOff].join(' ')}
         role="switch"
         aria-checked={value}
         aria-label={label}
@@ -117,9 +121,11 @@ function useResultCount(): number | null {
 
 // ─── Combined filters dropdown (Basic + Advanced) ─────────────────────────────
 
-function FiltersDropdown({ onClose }: { onClose: () => void }) {
+function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () => void }) {
   const { filters, setFilter, resetFilters } = useSearchStore()
   const count = useResultCount()
+  const t = glass(theme)
+  const inputCls = `w-full rounded-lg px-2.5 py-2 text-sm ${t.input}`
 
   const MIN_PRICE = [null, 500_000, 1_000_000, 2_000_000, 3_000_000, 5_000_000]
   const MAX_PRICE = [null, 1_000_000, 2_000_000, 3_000_000, 5_000_000, 10_000_000]
@@ -140,34 +146,35 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
   return (
     <div
       className={[
-        'absolute top-full right-0 mt-2 w-[360px] max-w-[calc(100vw-2rem)]',
-        'bg-white rounded-2xl border border-[#E8E6E1] shadow-xl shadow-black/10 z-[100]',
+        'absolute top-full right-0 mt-2 w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl z-[100]',
         'max-h-[70vh] overflow-y-auto',
+        t.surface,
+        t.text,
       ].join(' ')}
     >
       <div className="p-4 space-y-5">
-        <p className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-widest">Filters</p>
+        <p className={`text-xs font-semibold ${t.textFaint} uppercase tracking-widest`}>Filters</p>
 
         {/* Price range */}
         <div>
-          <SectionLabel>Price range</SectionLabel>
+          <SectionLabel theme={theme}>Price range</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
             <select
               value={filters.minPrice ?? ''}
               onChange={(e) => setFilter('minPrice', e.target.value ? Number(e.target.value) : null)}
-              className="w-full text-sm border border-[#E8E6E1] rounded-lg px-2.5 py-2 text-[#111111] focus:outline-none focus:border-[#1C3829]"
+              className={inputCls}
             >
               {MIN_PRICE.map((v) => (
-                <option key={v ?? 'any'} value={v ?? ''}>{v === null ? 'Min' : fmtPrice(v)}</option>
+                <option key={v ?? 'any'} value={v ?? ''} className="text-black">{v === null ? 'Min' : fmtPrice(v)}</option>
               ))}
             </select>
             <select
               value={filters.maxPrice ?? ''}
               onChange={(e) => setFilter('maxPrice', e.target.value ? Number(e.target.value) : null)}
-              className="w-full text-sm border border-[#E8E6E1] rounded-lg px-2.5 py-2 text-[#111111] focus:outline-none focus:border-[#1C3829]"
+              className={inputCls}
             >
               {MAX_PRICE.map((v) => (
-                <option key={v ?? 'any'} value={v ?? ''}>{v === null ? 'Max' : fmtPrice(v)}</option>
+                <option key={v ?? 'any'} value={v ?? ''} className="text-black">{v === null ? 'Max' : fmtPrice(v)}</option>
               ))}
             </select>
           </div>
@@ -175,8 +182,9 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
 
         {/* Beds */}
         <div>
-          <SectionLabel>Beds</SectionLabel>
+          <SectionLabel theme={theme}>Beds</SectionLabel>
           <Segmented
+            theme={theme}
             options={COUNTS}
             value={filters.beds}
             onChange={(v) => setFilter('beds', v)}
@@ -186,14 +194,15 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
 
         {/* Baths */}
         <div>
-          <SectionLabel>Baths</SectionLabel>
+          <SectionLabel theme={theme}>Baths</SectionLabel>
           <Segmented
+            theme={theme}
             options={[null, 1, 2, 3]}
             value={filters.baths}
             onChange={(v) => setFilter('baths', v)}
             render={(v) => (v === null ? 'Any' : exact ? `${v}` : `${v}+`)}
           />
-          <label className="flex items-center gap-2 pt-2.5 text-sm text-[#111111] cursor-pointer select-none">
+          <label className={`flex items-center gap-2 pt-2.5 text-sm ${t.text} opacity-90 cursor-pointer select-none`}>
             <input
               type="checkbox"
               checked={exact}
@@ -206,20 +215,18 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
 
         {/* Home type */}
         <div>
-          <SectionLabel>Home type</SectionLabel>
+          <SectionLabel theme={theme}>Home type</SectionLabel>
           <div className="flex flex-wrap gap-2">
-            {HOME_TYPES.map((t) => (
+            {HOME_TYPES.map((ht) => (
               <button
-                key={t.label}
-                onClick={() => toggleType(t.values)}
+                key={ht.label}
+                onClick={() => toggleType(ht.values)}
                 className={[
                   'py-2 px-3.5 rounded-full text-xs font-medium border transition-colors',
-                  isTypeOn(t.values)
-                    ? 'bg-[#1C3829] text-white border-[#1C3829]'
-                    : 'border-[#E8E6E1] text-[#111111] hover:border-[#1C3829]/40',
+                  isTypeOn(ht.values) ? PILL_ACTIVE : t.pillIdle,
                 ].join(' ')}
               >
-                {t.label}
+                {ht.label}
               </button>
             ))}
           </div>
@@ -227,17 +234,17 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
 
         {/* Size */}
         <div>
-          <SectionLabel>Size (sqft)</SectionLabel>
+          <SectionLabel theme={theme}>Size (sqft)</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
             {(['minSqft', 'maxSqft'] as const).map((field) => (
               <select
                 key={field}
                 value={filters[field] ?? ''}
                 onChange={(e) => setFilter(field, e.target.value ? Number(e.target.value) : null)}
-                className="w-full text-sm border border-[#E8E6E1] rounded-lg px-2.5 py-2 text-[#111111] focus:outline-none focus:border-[#1C3829]"
+                className={inputCls}
               >
                 {SQFT.map((v) => (
-                  <option key={v ?? 'any'} value={v ?? ''}>
+                  <option key={v ?? 'any'} value={v ?? ''} className="text-black">
                     {v === null ? (field === 'minSqft' ? 'Min' : 'Max') : `${v.toLocaleString()} sqft`}
                   </option>
                 ))}
@@ -247,15 +254,15 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* ── Advanced ─────────────────────────────────────────────────────── */}
-        <div className="border-t border-[#E8E6E1] pt-4">
-          <p className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-widest mb-1">Advanced filters</p>
-          <p className="text-[11px] text-[#9B9B9B] mb-4 leading-snug">
+        <div className={`border-t ${t.borderSoft} pt-4`}>
+          <p className={`text-xs font-semibold ${t.textFaint} uppercase tracking-widest mb-1`}>Advanced filters</p>
+          <p className={`text-[11px] ${t.textFaint} mb-4 leading-snug`}>
             Year built and parking filter live results. Other options below are coming soon.
           </p>
 
           {/* Year built */}
           <div className="mb-4">
-            <SectionLabel>Year built</SectionLabel>
+            <SectionLabel theme={theme}>Year built</SectionLabel>
             <div className="grid grid-cols-2 gap-2">
               {(['minYearBuilt', 'maxYearBuilt'] as const).map((f) => (
                 <input
@@ -266,7 +273,7 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
                   onChange={(e) => setFilter(f, e.target.value ? Number(e.target.value) : null)}
                   min={1800}
                   max={2026}
-                  className="border border-[#E8E6E1] rounded-lg px-2.5 py-2 text-sm text-[#111111] focus:outline-none focus:border-[#1C3829]"
+                  className={`rounded-lg px-2.5 py-2 text-sm ${t.input}`}
                 />
               ))}
             </div>
@@ -274,8 +281,9 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
 
           {/* Parking */}
           <div className="mb-4">
-            <SectionLabel>Parking spots</SectionLabel>
+            <SectionLabel theme={theme}>Parking spots</SectionLabel>
             <Segmented
+              theme={theme}
               options={[null, 1, 2, 3]}
               value={filters.parking}
               onChange={(v) => setFilter('parking', v)}
@@ -285,8 +293,9 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
 
           {/* Stories */}
           <div className="mb-4">
-            <SectionLabel>Stories</SectionLabel>
+            <SectionLabel theme={theme}>Stories</SectionLabel>
             <Segmented
+              theme={theme}
               options={[null, 1, 2, 3]}
               value={filters.minStories}
               onChange={(v) => setFilter('minStories', v)}
@@ -296,8 +305,9 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
 
           {/* Basement */}
           <div className="mb-4">
-            <SectionLabel>Basement</SectionLabel>
+            <SectionLabel theme={theme}>Basement</SectionLabel>
             <Segmented
+              theme={theme}
               options={[null, true, false] as (boolean | null)[]}
               value={filters.basement}
               onChange={(v) => setFilter('basement', v)}
@@ -305,50 +315,50 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
             />
           </div>
 
-          <div className="border-t border-[#E8E6E1] pt-4 mb-2">
-            <SectionLabel>Listing status</SectionLabel>
+          <div className={`border-t ${t.borderSoft} pt-4 mb-2`}>
+            <SectionLabel theme={theme}>Listing status</SectionLabel>
             <input
               type="number"
               placeholder="Days on market (max)"
               value={filters.maxDaysListed ?? ''}
               onChange={(e) => setFilter('maxDaysListed', e.target.value ? Number(e.target.value) : null)}
-              className="w-full border border-[#E8E6E1] rounded-lg px-2.5 py-2 text-sm text-[#111111] focus:outline-none focus:border-[#1C3829] mb-1.5"
+              className={`w-full mb-1.5 rounded-lg px-2.5 py-2 text-sm ${t.input}`}
             />
-            <ToggleRow label="Has open house" value={filters.hasOpenHouse} onToggle={() => setFilter('hasOpenHouse', !filters.hasOpenHouse)} />
-            <ToggleRow label="Coming soon" value={filters.comingSoon} onToggle={() => setFilter('comingSoon', !filters.comingSoon)} />
+            <ToggleRow theme={theme} label="Has open house" value={filters.hasOpenHouse} onToggle={() => setFilter('hasOpenHouse', !filters.hasOpenHouse)} />
+            <ToggleRow theme={theme} label="Coming soon" value={filters.comingSoon} onToggle={() => setFilter('comingSoon', !filters.comingSoon)} />
           </div>
 
-          <div className="border-t border-[#E8E6E1] pt-4">
-            <SectionLabel>Financial</SectionLabel>
+          <div className={`border-t ${t.borderSoft} pt-4`}>
+            <SectionLabel theme={theme}>Financial</SectionLabel>
             <input
               type="number"
               placeholder="Max monthly payment ($)"
               value={filters.maxMonthlyPayment ?? ''}
               onChange={(e) => setFilter('maxMonthlyPayment', e.target.value ? Number(e.target.value) : null)}
-              className="w-full border border-[#E8E6E1] rounded-lg px-2.5 py-2 text-sm text-[#111111] focus:outline-none focus:border-[#1C3829] mb-2"
+              className={`w-full mb-2 rounded-lg px-2.5 py-2 text-sm ${t.input}`}
             />
             <input
               type="number"
               placeholder="Max HOA fee ($/month)"
               value={filters.maxHoaFee ?? ''}
               onChange={(e) => setFilter('maxHoaFee', e.target.value ? Number(e.target.value) : null)}
-              className="w-full border border-[#E8E6E1] rounded-lg px-2.5 py-2 text-sm text-[#111111] focus:outline-none focus:border-[#1C3829]"
+              className={`w-full rounded-lg px-2.5 py-2 text-sm ${t.input}`}
             />
           </div>
         </div>
       </div>
 
       {/* Sticky footer — Reset + Show results */}
-      <div className="sticky bottom-0 flex items-center gap-3 px-4 py-3 bg-white/95 backdrop-blur border-t border-[#E8E6E1]">
+      <div className={`sticky bottom-0 flex items-center gap-3 px-4 py-3 backdrop-blur border-t ${t.borderSoft} ${theme === 'dark' ? 'bg-[#141817]/95' : 'bg-white/95'}`}>
         <button
           onClick={resetFilters}
-          className="flex-1 py-2.5 rounded-full text-sm font-medium border border-[#E8E6E1] text-[#111111] hover:border-[#1C3829]/40 transition-colors"
+          className={`flex-1 py-2.5 rounded-full text-sm font-medium border transition-colors ${t.pillIdle}`}
         >
           Reset
         </button>
         <button
           onClick={onClose}
-          className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-[#1C3829] text-white hover:bg-[#16301F] transition-colors"
+          className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-[#1C3829] text-white hover:bg-[#2D5A3D] transition-colors"
         >
           {count !== null ? `Show ${count.toLocaleString()} results` : 'Show results'}
         </button>
@@ -359,10 +369,11 @@ function FiltersDropdown({ onClose }: { onClose: () => void }) {
 
 // ─── Main FilterPanel — floating glass bar ────────────────────────────────────
 
-export default function FilterPanel() {
+export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) {
   const { filters } = useSearchStore()
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const t = glass(theme)
 
   // Count of active filter *groups* — drives the button badge + highlight.
   const activeCount =
@@ -389,10 +400,10 @@ export default function FilterPanel() {
   }, [open])
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3 px-2.5 py-2 rounded-full bg-white/70 backdrop-blur-xl border border-white/50 shadow-lg shadow-black/10">
+    <div className={`flex items-center gap-2 sm:gap-3 px-2.5 py-2 rounded-full ${t.bar}`}>
       {/* Search — flexes to fill available width */}
       <div className="flex-1 min-w-0">
-        <SearchBar placeholder="Search city, address…" className="h-9 text-xs" />
+        <SearchBar theme={theme} placeholder="Search city, address…" className="h-9 text-xs" />
       </div>
 
       {/* Filter button + combined dropdown */}
@@ -402,9 +413,7 @@ export default function FilterPanel() {
           aria-expanded={open}
           className={[
             'inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap',
-            hasAnyFilter
-              ? 'bg-[#1C3829] text-white border-[#1C3829]'
-              : 'bg-white/80 text-[#111111] border-[#E8E6E1] hover:border-[#1C3829]/40',
+            hasAnyFilter ? PILL_ACTIVE : t.chipIdle,
           ].join(' ')}
         >
           <SlidersHorizontal size={13} />
@@ -418,20 +427,20 @@ export default function FilterPanel() {
           )}
         </button>
 
-        {open && <FiltersDropdown onClose={() => setOpen(false)} />}
+        {open && <FiltersDropdown theme={theme} onClose={() => setOpen(false)} />}
       </div>
 
       {/* Save search — hidden on the narrowest screens to keep the bar compact */}
       <div className="hidden sm:block shrink-0">
-        <SaveSearch />
+        <SaveSearch theme={theme} />
       </div>
 
       {/* Divider */}
-      <div className="w-px h-5 bg-[#E8E6E1]/70 shrink-0 hidden sm:block" />
+      <div className={`w-px h-5 shrink-0 hidden sm:block ${t.divider}`} />
 
       {/* View toggle — Feed / Map */}
       <div className="shrink-0">
-        <ViewToggle />
+        <ViewToggle theme={theme} />
       </div>
     </div>
   )

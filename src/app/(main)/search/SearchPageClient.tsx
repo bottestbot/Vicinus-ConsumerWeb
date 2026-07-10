@@ -209,10 +209,18 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
           glass filter bar overlaid on top ──────────────────────────────── */}
       <div className="relative flex-1 flex overflow-hidden">
         {/* Floating translucent filter bar — overlays the Feed/Map instead of
-            reserving its own strip. */}
-        <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 z-30 pointer-events-none">
+            reserving its own strip. In Map view (desktop) it's confined to the
+            map pane so it doesn't run over the 42% results list. */}
+        <div
+          className={[
+            'absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 z-30 pointer-events-none',
+            viewMode === 'both' ? 'md:right-[calc(42%+1rem)]' : '',
+          ].join(' ')}
+        >
           <div className="pointer-events-auto">
-            <FilterPanel />
+            {/* Adaptive glass: light frosted bar on the Map (light map + white
+                list), dark bar on the Feed (dark photo/video media). */}
+            <FilterPanel theme={viewMode === 'both' ? 'light' : 'dark'} />
           </div>
         </div>
 
