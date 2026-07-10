@@ -170,53 +170,6 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── Editorial section ─────────────────────────────────────────────── */}
-      <section className="py-20 px-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left image */}
-          <div className="relative rounded-2xl overflow-hidden h-96 bg-[#1C3829]">
-            <Image
-              src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=900&q=80"
-              alt="Curated Living"
-              fill
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover opacity-80"
-            />
-            {/* Overlay card */}
-            <div className="absolute bottom-6 left-6 bg-[#1C3829]/90 backdrop-blur-sm rounded-xl p-4 max-w-[200px]">
-              <p className="text-[#A3E635] text-3xl font-heading font-bold mb-1">01</p>
-              <p className="text-white/70 text-xs leading-snug">
-                Every listing is hand-vetted by our editorial team for architectural integrity and location prestige.
-              </p>
-            </div>
-          </div>
-
-          {/* Right copy */}
-          <div>
-            <span className="inline-block text-[10px] font-semibold uppercase tracking-widest text-[#1C3829] border border-[#1C3829]/30 rounded-full px-3 py-1 mb-6">
-              The Editorial Focus
-            </span>
-            <h2 className="font-heading text-4xl lg:text-5xl font-bold text-[#111111] leading-tight mb-5">
-              Beyond Data.{' '}
-              <br />
-              The Vicinus Standard.
-            </h2>
-            <p className="text-[#6B6B6B] text-base leading-relaxed mb-8">
-              Traditional portals prioritise volume. We prioritise vision. Vicinus Editorial is a
-              curated collection of properties that define modern luxury, from mid-century
-              restorations to sustainable avant-garde estates.
-            </p>
-            <Link
-              href="/search"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[#1C3829] hover:gap-3 transition-all"
-            >
-              Explore the Collection
-              <ChevronRight size={16} />
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* ── Curated Highlights ────────────────────────────────────────────── */}
       {highlights.length > 0 && (
         <section className="pb-20 px-6">
