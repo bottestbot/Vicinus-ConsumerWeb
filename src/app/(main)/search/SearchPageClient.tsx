@@ -205,13 +205,17 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
       {/* ── Shared Navbar ─────────────────────────────────────────────────── */}
       <Navbar />
 
-      {/* ── Filter Bar: SearchBar + filter chips + ViewToggle ────────────── */}
-      <div className="shrink-0 z-10">
-        <FilterPanel />
-      </div>
+      {/* ── Main body: Feed (default) or Map (split-pane), with the floating
+          glass filter bar overlaid on top ──────────────────────────────── */}
+      <div className="relative flex-1 flex overflow-hidden">
+        {/* Floating translucent filter bar — overlays the Feed/Map instead of
+            reserving its own strip. */}
+        <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 z-30 pointer-events-none">
+          <div className="pointer-events-auto">
+            <FilterPanel />
+          </div>
+        </div>
 
-      {/* ── Main body: Feed (default) or Map (split-pane) ────────────────── */}
-      <div className="flex-1 flex overflow-hidden">
         {viewMode === 'list' ? (
           /* Feed view — full-width vertical listing feed */
           <div className="w-full h-full">
@@ -219,22 +223,16 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
           </div>
         ) : (
           <>
-            {/* Map pane */}
-            <div
-              className="relative overflow-hidden h-full"
-              style={{ width: '58%' }}
-            >
+            {/* Map pane — full-width on mobile, 58% on desktop */}
+            <div className="relative overflow-hidden h-full w-full md:w-[58%]">
               {/* Only signal a fit once the data for this query is fresh — while
                   `keepPreviousData` shows the prior city's listings, suppress the
                   signal so the map doesn't fly to the wrong (stale) results. */}
               <MapView properties={properties} pins={pins} fitSignal={isPlaceholderData ? '' : query} />
             </div>
 
-            {/* List pane */}
-            <div
-              className="overflow-hidden border-l border-[#E8E6E1]"
-              style={{ width: '42%' }}
-            >
+            {/* List pane — hidden on mobile (map + filter bar only) */}
+            <div className="hidden md:block md:w-[42%] overflow-hidden border-l border-[#E8E6E1]">
               <ResultsList
                 properties={properties}
                 totalCount={totalCount}
