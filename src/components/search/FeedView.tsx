@@ -171,7 +171,7 @@ export default function FeedView({ params }: FeedViewProps) {
         onClick={() => setViewMode((m) => (m === 'full' ? 'portrait' : 'full'))}
         aria-label={viewMode === 'full' ? 'Switch to phone view' : 'Switch to full screen'}
         title={viewMode === 'full' ? 'Switch to phone view' : 'Switch to full screen'}
-        className="absolute top-3 right-3 z-40 flex items-center gap-1.5 h-9 px-3 rounded-full border border-[#E8E6E1] bg-white/90 backdrop-blur text-[#6B6B6B] hover:border-[#1C3829] hover:text-[#1C3829] focus-visible:ring-2 focus-visible:ring-[#1C3829] transition-colors text-xs font-medium shadow-sm"
+        className="absolute top-20 right-3 sm:right-4 z-40 flex items-center gap-1.5 h-9 px-3 rounded-full border border-[#E8E6E1] bg-white/90 backdrop-blur text-[#6B6B6B] hover:border-[#1C3829] hover:text-[#1C3829] focus-visible:ring-2 focus-visible:ring-[#1C3829] transition-colors text-xs font-medium shadow-sm"
       >
         {viewMode === 'full' ? <Smartphone size={14} /> : <Maximize2 size={14} />}
         <span className="hidden sm:inline">{viewMode === 'full' ? 'Phone view' : 'Full screen'}</span>

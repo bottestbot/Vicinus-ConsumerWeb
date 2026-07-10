@@ -2,6 +2,7 @@
 
 import { useSearchStore } from '@/store/searchStore'
 import type { ViewMode } from '@/types/search'
+import { glass, type GlassTheme } from './glassTheme'
 
 const VIEWS: { id: ViewMode; label: string }[] = [
   // "Feed" = full-width results list; "Map" = the split-pane list+map view.
@@ -9,11 +10,12 @@ const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'both', label: 'Map' },
 ]
 
-export default function ViewToggle() {
+export default function ViewToggle({ theme = 'dark' }: { theme?: GlassTheme }) {
   const { viewMode, setViewMode } = useSearchStore()
+  const t = glass(theme)
 
   return (
-    <div className="flex items-center bg-[#F2F0EB] rounded-full p-0.5 gap-0">
+    <div className={`flex items-center rounded-full p-0.5 gap-0 ${t.toggleTrack}`}>
       {VIEWS.map((v) => (
         <button
           key={v.id}
@@ -22,7 +24,7 @@ export default function ViewToggle() {
             'px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-150',
             viewMode === v.id
               ? 'bg-white text-[#111111] shadow-sm'
-              : 'text-[#6B6B6B] hover:text-[#111111]',
+              : t.toggleIdle,
           ].join(' ')}
         >
           {v.label}

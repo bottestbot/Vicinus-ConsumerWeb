@@ -6,6 +6,7 @@ import { useSearchStore } from '@/store/searchStore'
 import { getAutocomplete } from '@/lib/api/search'
 import { geocodeCity } from '@/lib/geocode'
 import type { AutocompleteSuggestion } from '@/types/search'
+import { glass, type GlassTheme } from './glassTheme'
 
 const TYPE_ICONS = {
   city: MapPin,
@@ -18,14 +19,17 @@ interface SearchBarProps {
   onSearch?: (query: string) => void
   placeholder?: string
   className?: string
+  theme?: GlassTheme
 }
 
 export default function SearchBar({
   onSearch,
   placeholder = 'Search by neighbourhood, city, or address...',
   className = '',
+  theme = 'dark',
 }: SearchBarProps) {
   const { query, setQuery, setGeocodedCenter } = useSearchStore()
+  const t = glass(theme)
   const [inputValue, setInputValue] = useState(query)
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -144,7 +148,7 @@ export default function SearchBar({
       <div className="relative flex items-center">
         <Search
           size={15}
-          className="absolute left-3 text-[#6B6B6B] pointer-events-none"
+          className={`absolute left-3 pointer-events-none ${t.icon}`}
         />
         <input
           ref={inputRef}
@@ -155,10 +159,9 @@ export default function SearchBar({
           onFocus={() => inputValue && fetchSuggestions(inputValue)}
           placeholder={placeholder}
           className={[
-            'w-full h-9 pl-9 pr-8 text-sm rounded-lg border bg-white',
-            'border-[#E8E6E1] text-[#111111] placeholder:text-[#9B9B9B]',
-            'focus:outline-none focus:border-[#1C3829] focus:ring-1 focus:ring-[#1C3829]/20',
-            'transition-colors font-ui',
+            'w-full h-9 pl-9 pr-8 text-sm rounded-lg',
+            t.input,
+            'focus:outline-none transition-colors font-ui',
           ].join(' ')}
           id="search-input"
           aria-label="Search location"
@@ -171,7 +174,7 @@ export default function SearchBar({
         {inputValue && (
           <button
             onClick={handleClear}
-            className="absolute right-2.5 text-[#9B9B9B] hover:text-[#111111] transition-colors"
+            className={`absolute right-2.5 transition-colors ${t.icon} ${t.iconHover}`}
             aria-label="Clear search"
           >
             <X size={14} />
@@ -185,8 +188,8 @@ export default function SearchBar({
           id="search-suggestions"
           role="listbox"
           className={[
-            'absolute top-full mt-1.5 w-full bg-white rounded-xl border border-[#E8E6E1]',
-            'shadow-lg shadow-black/8 z-50 overflow-hidden',
+            'absolute top-full mt-1.5 w-full rounded-xl z-50 overflow-hidden',
+            t.surface,
           ].join(' ')}
         >
           {suggestions.map((s, i) => {
@@ -200,17 +203,17 @@ export default function SearchBar({
                 onMouseEnter={() => setActiveIndex(i)}
                 className={[
                   'flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors',
-                  i === activeIndex ? 'bg-[#FAF9F6]' : 'hover:bg-[#FAF9F6]',
+                  i === activeIndex ? t.hoverRow : t.rowHover,
                 ].join(' ')}
               >
-                <Icon size={14} className="text-[#6B6B6B] shrink-0" />
+                <Icon size={14} className={`shrink-0 ${t.icon}`} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#111111] truncate">{s.label}</p>
+                  <p className={`text-sm font-medium truncate ${t.text}`}>{s.label}</p>
                   {s.subtitle && (
-                    <p className="text-xs text-[#6B6B6B] truncate">{s.subtitle}</p>
+                    <p className={`text-xs truncate ${t.textMuted}`}>{s.subtitle}</p>
                   )}
                 </div>
-                <span className="text-[10px] text-[#9B9B9B] capitalize shrink-0">{s.type}</span>
+                <span className={`text-[10px] capitalize shrink-0 ${t.textFaint}`}>{s.type}</span>
               </li>
             )
           })}
