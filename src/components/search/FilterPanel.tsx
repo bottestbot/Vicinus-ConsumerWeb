@@ -6,6 +6,7 @@ import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { HOME_TYPES } from '@/types/search'
 import { searchProperties, type SearchParams } from '@/lib/api/search'
+import { formatNumber } from '@/lib/format'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
 import SaveSearch from './SaveSearch'
 import SearchBar from './SearchBar'
@@ -245,7 +246,7 @@ function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () =>
               >
                 {SQFT.map((v) => (
                   <option key={v ?? 'any'} value={v ?? ''} className="text-black">
-                    {v === null ? (field === 'minSqft' ? 'Min' : 'Max') : `${v.toLocaleString()} sqft`}
+                    {v === null ? (field === 'minSqft' ? 'Min' : 'Max') : `${formatNumber(v)} sqft`}
                   </option>
                 ))}
               </select>
@@ -360,7 +361,7 @@ function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () =>
           onClick={onClose}
           className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-[#1C3829] text-white hover:bg-[#2D5A3D] transition-colors"
         >
-          {count !== null ? `Show ${count.toLocaleString()} results` : 'Show results'}
+          {count !== null ? `Show ${formatNumber(count)} results` : 'Show results'}
         </button>
       </div>
     </div>

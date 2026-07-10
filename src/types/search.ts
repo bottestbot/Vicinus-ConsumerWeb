@@ -201,6 +201,10 @@ export const MOCK_AUTOCOMPLETE: AutocompleteSuggestion[] = [
   { id: 'n-shaughnessy', label: 'Shaughnessy', type: 'neighbourhood', subtitle: 'Vancouver, BC' },
 ]
 
+// Pin grouping to Canadian (comma thousands). Bare toLocaleString() uses the
+// visitor's device locale — an en-IN phone renders 5_149_000 as "51,49,000".
+const NUM_LOCALE = 'en-CA'
+
 export function formatPrice(price: number | null | undefined): string {
   if (price == null || Number.isNaN(price)) return 'Price on request'
   if (price >= 1_000_000) {
@@ -210,11 +214,11 @@ export function formatPrice(price: number | null | undefined): string {
   if (price >= 1_000) {
     return `$${(price / 1_000).toFixed(0)}K`
   }
-  return `$${price.toLocaleString()}`
+  return `$${price.toLocaleString(NUM_LOCALE)}`
 }
 
 export function formatFullPrice(price: number): string {
-  return `$${price.toLocaleString()}`
+  return `$${price.toLocaleString(NUM_LOCALE)}`
 }
 
 // Friendly home-type labels → real DDF `StructureType` values (verified against

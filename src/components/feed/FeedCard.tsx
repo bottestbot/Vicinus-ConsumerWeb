@@ -11,6 +11,7 @@ import {
   Pause,
 } from 'lucide-react'
 import type { Property } from '@/types/search'
+import { formatNumber, formatPrice as formatPriceCA } from '@/lib/format'
 
 interface Props {
   property: Property
@@ -29,7 +30,7 @@ const FALLBACK_IMAGE =
 function formatPrice(p: number): string {
   if (p >= 1_000_000) return `$${(p / 1_000_000).toFixed(p % 1_000_000 === 0 ? 0 : 2)}M`
   if (p >= 1_000) return `$${(p / 1_000).toFixed(0)}K`
-  return `$${p.toLocaleString()}`
+  return formatPriceCA(p)
 }
 
 function deriveTags(property: Property): string[] {
@@ -367,7 +368,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             {property.beds > 0 && property.baths > 0 && <span className="text-white/40">|</span>}
             {property.baths > 0 && <span>{property.baths} BA</span>}
             {property.sqft > 0 && (
-              <><span className="text-white/40">|</span><span>{property.sqft.toLocaleString()} SQFT</span></>
+              <><span className="text-white/40">|</span><span>{formatNumber(property.sqft)} SQFT</span></>
             )}
           </div>
           {/* Screen-reader equivalent with expanded, non-abbreviated units */}
@@ -375,7 +376,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             {[
               property.beds > 0 ? `${property.beds} bedrooms` : null,
               property.baths > 0 ? `${property.baths} bathrooms` : null,
-              property.sqft > 0 ? `${property.sqft.toLocaleString()} square feet` : null,
+              property.sqft > 0 ? `${formatNumber(property.sqft)} square feet` : null,
             ].filter(Boolean).join(', ')}
           </span>
 

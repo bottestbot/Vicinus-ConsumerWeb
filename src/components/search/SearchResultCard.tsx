@@ -6,6 +6,7 @@ import { Bed, Bath, Maximize2, Star } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property } from '@/types/search'
 import { formatFullPrice } from '@/types/search'
+import { formatNumber } from '@/lib/format'
 
 interface SearchResultCardProps {
   property: Property
@@ -99,7 +100,7 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
               <>
                 <span className="text-[#E8E6E1]">|</span>
                 <span className="flex items-center gap-1">
-                  <Maximize2 size={12} /> {property.sqft.toLocaleString()} sqft
+                  <Maximize2 size={12} /> {formatNumber(property.sqft)} sqft
                 </span>
               </>
             )}

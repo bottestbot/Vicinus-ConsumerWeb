@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property } from '@/types/search'
+import { formatNumber } from '@/lib/format'
 import SearchResultCard from './SearchResultCard'
 import CuratorChoiceCard from './CuratorChoiceCard'
 
@@ -130,8 +131,8 @@ export default function ResultsList({
         </p>
         {!isLoading && (
           <p className="text-[10px] font-semibold text-[#6B6B6B] mt-2 uppercase tracking-widest">
-            {totalCount.toLocaleString()} results found
-            {totalPages > 1 && ` · page ${page} of ${totalPages.toLocaleString()}`}
+            {formatNumber(totalCount)} results found
+            {totalPages > 1 && ` · page ${page} of ${formatNumber(totalPages)}`}
           </p>
         )}
       </div>

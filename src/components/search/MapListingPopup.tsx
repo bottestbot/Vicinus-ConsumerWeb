@@ -8,6 +8,7 @@ import { useUser } from '@clerk/nextjs'
 import { getPropertyDetail } from '@/lib/api/properties'
 import { saveProperty, unsaveProperty } from '@/lib/api/users'
 import { useUserStore } from '@/store/userStore'
+import { formatNumber, formatPrice } from '@/lib/format'
 
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80'
@@ -108,7 +109,7 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
           ) : (
             <>
               <p className="text-lg font-bold text-[#111111] leading-tight">
-                {data.price > 0 ? `$${data.price.toLocaleString()}` : 'Price on request'}
+                {data.price > 0 ? formatPrice(data.price) : 'Price on request'}
               </p>
               <p className="text-sm text-[#111111] mt-0.5">
                 <span className="font-semibold">{data.beds}</span> bds
@@ -117,7 +118,7 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
                 {data.sqft > 0 && (
                   <>
                     {' · '}
-                    <span className="font-semibold">{data.sqft.toLocaleString()}</span> sqft
+                    <span className="font-semibold">{formatNumber(data.sqft)}</span> sqft
                   </>
                 )}
                 {' · '}

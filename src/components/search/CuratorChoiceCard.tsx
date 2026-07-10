@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Heart, Share2, Maximize2, Bed, Bath } from 'lucide-react'
 import type { Property } from '@/types/search'
 import { formatFullPrice } from '@/types/search'
+import { formatNumber } from '@/lib/format'
 
 interface CuratorChoiceCardProps {
   property: Property
@@ -94,7 +95,7 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
           {property.sqft > 0 && (
             <>
               <span className="text-[#E8E6E1]">|</span>
-              <span>{property.sqft.toLocaleString()} sqft</span>
+              <span>{formatNumber(property.sqft)} sqft</span>
             </>
           )}
         </div>
