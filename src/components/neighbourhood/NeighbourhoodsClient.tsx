@@ -6,7 +6,6 @@ import Image from 'next/image'
 import { useSearchStore } from '@/store/searchStore'
 import type { Neighbourhood } from '@/types/neighbourhood'
 import { formatPrice } from '@/types/search'
-import { EDITORIAL_FEATURED_SLUGS } from '@/lib/neighbourhood-regions'
 import { getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1548656848-c80e1d02d05a?w=800&q=80'
@@ -92,22 +91,6 @@ function contextMatch(all: Neighbourhood[], query: string | null, userCity: stri
   return null
 }
 
-// ── NBR-04: featured label ────────────────────────────────────────────────────
-
-function buildFeaturedLabel(province: string, city: string): string {
-  if (city !== ALL_CITIES) return city
-  if (province !== 'all') return `${PROVINCE_LABELS[province] ?? province} Highlights`
-  return "Editor's Picks"
-}
-
-function pickFeatured(all: Neighbourhood[], province: string, city: string): Neighbourhood[] {
-  const filtered = filterNeighbourhoods(all, province, city)
-  if (filtered.length >= 2) return filtered.slice(0, 5)
-  return EDITORIAL_FEATURED_SLUGS
-    .map((slug) => all.find((n) => n.slug === slug))
-    .filter((n): n is Neighbourhood => Boolean(n))
-}
-
 // ── Cards ─────────────────────────────────────────────────────────────────────
 
 // NBR-05: showCityTag is false when a specific city is selected
@@ -149,30 +132,6 @@ function NeighbourhoodCard({ neighbourhood, showCityTag }: { neighbourhood: Neig
           )}
         </div>
       </article>
-    </Link>
-  )
-}
-
-function SpotlightCard({ neighbourhood, large = false }: { neighbourhood: Neighbourhood; large?: boolean }) {
-  const imageSrc = neighbourhood.imageUrl ?? FALLBACK_IMAGE
-  return (
-    <Link href={`/neighbourhoods/${neighbourhood.slug}`} className="group relative block rounded-2xl overflow-hidden cursor-pointer h-full">
-      <Image
-        src={imageSrc}
-        alt={neighbourhood.name}
-        fill
-        sizes={large ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 100vw, 25vw'}
-        className="object-cover transition-transform duration-500 group-hover:scale-105"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-4">
-        <p className={`font-heading font-bold text-white leading-tight ${large ? 'text-2xl' : 'text-base'}`}>
-          {neighbourhood.name}
-        </p>
-        {neighbourhood.medianPrice && (
-          <p className="mt-0.5 text-xs text-white/75">{formatPrice(neighbourhood.medianPrice)} med.</p>
-        )}
-      </div>
     </Link>
   )
 }
@@ -367,12 +326,6 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
     [data, selectedProvince, selectedCity],
   )
 
-  const featured = useMemo(
-    () => pickFeatured(data, selectedProvince, selectedCity),
-    [data, selectedProvince, selectedCity],
-  )
-
-  const featLabel = buildFeaturedLabel(selectedProvince, selectedCity)
   const provinceLabel = PROVINCE_LABELS[selectedProvince] ?? selectedProvince
   const cityAllCount = useMemo(
     () => filterNeighbourhoods(data, selectedProvince, ALL_CITIES).length,
@@ -481,29 +434,6 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
         </div>
       ) : (
         <>
-          {/* NBR-04: Adaptive featured section */}
-          {featured.length >= 2 && (
-            <section className="mt-6 mb-10">
-              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#1C3829]">
-                {featLabel}
-              </p>
-              <div
-                className="grid gap-3"
-                style={{
-                  gridTemplateColumns: featured.length >= 3 ? '1fr 1fr' : '1fr',
-                  gridTemplateRows: featured.length >= 3 ? 'repeat(2, 160px)' : '280px',
-                }}
-              >
-                <div className="row-span-2 min-h-[320px]">
-                  <SpotlightCard neighbourhood={featured[0]} large />
-                </div>
-                {featured.slice(1, 5).map((n) => (
-                  <SpotlightCard key={n.slug} neighbourhood={n} />
-                ))}
-              </div>
-            </section>
-          )}
-
           {/* Grid */}
           <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-[#1C3829]">
             All Neighbourhoods
