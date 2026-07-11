@@ -22,3 +22,19 @@ export async function geocodeNeighbourhood(
     return null
   }
 }
+
+export async function geocodeCity(name: string): Promise<{ lat: number; lng: number } | null> {
+  if (!MAPBOX_TOKEN) return null
+  try {
+    const query = encodeURIComponent(`${name} Canada`)
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?country=CA&types=place&limit=1&access_token=${MAPBOX_TOKEN}`
+    const res = await fetch(url, { next: { revalidate: 86400 } })
+    if (!res.ok) return null
+    const data = await res.json()
+    const [lng, lat] = data?.features?.[0]?.geometry?.coordinates ?? []
+    if (lat == null || lng == null) return null
+    return { lat, lng }
+  } catch {
+    return null
+  }
+}

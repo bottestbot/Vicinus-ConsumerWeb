@@ -11,9 +11,7 @@ import {
   geocodeNeighbourhood,
   getNeighbourhoodMapImageUrl,
 } from '@/lib/neighbourhood-images'
-import { getNeighbourhoodGooglePhotos } from '@/lib/neighbourhood-images-google'
 import NeighbourhoodHero from '@/components/neighbourhood/NeighbourhoodHero'
-import NeighbourhoodHeroCarousel from '@/components/neighbourhood/NeighbourhoodHeroCarousel'
 import NeighbourhoodMetrics from '@/components/neighbourhood/NeighbourhoodMetrics'
 import NeighbourhoodAiSummary from '@/components/neighbourhood/NeighbourhoodAiSummary'
 import LocalEssentials from '@/components/neighbourhood/LocalEssentials'
@@ -44,10 +42,10 @@ export default async function NeighbourhoodDetailPage({ params }: PageProps) {
     getNeighbourhoodAgents(slug),
   ])
 
-  const [coords, googlePhotos] = await Promise.all([
-    geocodeNeighbourhood(neighbourhood.name, neighbourhood.city),
-    getNeighbourhoodGooglePhotos(neighbourhood.name, neighbourhood.city),
-  ])
+  const coords =
+    neighbourhood.lat != null && neighbourhood.lng != null
+      ? { lat: neighbourhood.lat, lng: neighbourhood.lng }
+      : await geocodeNeighbourhood(neighbourhood.name, neighbourhood.city)
   const mapImageUrl = coords ? getNeighbourhoodMapImageUrl(coords.lat, coords.lng) : undefined
 
   return (
@@ -55,15 +53,7 @@ export default async function NeighbourhoodDetailPage({ params }: PageProps) {
       {/* ── Hero + Metrics ──────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
         <div className="grid lg:grid-cols-[1fr_340px] gap-5 h-[480px] lg:h-[600px]">
-          {googlePhotos.length > 0 ? (
-            <NeighbourhoodHeroCarousel
-              images={googlePhotos}
-              altPrefix={neighbourhood.name}
-              subtitle={`${neighbourhood.city}, ${neighbourhood.province}`}
-            />
-          ) : (
-            <NeighbourhoodHero neighbourhood={neighbourhood} mapImageUrl={mapImageUrl} />
-          )}
+          <NeighbourhoodHero neighbourhood={neighbourhood} mapImageUrl={mapImageUrl} />
           <NeighbourhoodMetrics neighbourhood={neighbourhood} />
         </div>
       </div>

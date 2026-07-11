@@ -10,6 +10,7 @@ import Footer from '@/components/layout/Footer'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
 import { getFeaturedProperties, type FeaturedProperty } from '@/lib/api/properties'
 import { formatPrice } from '@/types/search'
+import { geocodeCity, getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
 
 export const metadata: Metadata = {
   title: 'Vicinus | Luxury Canadian Real Estate',
@@ -123,17 +124,20 @@ export default async function LandingPage() {
   // fallback; each card links to a city-scoped search.
   // TODO: replace with a proper curated selection later.
   const FEATURED_CITIES = ['Vancouver', 'Kelowna', 'West Vancouver', 'Whistler']
-  const cities = FEATURED_CITIES.map((name) => {
-    const inCity = neighbourhoods.filter((n) => n.city?.toLowerCase() === name.toLowerCase())
-    const match = inCity[0]
-    return {
-      name,
-      province: match?.province ?? 'British Columbia',
-      imageUrl: match?.imageUrl ?? CITY_FALLBACK_IMAGE,
-      href: `/search?q=${encodeURIComponent(name)}`,
-      neighbourhoodCount: inCity.length,
-    }
-  })
+  const cities = await Promise.all(
+    FEATURED_CITIES.map(async (name) => {
+      const inCity = neighbourhoods.filter((n) => n.city?.toLowerCase() === name.toLowerCase())
+      const match = inCity[0]
+      const coords = await geocodeCity(name)
+      return {
+        name,
+        province: match?.province ?? 'British Columbia',
+        imageUrl: coords ? getNeighbourhoodMapImageUrl(coords.lat, coords.lng) : CITY_FALLBACK_IMAGE,
+        href: `/search?q=${encodeURIComponent(name)}`,
+        neighbourhoodCount: inCity.length,
+      }
+    }),
+  )
 
   return (
     <main className="bg-[#FAF9F6] text-[#111111]">

@@ -113,10 +113,9 @@ function pickFeatured(all: Neighbourhood[], province: string, city: string): Nei
 // NBR-05: showCityTag is false when a specific city is selected
 function NeighbourhoodCard({ neighbourhood, showCityTag }: { neighbourhood: Neighbourhood; showCityTag: boolean }) {
   const imageSrc =
-    neighbourhood.imageUrl ||
-    (neighbourhood.lat && neighbourhood.lng
+    neighbourhood.lat && neighbourhood.lng
       ? getNeighbourhoodMapImageUrl(neighbourhood.lat, neighbourhood.lng)
-      : FALLBACK_IMAGE)
+      : FALLBACK_IMAGE
 
   return (
     <Link href={`/neighbourhoods/${neighbourhood.slug}`} className="group">
