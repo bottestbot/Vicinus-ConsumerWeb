@@ -5,7 +5,6 @@
 import { useState } from 'react'
 import {
   Bed,
-  Bath,
   Sparkles,
   ChefHat,
   Thermometer,
@@ -316,24 +315,36 @@ function RoomList({ rooms }: { rooms: PropertyRoom[] }) {
   )
 }
 
-function GroupBlock({ group }: { group: FactGroup }) {
+interface Fact {
+  icon: LucideIcon
+  label: string
+  value: string
+}
+
+/** One tile per fact row (icon inherited from its group) — a quick-glance grid
+ *  rather than a label:value list, so a reader can scan values at a glance. */
+function FactTile({ icon: Icon, label, value }: Fact) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon size={17} className="text-[#1C3829] mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <dt className="text-[10px] font-semibold tracking-wide text-[#9B9B9B] uppercase">{label}</dt>
+        <dd className="text-sm text-[#111111] font-medium mt-0.5 truncate">{value}</dd>
+      </div>
+    </div>
+  )
+}
+
+/** Groups whose content doesn't reduce to a scalar (e.g. the room list) keep
+ *  their own header + custom body below the tile grid. */
+function ExtraBlock({ group }: { group: FactGroup }) {
   const Icon = group.icon
   return (
-    <div className="break-inside-avoid">
+    <div>
       <div className="flex items-center gap-2 mb-2">
         <Icon size={15} className="text-[#1C3829]" />
         <h3 className="text-sm font-semibold text-[#111111]">{group.label}</h3>
       </div>
-      {group.rows.length > 0 && (
-        <dl className="space-y-1">
-          {group.rows.map((row) => (
-            <div key={row.label} className="flex items-baseline gap-x-3 text-sm">
-              <dt className="text-[#6B6B6B] shrink-0">{row.label}</dt>
-              <dd className="text-[#111111] font-medium">{String(row.value)}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
       {group.extra}
     </div>
   )
@@ -363,37 +374,57 @@ export default function PropertyFacts({ details }: PropertyFactsProps) {
   // Guard against the active tab having been filtered out.
   const activeTab = available.find((t) => t.key === active) ?? available[0]
 
+  const tiles: Fact[] = activeTab.groups.flatMap((g) =>
+    g.rows.map((r) => ({ icon: g.icon, label: r.label, value: String(r.value) })),
+  )
+  const extraGroups = activeTab.groups.filter((g) => g.extra != null)
+
   return (
     <section>
-      <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-heading text-xl font-semibold text-[#111111]">Facts &amp; features</h2>
-      </div>
+      <h2 className="font-heading text-xl font-semibold text-[#111111] mb-4">Facts &amp; features</h2>
 
-      {/* ── Tabs ──────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 border-b border-[#E8E6E1] mb-6">
-        {available.map((t) => {
-          const isActive = t.key === activeTab.key
-          return (
-            <button
-              key={t.key}
-              onClick={() => setActive(t.key)}
-              className={`px-4 py-2.5 text-sm font-medium -mb-px border-b-2 transition-colors ${
-                isActive
-                  ? 'border-[#1C3829] text-[#111111]'
-                  : 'border-transparent text-[#6B6B6B] hover:text-[#111111]'
-              }`}
-            >
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
+      {/* Wrapped in the same white-card treatment used by every other section on
+          this page (AssessmentHistory, SalesHistory, NeighbourhoodContextScore,
+          etc.) — this was previously the only section sitting bare on the cream
+          page background. */}
+      <div className="bg-white rounded-2xl border border-[#E8E6E1] shadow-sm p-6 sm:p-8">
+        {/* ── Tabs ──────────────────────────────────────────────────────── */}
+        <div className="flex gap-1 mb-6">
+          {available.map((t) => {
+            const isActive = t.key === activeTab.key
+            return (
+              <button
+                key={t.key}
+                onClick={() => setActive(t.key)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-[#1C3829] text-white'
+                    : 'text-[#6B6B6B] hover:bg-[#F2F0EB] hover:text-[#111111]'
+                }`}
+              >
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
 
-      {/* ── Active tab content ────────────────────────────────────────────── */}
-      <div className="columns-1 md:columns-2 gap-8 space-y-6 [&>*]:mb-6">
-        {activeTab.groups.map((group) => (
-          <GroupBlock key={group.label} group={group} />
-        ))}
+        {/* ── Fact tiles ────────────────────────────────────────────────── */}
+        {tiles.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-6">
+            {tiles.map((tile, i) => (
+              <FactTile key={`${tile.label}-${i}`} {...tile} />
+            ))}
+          </div>
+        )}
+
+        {/* ── Non-scalar groups (e.g. Rooms) ──────────────────────────────── */}
+        {extraGroups.length > 0 && (
+          <div className={`space-y-6 ${tiles.length > 0 ? 'mt-8 pt-6 border-t border-[#E8E6E1]' : ''}`}>
+            {extraGroups.map((group) => (
+              <ExtraBlock key={group.label} group={group} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

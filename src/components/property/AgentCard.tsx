@@ -19,7 +19,7 @@ export default function AgentCard({ property }: AgentCardProps) {
       .slice(0, 2) || 'RE'
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E8E6E1] shadow-sm p-5 sticky top-20">
+    <div className="bg-white rounded-2xl border border-[#E8E6E1] shadow-sm p-6 sticky top-20">
       {/* Agent info */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-11 h-11 rounded-full bg-[#1C3829] flex items-center justify-center text-white font-semibold text-sm shrink-0">
@@ -35,11 +35,9 @@ export default function AgentCard({ property }: AgentCardProps) {
         </div>
       </div>
 
-      {/* MLS */}
-      <div className="bg-[#F7F5F0] rounded-lg px-3 py-2 mb-4">
-        <p className="text-[10px] text-[#6B6B6B]">MLS® Number</p>
-        <p className="text-xs font-semibold text-[#111111]">{property.mlsNumber}</p>
-      </div>
+      {/* MLS® number already shown right next to this card in PropertyStats — a
+          second boxed callout here just duplicated it in the most visually
+          prominent of the four places it appears on this page. Dropped. */}
 
       {/* CTA buttons */}
       <div className="flex flex-col gap-2.5">
@@ -49,7 +47,7 @@ export default function AgentCard({ property }: AgentCardProps) {
             className="flex items-center justify-center gap-2 w-full bg-[#1C3829] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#2D5A3D] transition-colors"
           >
             <Phone size={14} />
-            {property.agentPhone}
+            Contact Agent
           </a>
         )}
         <button className="flex items-center justify-center gap-2 w-full border border-[#E8E6E1] text-[#111111] text-sm font-medium py-2.5 rounded-xl hover:border-[#1C3829] transition-colors">

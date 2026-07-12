@@ -1,5 +1,5 @@
-// FE-403: PropertyStats — price, beds, baths, type, sqft, parking
-import { Bed, Bath, Maximize2, Car, Home, Tag } from 'lucide-react'
+// FE-403: PropertyStats — dark summary card (address/price/icon stats) + description
+import { Bed, Bath, Maximize2, Car, CalendarDays, type LucideIcon } from 'lucide-react'
 import { formatFullPrice } from '@/types/search'
 import type { PropertyDetail } from '@/types/property'
 
@@ -8,87 +8,70 @@ interface PropertyStatsProps {
 }
 
 export default function PropertyStats({ property }: PropertyStatsProps) {
-  const statItems = [
-    {
-      icon: <Tag size={14} className="text-[#6B6B6B]" />,
-      label: 'Type',
-      value: property.propertyType,
-    },
-    {
-      icon: <Home size={14} className="text-[#6B6B6B]" />,
-      label: 'Price',
-      // DDF sometimes omits ListPrice — show a label instead of "$0".
-      value: property.price > 0 ? formatFullPrice(property.price) : 'Price on request',
-    },
-    {
-      icon: <Bed size={14} className="text-[#6B6B6B]" />,
-      label: 'Beds',
-      value: `${property.beds} Bed`,
-    },
-    {
-      icon: <Bath size={14} className="text-[#6B6B6B]" />,
-      label: 'Baths',
-      value: `${property.baths} Bath`,
-    },
+  const iconStats: { icon: LucideIcon; label: string; value: string }[] = [
+    { icon: Bed, label: 'Beds', value: `${property.beds} Bed` },
+    { icon: Bath, label: 'Baths', value: `${property.baths} Bath` },
     // Only show Size when DDF supplies LivingArea — otherwise it reads "0 sqft".
     ...(property.sqft > 0
-      ? [
-          {
-            icon: <Maximize2 size={14} className="text-[#6B6B6B]" />,
-            label: 'Size',
-            value: `${property.sqft.toLocaleString()} sqft`,
-          },
-        ]
+      ? [{ icon: Maximize2, label: 'Size', value: `${property.sqft.toLocaleString()} sqft` }]
       : []),
+    ...(property.yearBuilt ? [{ icon: CalendarDays, label: 'Built', value: `Built ${property.yearBuilt}` }] : []),
     ...(property.parking != null
-      ? [
-          {
-            icon: <Car size={14} className="text-[#6B6B6B]" />,
-            label: 'Parking',
-            value: `${property.parking} Space${property.parking !== 1 ? 's' : ''}`,
-          },
-        ]
+      ? [{ icon: Car, label: 'Parking', value: `${property.parking} Space${property.parking !== 1 ? 's' : ''}` }]
       : []),
   ]
 
   return (
     <div className="space-y-4">
-      {/* ── Address ─────────────────────────────────────────────────────── */}
-      <div className="flex items-start gap-3">
-        {property.daysOnMarket <= 7 && (
-          <span className="mt-1.5 bg-[#1C3829] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">
-            New
-          </span>
-        )}
-        <div>
-          <h1 className="font-heading text-3xl md:text-4xl font-semibold text-[#111111] leading-tight">
-            {property.address},
-          </h1>
-          <h1 className="font-heading text-3xl md:text-4xl font-semibold text-[#111111] leading-tight">
-            {property.city}, {property.province}
-          </h1>
+      {/* ── Summary card ───────────────────────────────────────────────── */}
+      <div className="bg-[#1C3829] rounded-2xl px-6 py-6 sm:px-8 sm:py-7 text-white">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              {property.daysOnMarket <= 7 && (
+                <span className="bg-white text-[#1C3829] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                  New
+                </span>
+              )}
+              {property.neighbourhood && (
+                <p className="text-[11px] font-semibold tracking-widest text-white/60 uppercase truncate">
+                  {property.neighbourhood}
+                </p>
+              )}
+            </div>
+            <h1 className="font-heading text-2xl sm:text-3xl font-semibold leading-tight">
+              {property.address}, {property.city}, {property.province}
+            </h1>
+          </div>
+
+          <div className="text-left sm:text-right shrink-0">
+            <p className="font-heading text-2xl sm:text-3xl font-semibold whitespace-nowrap">
+              {/* DDF sometimes omits ListPrice — show a label instead of "$0". */}
+              {property.price > 0 ? formatFullPrice(property.price) : 'Price on request'}
+            </p>
+            {property.propertyType && <p className="text-xs text-white/50 mt-0.5">{property.propertyType}</p>}
+          </div>
         </div>
+
+        {iconStats.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-5 pt-5 border-t border-white/15">
+            {iconStats.map((item) => (
+              <span key={item.label} className="flex items-center gap-1.5 text-sm">
+                <item.icon size={14} className="text-white/60" />
+                <span className="font-medium">{item.value}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ── Stats Strip ─────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-0 text-sm text-[#6B6B6B]">
-        {statItems.map((item, i) => (
-          <span key={item.label} className="flex items-center">
-            {i > 0 && <span className="mx-3 text-[#D1CEC9]">|</span>}
-            <span className="flex items-center gap-1.5">
-              {item.icon}
-              <span className="text-[#111111] font-medium">{item.value}</span>
-            </span>
-          </span>
-        ))}
-      </div>
-
-      {/* ── MLS / Year Built ─────────────────────────────────────────────── */}
+      {/* ── MLS / Days on market ───────────────────────────────────────── */}
       <div className="flex items-center gap-4 text-xs text-[#6B6B6B]">
         <span>MLS® {property.mlsNumber}</span>
-        {property.yearBuilt && <span>Built {property.yearBuilt}</span>}
         {property.daysOnMarket > 0 && (
-          <span>{property.daysOnMarket} days on market</span>
+          <span>
+            {property.daysOnMarket} day{property.daysOnMarket !== 1 ? 's' : ''} on market
+          </span>
         )}
       </div>
 

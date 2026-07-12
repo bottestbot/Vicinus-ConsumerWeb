@@ -15,7 +15,8 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
   const [lightboxIndex, setLightboxIndex] = useState(0)
 
   const hero = images[0] ?? ''
-  const thumbs = images.slice(1, 3) // Show at most 2 stacked thumbnails
+  const thumbs = images.slice(1, 5) // Show at most 4 thumbnails, in a 2x2 grid (sm and up)
+  const mobileThumbs = images.slice(1) // Mobile gets a scroll strip of every remaining photo
 
   function openLightbox(idx: number) {
     setLightboxIndex(idx)
@@ -66,36 +67,54 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
           </button>
         </div>
 
-        {/* Thumbnails — 1/3 width, stacked (hidden on mobile) */}
-        <div className="hidden sm:flex flex-col gap-1.5">
+        {/* Thumbnails — 1/3 width, 2x2 grid (hidden on mobile) */}
+        <div className="hidden sm:grid grid-cols-2 grid-rows-2 gap-1.5">
           {thumbs.map((src, i) => (
             <div
-              key={i}
-              className="relative flex-1 cursor-pointer group overflow-hidden"
+              key={src}
+              className="relative cursor-pointer group overflow-hidden"
               onClick={() => openLightbox(i + 1)}
             >
               <Image
                 src={src}
                 alt={`${address} — photo ${i + 2}`}
                 fill
-                sizes="33vw"
+                sizes="16vw"
                 className="object-cover group-hover:brightness-95 transition-all duration-300"
               />
               {/* "More" overlay on last visible thumb */}
-              {i === thumbs.length - 1 && images.length > 3 && (
+              {i === thumbs.length - 1 && images.length > thumbs.length + 1 && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <span className="text-white text-sm font-semibold">+{images.length - 3} more</span>
+                  <span className="text-white text-sm font-semibold">
+                    +{images.length - thumbs.length - 1} more
+                  </span>
                 </div>
               )}
             </div>
           ))}
-          {/* Placeholder rows if fewer than 2 thumbs */}
-          {thumbs.length < 2 &&
-            Array.from({ length: 2 - thumbs.length }).map((_, i) => (
-              <div key={`ph-${i}`} className="flex-1 bg-[#E8E6E1] rounded-sm" />
+          {/* Placeholder cells if fewer than 4 thumbs */}
+          {thumbs.length < 4 &&
+            Array.from({ length: 4 - thumbs.length }).map((_, i) => (
+              <div key={`ph-${i}`} className="bg-[#E8E6E1] rounded-sm" />
             ))}
         </div>
       </div>
+
+      {/* Mobile thumbnail strip — the 2x2 grid above is sm+ only, so mobile
+          otherwise has no way to browse photos without opening the lightbox. */}
+      {mobileThumbs.length > 0 && (
+        <div className="sm:hidden flex gap-1.5 overflow-x-auto mt-1.5 -mx-4 px-4">
+          {mobileThumbs.map((src, i) => (
+            <button
+              key={src}
+              onClick={() => openLightbox(i + 1)}
+              className="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden"
+            >
+              <Image src={src} alt={`${address} — photo ${i + 2}`} fill sizes="64px" className="object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Lightbox ────────────────────────────────────────────────────── */}
       {lightboxOpen && (

@@ -71,6 +71,7 @@ interface ApiListing {
 
 function mapImages(images: ApiListingImage[] | null | undefined): string[] {
   if (!Array.isArray(images)) return []
+  const seen = new Set<string>()
   return images
     .filter((m) => !!m.url)
     .sort((a, b) => {
@@ -80,6 +81,9 @@ function mapImages(images: ApiListingImage[] | null | undefined): string[] {
       return (a.order ?? 0) - (b.order ?? 0)
     })
     .map((m) => m.url as string)
+    // DDF sometimes repeats the same media URL under multiple order slots —
+    // dedupe so the gallery grid doesn't show the same photo twice.
+    .filter((url) => (seen.has(url) ? false : seen.add(url)))
 }
 
 function daysSince(iso: string | null | undefined): number {
@@ -87,6 +91,13 @@ function daysSince(iso: string | null | undefined): number {
   const t = new Date(iso).getTime()
   if (Number.isNaN(t)) return 0
   return Math.max(0, Math.floor((Date.now() - t) / 86_400_000))
+}
+
+/** DDF remarks sometimes end with an internal id like "(id:66285)" — strip it
+ *  before showing customer-facing description text. */
+function cleanDescription(desc: string | null | undefined): string | undefined {
+  if (!desc) return undefined
+  return desc.replace(/\s*\(id:\d+\)\s*$/i, '').trim() || undefined
 }
 
 function toPropertyDetail(l: ApiListing): PropertyDetail {
@@ -122,7 +133,7 @@ function toPropertyDetail(l: ApiListing): PropertyDetail {
     yearBuilt: l.yearBuilt ?? undefined,
     parking: l.parkingTotal ?? undefined,
     stories: l.stories ?? undefined,
-    description: l.description ?? undefined,
+    description: cleanDescription(l.description),
     pricePerSqft: price > 0 && sqft > 0 ? Math.round(price / sqft) : undefined,
     details: l.details ?? undefined,
     virtualTourUrl: l.virtualTourUrl ?? undefined,
@@ -207,7 +218,22 @@ export interface MarketContextData {
   medianPricePerSqft: number | null
   pricePosition: 'above_market' | 'at_market' | 'below_market' | null
   demandLevel: 'high' | 'medium' | 'low' | null
+  /** Unscoped whole-city active listing count — informational only ("N active in {city}"), not the comp basis. */
   totalActiveListingsInCity: number
+  /** Count of comps actually used for medianPrice/medianPricePerSqft/pricePosition after
+   *  cohort scoping (same city + property subtype + price/sqft band). */
+  compSampleSize: number
+  /** True when compSampleSize is below the minimum reliable sample size — explains why
+   *  pricePosition/medianPrice/medianPricePerSqft/medianDaysOnMarket are null, distinct
+   *  from missingListedDate (which explains a null demandLevel). */
+  insufficientComps: boolean
+  /** True when the subject listing has no listedAt/OriginalEntryTimestamp from DDF —
+   *  explains a null daysOnMarket/demandLevel even when comps are otherwise sufficient. */
+  missingListedDate: boolean
+  /** Saves on the subject listing in the trailing 14 days. Null until enough data exists. */
+  saveVelocity: number | null
+  /** Average trailing-14-day saves across the comp cohort, for comparison. */
+  cohortAvgSaveVelocity: number | null
 }
 
 /**

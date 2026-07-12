@@ -74,6 +74,11 @@ export default function MortgageAnalysis({ price }: MortgageAnalysisProps) {
             Mortgage Analysis
           </h2>
           <p className="text-white/50 text-xs">Estimated monthly payment</p>
+          {price > 0 && (
+            <p className="text-white/40 text-[10px] mt-1">
+              Based on the {fmt(price)} listing price
+            </p>
+          )}
         </div>
         <div className="text-right">
           <p className="font-heading text-4xl font-bold text-white">

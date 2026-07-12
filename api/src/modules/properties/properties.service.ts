@@ -200,6 +200,7 @@ export class PropertiesService {
       where: { OR: [{ id }, { ddfListingKey: id }] },
       select: {
         id: true,
+        ddfListingKey: true,
         price: true,
         sqft: true,
         city: true,
@@ -211,11 +212,13 @@ export class PropertiesService {
     })
     if (!property) throw new NotFoundException(`Property ${id} not found`)
 
-    // Days on market
-    const daysOnMarket =
-      property.listedAt !== null
-        ? Math.floor((Date.now() - property.listedAt.getTime()) / 86_400_000)
-        : null
+    // Days on market — null whenever DDF didn't supply OriginalEntryTimestamp.
+    // Tracked explicitly (missingListedDate) so the FE can explain a null
+    // demandLevel without guessing why.
+    const missingListedDate = property.listedAt === null
+    const daysOnMarket = property.listedAt
+      ? Math.floor((Date.now() - property.listedAt.getTime()) / 86_400_000)
+      : null
 
     // Price / sqft for subject property
     const pricePerSqft =
@@ -223,7 +226,29 @@ export class PropertiesService {
         ? Math.round(property.price / property.sqft)
         : null
 
-    // Comparable active listings in same city (capped to avoid large scans)
+    // Unscoped whole-city active count — informational only ("N active in
+    // {city}"), kept separate from the cohort used for median calculations.
+    const totalActiveListingsInCity =
+      property.city !== null
+        ? await this.prisma.property.count({
+            where: { city: property.city, status: 'Active', id: { not: property.id }, price: { gt: 0 } },
+          })
+        : 0
+
+    // Comp cohort: same city + same property subtype + a price/sqft band, not
+    // just "same city" — a townhouse shouldn't be benchmarked against a
+    // citywide median that includes detached houses.
+    const SQFT_BAND = 0.3 // ±30%
+    const PRICE_BAND = 0.4 // ±40%
+    const sqftRange =
+      property.sqft && property.sqft > 0
+        ? { gte: Math.round(property.sqft * (1 - SQFT_BAND)), lte: Math.round(property.sqft * (1 + SQFT_BAND)) }
+        : undefined
+    const priceRange =
+      property.price && property.price > 0
+        ? { gte: property.price * (1 - PRICE_BAND), lte: property.price * (1 + PRICE_BAND) }
+        : undefined
+
     const cityComps =
       property.city !== null
         ? await this.prisma.property.findMany({
@@ -231,43 +256,95 @@ export class PropertiesService {
               city: property.city,
               status: 'Active',
               id: { not: property.id },
-              price: { gt: 0 },
+              price: { gt: 0, ...priceRange },
+              ...(property.propertySubType ? { propertySubType: property.propertySubType } : {}),
+              ...(sqftRange ? { sqft: sqftRange } : {}),
             },
-            select: { price: true, sqft: true, listedAt: true },
+            select: { ddfListingKey: true, price: true, sqft: true, listedAt: true },
             take: 200,
           })
         : []
 
+    // Require a minimum sample before trusting any cohort-derived median —
+    // below this, pricePosition/medians are nulled and insufficientComps
+    // tells the FE why, instead of silently showing "—".
+    const MIN_COMP_SAMPLE_SIZE = 5
+    const compSampleSize = cityComps.length
+    const insufficientComps = compSampleSize < MIN_COMP_SAMPLE_SIZE
+
     const prices = cityComps.map((p) => p.price).filter((p): p is number => p !== null)
-    const medianPrice = prices.length ? Math.round(median(prices)) : null
+    const medianPrice = !insufficientComps && prices.length ? Math.round(median(prices)) : null
 
     const sqftPrices = cityComps
-      .filter((p): p is { price: number; sqft: number; listedAt: Date | null } =>
+      .filter((p): p is { ddfListingKey: string; price: number; sqft: number; listedAt: Date | null } =>
         p.price !== null && p.sqft !== null && p.sqft > 0,
       )
       .map((p) => p.price / p.sqft)
-    const medianPricePerSqft = sqftPrices.length ? Math.round(median(sqftPrices)) : null
+    const medianPricePerSqft = !insufficientComps && sqftPrices.length ? Math.round(median(sqftPrices)) : null
 
-    // Median days-on-market across comps
     const compDom = cityComps
       .filter((p) => p.listedAt !== null)
       .map((p) => Math.floor((Date.now() - (p.listedAt as Date).getTime()) / 86_400_000))
-    const medianDaysOnMarket = compDom.length ? Math.round(median(compDom)) : null
+    const medianDaysOnMarket = !insufficientComps && compDom.length ? Math.round(median(compDom)) : null
 
     // Price position relative to market
     let pricePosition: 'above_market' | 'at_market' | 'below_market' | null = null
-    if (property.price !== null && medianPrice !== null) {
+    if (!insufficientComps && property.price !== null && medianPrice !== null) {
       const ratio = property.price / medianPrice
       pricePosition = ratio > 1.05 ? 'above_market' : ratio < 0.95 ? 'below_market' : 'at_market'
     }
 
-    // Demand level — based on days on market vs. market median
+    // Saves-based demand signal (BE-market-signals): saves on this listing in
+    // the trailing 14 days vs. the same-day average across the comp cohort —
+    // a save is a much stronger buyer-intent signal than raw listing age.
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 86_400_000)
+    const cohortKeys = cityComps.map((c) => c.ddfListingKey)
+    const [saveVelocity, cohortSaveCounts] = await Promise.all([
+      this.prisma.savedProperty.count({
+        where: { propertyId: property.ddfListingKey, createdAt: { gte: fourteenDaysAgo } },
+      }),
+      this.prisma.savedProperty.groupBy({
+        by: ['propertyId'],
+        where: { propertyId: { in: cohortKeys }, createdAt: { gte: fourteenDaysAgo } },
+        _count: { propertyId: true },
+      }),
+    ])
+    const cohortAvgSaveVelocity =
+      cohortKeys.length > 0
+        ? cohortSaveCounts.reduce((sum, r) => sum + r._count.propertyId, 0) / cohortKeys.length
+        : null
+
+    // Demand level — blend of DOM-vs-median and save-velocity-vs-cohort.
+    // Computed from whichever signal(s) are actually available; only null
+    // when neither is. Saves weighted higher (0.6) than DOM (0.4) since a
+    // save is a stronger intent signal than a listing simply being new.
     let demandLevel: 'high' | 'medium' | 'low' | null = null
-    if (daysOnMarket !== null) {
-      const threshold = medianDaysOnMarket ?? 30
-      if (daysOnMarket < threshold * 0.5) demandLevel = 'high'
-      else if (daysOnMarket <= threshold * 1.5) demandLevel = 'medium'
-      else demandLevel = 'low'
+    {
+      const domThreshold = medianDaysOnMarket ?? 30
+      const domScore =
+        daysOnMarket !== null
+          ? daysOnMarket < domThreshold * 0.5
+            ? 1
+            : daysOnMarket <= domThreshold * 1.5
+              ? 0.5
+              : 0
+          : null
+      const saveScore =
+        cohortAvgSaveVelocity != null && cohortAvgSaveVelocity > 0
+          ? (() => {
+              const ratio = saveVelocity / cohortAvgSaveVelocity
+              return ratio > 1.5 ? 1 : ratio >= 0.5 ? 0.5 : 0
+            })()
+          : null
+
+      const score =
+        domScore !== null && saveScore !== null
+          ? saveScore * 0.6 + domScore * 0.4
+          : (saveScore ?? domScore)
+
+      if (score !== null) {
+        demandLevel = score >= 0.75 ? 'high' : score >= 0.35 ? 'medium' : 'low'
+      }
     }
 
     return {
@@ -279,7 +356,12 @@ export class PropertiesService {
       medianPricePerSqft,
       pricePosition,
       demandLevel,
-      totalActiveListingsInCity: prices.length,
+      totalActiveListingsInCity,
+      compSampleSize,
+      insufficientComps,
+      missingListedDate,
+      saveVelocity,
+      cohortAvgSaveVelocity,
     }
   }
 

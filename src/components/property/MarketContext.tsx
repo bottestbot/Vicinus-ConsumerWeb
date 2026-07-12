@@ -53,7 +53,11 @@ export default function MarketContext({ property, data }: MarketContextProps) {
         : <Minus size={16} className="text-[#6B6B6B]" />,
       label: 'Price Position',
       value: pos?.label ?? '—',
-      sub: data?.medianPrice != null ? `area median: $${data.medianPrice.toLocaleString()}` : 'vs. active listings',
+      sub: pos && data?.medianPrice != null
+        ? `area median: $${data.medianPrice.toLocaleString()}`
+        : data?.insufficientComps
+          ? `Not enough comparable listings nearby (${data.compSampleSize} found)`
+          : 'vs. active listings',
       valueClass: pos?.cls,
       valueSize: 'text-base',
     },
@@ -61,7 +65,13 @@ export default function MarketContext({ property, data }: MarketContextProps) {
       icon: <BarChart3 size={16} className={dc.color} />,
       label: 'Demand',
       value: demandKey ? dc.label : '—',
-      sub: data ? `${data.totalActiveListingsInCity} active in ${property.city}` : 'buyer competition',
+      sub: demandKey && data
+        ? `${data.totalActiveListingsInCity} active in ${property.city}`
+        : data?.missingListedDate
+          ? 'Listing date unavailable'
+          : data
+            ? 'Not enough data to gauge demand'
+            : 'buyer competition',
       valueClass: dc.color,
       bg: dc.bg,
     },
@@ -119,7 +129,9 @@ export default function MarketContext({ property, data }: MarketContextProps) {
             ? 'Balanced market with room for negotiation.'
             : demandKey === 'low'
             ? 'Buyer-friendly market with extended negotiation windows.'
-            : 'Not enough comparable listings to gauge demand.'}
+            : data?.missingListedDate
+            ? 'This listing is missing a listed date, and there are too few saves yet to gauge demand another way.'
+            : 'Not enough data to gauge demand for this listing yet.'}
         </p>
       </div>
     </section>
