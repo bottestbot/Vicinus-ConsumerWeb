@@ -246,14 +246,14 @@ export class UsersService {
     })
   }
 
-  /** `listingKey` is the DDF ListingKey. De-dupes so each listing appears once. */
+  /** `listingKey` is the DDF ListingKey. Upserts so each listing appears once,
+   *  bumping `visitedAt` to now on repeat visits. */
   async trackVisited(clerkId: string, listingKey: string) {
     const user = await this.getMe(clerkId)
-    await this.prisma.visitedProperty.deleteMany({
-      where: { userId: user.id, propertyId: listingKey },
-    })
-    return this.prisma.visitedProperty.create({
-      data: { userId: user.id, propertyId: listingKey },
+    return this.prisma.visitedProperty.upsert({
+      where: { userId_propertyId: { userId: user.id, propertyId: listingKey } },
+      create: { userId: user.id, propertyId: listingKey },
+      update: { visitedAt: new Date() },
     })
   }
 

@@ -193,6 +193,8 @@ model VisitedProperty {
   visitedAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, propertyId])
 }
 
 model SavedSearch {
