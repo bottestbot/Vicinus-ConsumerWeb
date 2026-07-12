@@ -16,4 +16,7 @@ RUN npm run build
 
 EXPOSE 3001
 
-CMD ["node", "dist/src/main"]
+# railway.json's preDeployCommand is ignored once a service builds from a
+# Dockerfile — run migrations here instead so schema changes actually reach
+# prod on deploy (previously they silently never applied).
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
