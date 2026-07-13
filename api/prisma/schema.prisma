@@ -16,16 +16,18 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  loginCount           Int      @default(0)
-  onboardingCompleted  Boolean  @default(false)
-  onboardingData       Json?
+  loginCount          Int     @default(0)
+  onboardingCompleted Boolean @default(false)
+  onboardingData      Json?
   // Clerk session id of the last ping. loginCount is bumped only when a ping
   // arrives from a new session, so it counts login-sessions (not page loads).
-  lastSessionId        String?
+  lastSessionId       String?
 
   savedProperties   SavedProperty[]
   visitedProperties VisitedProperty[]
   savedSearches     SavedSearch[]
+  alerts            Alert[]
+  openHouseVisits   OpenHouseVisit[]
 }
 
 model Property {
@@ -89,6 +91,7 @@ model Property {
   office        Office?        @relation(fields: [ddfOfficeKey], references: [ddfOfficeKey])
   neighbourhood Neighbourhood? @relation(fields: [neighbourhoodId], references: [id])
   openHouses    OpenHouse[]
+  alerts        Alert[]
 }
 
 model Agent {
@@ -205,6 +208,57 @@ model SavedSearch {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+enum AlertType {
+  NEW_LISTING
+  PRICE_DROP
+  STATUS_CHANGE
+  OPEN_HOUSE
+}
+
+enum OpenHouseStatus {
+  PLANNED
+  ATTENDED
+  SKIPPED
+}
+
+model Alert {
+  id              String    @id @default(uuid())
+  userId          String
+  type            AlertType
+  propertyId      String?
+  ddfOpenHouseKey String?
+  payload         Json
+  createdAt       DateTime  @default(now())
+  readAt          DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, propertyId, type])
+  @@unique([userId, ddfOpenHouseKey])
+  @@index([userId, readAt])
+  @@index([userId, type])
+}
+
+model OpenHouseVisit {
+  id              String          @id @default(uuid())
+  userId          String
+  ddfOpenHouseKey String
+  // DDF ListingKey (not a Property FK) — a user can schedule an open house
+  // for a listing that hasn't synced locally yet (e.g. via the live
+  // NearbyOpenHouses carousel), so this mirrors SavedProperty/VisitedProperty's
+  // loose-string convention instead of a hard FK.
+  propertyId      String?
+  status          OpenHouseStatus @default(PLANNED)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ddfOpenHouseKey])
+  @@index([userId, status])
 }
 
 model EditorialCuration {

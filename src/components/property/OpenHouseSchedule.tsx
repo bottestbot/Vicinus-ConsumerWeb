@@ -1,8 +1,10 @@
 import { CalendarDays, Clock, Video } from 'lucide-react'
 import type { OpenHouseSlot } from '@/lib/api/properties'
+import AddToScheduleButton from './AddToScheduleButton'
 
 interface Props {
   slots: OpenHouseSlot[]
+  listingId: string
 }
 
 /** "14:00:00.00" → "2:00 PM" */
@@ -29,7 +31,7 @@ function formatDate(date: string | null): string {
   })
 }
 
-export default function OpenHouseSchedule({ slots }: Props) {
+export default function OpenHouseSchedule({ slots, listingId }: Props) {
   if (!slots.length) return null
 
   return (
@@ -65,12 +67,17 @@ export default function OpenHouseSchedule({ slots }: Props) {
                 href={oh.livestreamUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="sm:ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-[#1C3829] hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1C3829] hover:underline"
               >
                 <Video size={13} />
                 Join livestream
               </a>
             )}
+            <AddToScheduleButton
+              openHouseKey={oh.id}
+              currentListingId={listingId}
+              className="sm:ml-auto text-[10px] px-2.5 py-1"
+            />
           </div>
         ))}
       </div>

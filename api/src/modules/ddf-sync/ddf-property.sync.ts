@@ -2,8 +2,11 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { HttpService } from '@nestjs/axios'
 import { firstValueFrom } from 'rxjs'
+import type { Property } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { DdfAuthService } from './ddf-auth.service'
+import { isPhotoMedia } from './ddf-media.util'
+import { AlertsService } from '../alerts/alerts.service'
 
 @Injectable()
 export class DdfPropertySync {
@@ -14,6 +17,7 @@ export class DdfPropertySync {
     private http: HttpService,
     private prisma: PrismaService,
     private config: ConfigService,
+    private alerts: AlertsService,
   ) {}
 
   async sync(since?: Date): Promise<number> {
@@ -36,8 +40,17 @@ export class DdfPropertySync {
         if (!p['InternetEntireListingDisplayYN']) continue
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = this.mapProperty(p) as any
+
+        // BE-804/805/806/807: snapshot the previous state before it's overwritten,
+        // so a price drop / status change can be detected after the upsert.
+        const previous = await this.prisma.property.findUnique({
+          where: { ddfListingKey: data.ddfListingKey },
+          select: { price: true, status: true },
+        })
+
+        let upserted: Property
         try {
-          await this.prisma.property.upsert({
+          upserted = await this.prisma.property.upsert({
             where: { ddfListingKey: data.ddfListingKey },
             create: data,
             update: data,
@@ -45,7 +58,7 @@ export class DdfPropertySync {
         } catch (err: unknown) {
           // Agent/office FK may not exist — retry without the relation keys
           if ((err as { code?: string }).code === 'P2003') {
-            await this.prisma.property.upsert({
+            upserted = await this.prisma.property.upsert({
               where: { ddfListingKey: data.ddfListingKey },
               create: { ...data, ddfAgentKey: null, ddfOfficeKey: null },
               update: { ...data, ddfAgentKey: null, ddfOfficeKey: null },
@@ -54,6 +67,8 @@ export class DdfPropertySync {
             throw err
           }
         }
+
+        await this.maybeGenerateAlerts(previous, upserted)
         count++
       }
 
@@ -62,6 +77,29 @@ export class DdfPropertySync {
 
     this.logger.log(`Synced ${count} properties`)
     return count
+  }
+
+  // ─── Alert generation (BE-802/804/805/806/807) ──────────────────────────
+
+  private async maybeGenerateAlerts(
+    previous: { price: number | null; status: string } | null,
+    upserted: Property,
+  ): Promise<void> {
+    try {
+      if (!previous) {
+        await this.alerts.generateNewListingAlerts(upserted)
+        return
+      }
+      if (previous.price !== null && upserted.price !== null && upserted.price < previous.price) {
+        await this.alerts.generatePriceDropAlert(upserted, previous.price)
+      }
+      if (upserted.status !== previous.status) {
+        await this.alerts.generateStatusChangeAlert(upserted, previous.status)
+      }
+    } catch (err) {
+      // Alert generation must never take down the sync loop.
+      this.logger.error(`Alert generation failed for ${upserted.ddfListingKey}`, err)
+    }
   }
 
   // ─── DDF → Prisma field mapping ─────────────────────────────────────────
@@ -97,7 +135,9 @@ export class DdfPropertySync {
       lng: p['Longitude'] as number | null,
       description: p['PublicRemarks'] as string | null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      images: media.map((m) => ({ url: m['MediaURL'], order: m['Order'], isPrimary: m['PreferredPhotoYN'] })) as any,
+      images: media
+        .filter(isPhotoMedia)
+        .map((m) => ({ url: m['MediaURL'], order: m['Order'], isPrimary: m['PreferredPhotoYN'] })) as any,
       photosCount: p['PhotosCount'] as number | null,
       heating: p['Heating'] ?? null,
       cooling: p['Cooling'] ?? null,

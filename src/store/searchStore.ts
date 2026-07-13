@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import type { SearchFiltersExtended, SavedSearch, ViewMode } from '@/types/search'
+import { saveSearch as saveSearchApi, getSavedSearches, deleteSavedSearch } from '@/lib/api/search'
+import { filtersToSearchParams } from '@/lib/searchFilters'
 
 interface MapBounds {
   west: number
@@ -41,8 +43,9 @@ interface SearchStore {
   setUserLocation: (city: string | null, coords: { latitude: number; longitude: number } | null) => void
   setHoveredProperty: (id: string | null) => void
   setSelectedProperty: (id: string | null) => void
-  saveSearch: (name: string) => void
-  removeSavedSearch: (id: string) => void
+  saveSearch: (name: string) => Promise<void>
+  removeSavedSearch: (id: string) => Promise<void>
+  loadSavedSearches: () => Promise<void>
 }
 
 const defaultFilters: SearchFiltersExtended = {
@@ -116,19 +119,32 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
 
   setSelectedProperty: (id) => set({ selectedPropertyId: id }),
 
-  saveSearch: (name) => {
+  saveSearch: async (name) => {
     const state = get()
+    const filters = filtersToSearchParams(state.filters, state.query)
+    const res = await saveSearchApi({ name, filters })
+    const saved = res.data as { id: string; name: string | null; filters: unknown; createdAt: string }
     const search: SavedSearch = {
-      id: Date.now().toString(),
-      name,
-      query: state.query,
-      filters: state.filters,
-      mapBounds: state.mapBounds ?? undefined,
-      createdAt: new Date().toISOString(),
+      id: saved.id,
+      name: saved.name ?? name,
+      filters: saved.filters as SavedSearch['filters'],
+      createdAt: saved.createdAt,
     }
     set((s) => ({ savedSearches: [...s.savedSearches, search] }))
   },
 
-  removeSavedSearch: (id) =>
-    set((s) => ({ savedSearches: s.savedSearches.filter((ss) => ss.id !== id) })),
+  removeSavedSearch: async (id) => {
+    await deleteSavedSearch(id)
+    set((s) => ({ savedSearches: s.savedSearches.filter((ss) => ss.id !== id) }))
+  },
+
+  loadSavedSearches: async () => {
+    try {
+      const res = await getSavedSearches()
+      const data = Array.isArray(res.data) ? (res.data as SavedSearch[]) : []
+      set({ savedSearches: data })
+    } catch {
+      // Non-fatal — the dropdown just stays empty until the next successful load.
+    }
+  },
 }))

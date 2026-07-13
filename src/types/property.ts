@@ -28,6 +28,8 @@ export interface NearbyListing {
 
 export interface OpenHouseProperty {
   id: string
+  /** The open house's own DDF OpenHouseKey — needed to add it to the schedule. */
+  openHouseKey: string
   address: string
   city: string
   province: string

@@ -42,7 +42,9 @@ export interface DashboardProperty {
 }
 
 // Fields pulled from the local Property table to build a dashboard card.
-const DASHBOARD_PROPERTY_SELECT = {
+// Exported so other modules (e.g. AlertsService) can hydrate the same card
+// shape via a Prisma `include` instead of re-deriving their own.
+export const DASHBOARD_PROPERTY_SELECT = {
   id: true,
   ddfListingKey: true,
   ddfListingId: true,
@@ -61,9 +63,9 @@ const DASHBOARD_PROPERTY_SELECT = {
   office: { select: { name: true } },
 } satisfies Prisma.PropertySelect
 
-type LocalPropertyRow = Prisma.PropertyGetPayload<{ select: typeof DASHBOARD_PROPERTY_SELECT }>
+export type LocalPropertyRow = Prisma.PropertyGetPayload<{ select: typeof DASHBOARD_PROPERTY_SELECT }>
 
-function localToDashboardProperty(p: LocalPropertyRow): DashboardProperty {
+export function localToDashboardProperty(p: LocalPropertyRow): DashboardProperty {
   return {
     id: p.ddfListingKey, // FE links to /properties/:id by ListingKey
     ddfListingKey: p.ddfListingKey,
@@ -126,7 +128,9 @@ export class UsersService {
    * preferred (fast); anything not yet synced falls back to a live DDF fetch.
    * Keys that can't be resolved are simply omitted.
    */
-  private async resolveProperties(keys: string[]): Promise<Map<string, DashboardProperty>> {
+  // Public so other modules that store DDF ListingKeys (e.g. OpenHouseVisitsService)
+  // can reuse the same local-lookup + live-DDF-fallback resolution strategy.
+  async resolveProperties(keys: string[]): Promise<Map<string, DashboardProperty>> {
     const map = new Map<string, DashboardProperty>()
     const unique = [...new Set(keys)]
     if (unique.length === 0) return map
@@ -144,6 +148,17 @@ export class UsersService {
         if (d) map.set(missing[i], ddfToDashboardProperty(d))
       })
     }
+
+    // Keys that resolve to neither a synced Property row nor a live DDF lookup
+    // are dropped from the result (see docstring). That previously happened
+    // with zero trace, making a save that "disappeared" from the dashboard
+    // undebuggable — log it instead so a real cause (delisted, bad key, DDF
+    // outage) can be told apart from "the save never landed" in the API.
+    const unresolved = unique.filter((k) => !map.has(k))
+    if (unresolved.length > 0) {
+      this.logger.warn(`resolveProperties: could not resolve ${unresolved.length} key(s): ${unresolved.join(', ')}`)
+    }
+
     return map
   }
 

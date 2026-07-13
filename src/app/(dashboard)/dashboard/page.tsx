@@ -8,8 +8,8 @@ import WelcomeBanner from '@/components/dashboard/WelcomeBanner'
 import FeaturedProperty from '@/components/dashboard/FeaturedProperty'
 import NotificationsPanel from '@/components/dashboard/NotificationsPanel'
 import SavedProperties from '@/components/dashboard/SavedProperties'
+import OpenHouseSchedule from '@/components/dashboard/OpenHouseSchedule'
 import VisitedProperties from '@/components/dashboard/VisitedProperties'
-import EditorialCurations from '@/components/dashboard/EditorialCurations'
 
 export const metadata: Metadata = {
   title: 'My Dashboard',
@@ -70,9 +70,11 @@ export default async function DashboardPage() {
         {/* Welcome banner + recent searches */}
         <WelcomeBanner data={safeData} />
 
-        {/* Two-column hero: Featured property (2/3) + Intelligence panel (1/3) */}
+        {/* Left rail (Featured + Saved + Schedule) + full-height Notifications panel,
+            stretched to match the combined height of the left rail rather than just
+            the Featured Property card. */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 flex flex-col gap-10">
             {featuredProperty ? (
               <FeaturedProperty property={featuredProperty} />
             ) : (
@@ -80,25 +82,25 @@ export default async function DashboardPage() {
                 No featured property yet — save a listing to get started.
               </div>
             )}
+
+            {/* Saved properties carousel */}
+            <div className="border-t border-[#E8E6E1] pt-10">
+              <SavedProperties saved={safeData.saved} />
+            </div>
+
+            {/* Open house schedule (FE-821) — client component, own useOpenHouseVisits() fetch */}
+            <div className="border-t border-[#E8E6E1] pt-10">
+              <OpenHouseSchedule />
+            </div>
           </div>
           <div className="lg:col-span-1">
             <NotificationsPanel />
           </div>
         </div>
 
-        {/* Saved properties carousel */}
-        <div className="border-t border-[#E8E6E1] pt-10">
-          <SavedProperties saved={safeData.saved} />
-        </div>
-
-        {/* Visited properties */}
-        <div className="border-t border-[#E8E6E1] pt-10">
-          <VisitedProperties visited={safeData.visited} />
-        </div>
-
-        {/* Editorial curations — dark section */}
+        {/* Recently viewed properties */}
         <div className="border-t border-[#E8E6E1] pt-10 pb-16">
-          <EditorialCurations editorial={safeData.editorial} />
+          <VisitedProperties visited={safeData.visited} />
         </div>
 
       </div>

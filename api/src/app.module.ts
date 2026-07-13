@@ -7,6 +7,8 @@ import { DdfSyncModule } from './modules/ddf-sync/ddf-sync.module'
 import { PropertiesModule } from './modules/properties/properties.module'
 import { SearchModule } from './modules/search/search.module'
 import { UsersModule } from './modules/users/users.module'
+import { AlertsModule } from './modules/alerts/alerts.module'
+import { OpenHouseVisitsModule } from './modules/open-house-visits/open-house-visits.module'
 import { NeighbourhoodsModule } from './modules/neighbourhoods/neighbourhoods.module'
 import { AgentsModule } from './modules/agents/agents.module'
 import { EditorialModule } from './modules/editorial/editorial.module'
@@ -27,6 +29,8 @@ import { HealthModule } from './modules/health/health.module'
     RedisModule,
     AuthModule,
     UsersModule,
+    AlertsModule,
+    OpenHouseVisitsModule,
     PropertiesModule,
     SearchModule,
     NeighbourhoodsModule,

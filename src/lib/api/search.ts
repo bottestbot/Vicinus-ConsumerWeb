@@ -1,5 +1,4 @@
 import apiClient from './client'
-import type { SearchFiltersExtended } from '@/types/search'
 
 export interface SearchParams {
   q?: string
@@ -33,12 +32,11 @@ export const searchProperties = (params: SearchParams) =>
 export const getMapPins = (params: SearchParams) =>
   apiClient.get('/search/map-pins', { params })
 
-export const saveSearch = (body: {
-  name: string
-  query: string
-  filters: Partial<SearchFiltersExtended>
-  mapBounds?: { west: number; south: number; east: number; north: number }
-}) => apiClient.post('/users/me/searches', body)
+// Matches the backend's CreateSavedSearchDto — { name?, filters } only. `filters`
+// is the flat SearchParams shape (see filtersToSearchParams), stored as-is so the
+// backend's alert-matching logic (saved-search-matcher.util.ts) can read it directly.
+export const saveSearch = (body: { name?: string; filters: SearchParams }) =>
+  apiClient.post('/users/me/searches', body)
 
 export const getSavedSearches = () =>
   apiClient.get('/users/me/searches')

@@ -1,26 +1,43 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Bookmark, BookmarkCheck, X, Bell } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { useUser } from '@clerk/nextjs'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
 
 export default function SaveSearch({ theme = 'dark' }: { theme?: GlassTheme }) {
-  const { saveSearch, savedSearches, query } = useSearchStore()
+  const { saveSearch, removeSavedSearch, loadSavedSearches, savedSearches, query } = useSearchStore()
   const { isSignedIn } = useUser()
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(false)
   const t = glass(theme)
 
-  const handleSave = () => {
-    if (!name.trim()) return
-    saveSearch(name.trim())
-    setSaved(true)
-    setIsOpen(false)
-    setName('')
-    setTimeout(() => setSaved(false), 3000)
+  // Load the real list from the server once so the dropdown reflects what's
+  // actually saved, not just what's happened in this tab since page load.
+  useEffect(() => {
+    if (isSignedIn) loadSavedSearches()
+  }, [isSignedIn, loadSavedSearches])
+
+  const handleSave = async () => {
+    if (!name.trim() || saving) return
+    setSaving(true)
+    setError(false)
+    try {
+      await saveSearch(name.trim())
+      setSaved(true)
+      setIsOpen(false)
+      setName('')
+      setTimeout(() => setSaved(false), 3000)
+    } catch {
+      setError(true)
+      setTimeout(() => setError(false), 4000)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const defaultName = query
@@ -96,11 +113,14 @@ export default function SaveSearch({ theme = 'dark' }: { theme?: GlassTheme }) {
 
           <button
             onClick={handleSave}
-            disabled={!name.trim()}
+            disabled={!name.trim() || saving}
             className="w-full py-2 bg-[#1C3829] text-white rounded-lg text-sm font-medium hover:bg-[#2D5A3D] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Save Search
+            {saving ? 'Saving…' : 'Save Search'}
           </button>
+          {error && (
+            <p className="mt-2 text-xs text-red-500">Couldn&apos;t save — try again.</p>
+          )}
 
           {/* Existing saved searches */}
           {savedSearches.length > 0 && (
@@ -113,7 +133,7 @@ export default function SaveSearch({ theme = 'dark' }: { theme?: GlassTheme }) {
                   <div key={ss.id} className="flex items-center justify-between py-1">
                     <span className={`text-xs truncate ${t.text}`}>{ss.name}</span>
                     <button
-                      onClick={() => useSearchStore.getState().removeSavedSearch(ss.id)}
+                      onClick={() => removeSavedSearch(ss.id).catch(() => {})}
                       className={`transition-colors ml-2 shrink-0 ${t.icon} hover:text-red-400`}
                     >
                       <X size={11} />

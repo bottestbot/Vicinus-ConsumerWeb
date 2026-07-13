@@ -7,6 +7,7 @@ import { DdfMemberSync } from './ddf-member.sync'
 import { DdfOfficeSync } from './ddf-office.sync'
 import { DdfOpenHouseSync } from './ddf-openhouse.sync'
 import { SearchModule } from '../search/search.module'
+import { AlertsModule } from '../alerts/alerts.module'
 
 @Module({
   imports: [
@@ -14,6 +15,9 @@ import { SearchModule } from '../search/search.module'
     // BE-303: AlgoliaService (exported from SearchModule) is injected into
     // DdfPropertySync so every property upsert is mirrored to the Algolia index.
     SearchModule,
+    // BE-802/803/804/806: AlertsService is injected into DdfPropertySync/
+    // DdfOpenHouseSync to generate alerts right after each upsert.
+    AlertsModule,
   ],
   providers: [DdfSyncService, DdfAuthService, DdfPropertySync, DdfMemberSync, DdfOfficeSync, DdfOpenHouseSync],
   exports: [DdfAuthService],

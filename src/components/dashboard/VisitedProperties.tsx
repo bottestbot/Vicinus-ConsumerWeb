@@ -131,9 +131,9 @@ export default function VisitedProperties({ visited }: Props) {
       <div className="flex items-start justify-between mb-5">
         <div>
           <h2 className="font-heading text-2xl font-semibold text-[#111111] mb-1">
-            Visited Properties
+            Recently Viewed
           </h2>
-          <p className="text-sm text-[#6B6B6B]">Homes you&apos;ve toured in person recently.</p>
+          <p className="text-sm text-[#6B6B6B]">Properties you&apos;ve recently looked at.</p>
         </div>
 
         {totalPages > 1 && (

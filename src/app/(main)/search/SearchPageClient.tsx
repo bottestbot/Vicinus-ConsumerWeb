@@ -7,6 +7,7 @@ import { useSearchStore } from '@/store/searchStore'
 import type { Property, MapPinResponse } from '@/types/search'
 import { propertyTypeLabel } from '@/types/search'
 import { searchProperties, getMapPins, type SearchParams } from '@/lib/api/search'
+import { filtersToSearchParams } from '@/lib/searchFilters'
 import FilterPanel from '@/components/search/FilterPanel'
 import ResultsList from '@/components/search/ResultsList'
 import FeedView from '@/components/search/FeedView'
@@ -127,21 +128,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
       : bboxAround(VANCOUVER.longitude, VANCOUVER.latitude))
 
   const queryParams = {
-    q: query || undefined,
-    minPrice: filters.minPrice ?? undefined,
-    maxPrice: filters.maxPrice ?? undefined,
-    beds: filters.beds ?? undefined,
-    baths: filters.baths ?? undefined,
-    // Only send the flag when a beds/baths value is actually set.
-    exactBedsBaths: filters.bedsBathsExact && (filters.beds !== null || filters.baths !== null) ? true : undefined,
-    propertyType: filters.propertyType.length > 0 ? filters.propertyType.join(',') : undefined,
-    structureType: filters.structureType.length > 0 ? filters.structureType.join(',') : undefined,
-    status: filters.status || undefined,
-    listingType: filters.listingType || undefined,
-    minSqft: filters.minSqft ?? undefined,
-    maxSqft: filters.maxSqft ?? undefined,
-    parkingMin: filters.parking ?? undefined,
-    yearBuiltMin: filters.minYearBuilt ?? undefined,
+    ...filtersToSearchParams(filters, query),
     // Only constrain by area when the user is browsing (no text query). A text
     // search should return that city's listings regardless of where the map
     // currently sits, then the map flies to them. When browsing, fall back to

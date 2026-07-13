@@ -1,5 +1,7 @@
 // ─── Property & Search Types ──────────────────────────────────────────────────
 
+import type { SearchParams } from '@/lib/api/search'
+
 export interface Property {
   id: string
   address: string
@@ -71,14 +73,12 @@ export interface SearchFiltersExtended {
   shortTerm: boolean
 }
 
+// `filters` mirrors what's actually persisted server-side — the flat SearchParams
+// wire shape (see filtersToSearchParams), not the store's SearchFiltersExtended.
 export interface SavedSearch {
   id: string
   name: string
-  query: string
-  filters: Partial<SearchFiltersExtended>
-  mapBounds?: {
-    west: number; south: number; east: number; north: number
-  }
+  filters: SearchParams
   createdAt: string
 }
 

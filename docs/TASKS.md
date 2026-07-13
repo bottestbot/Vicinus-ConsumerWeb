@@ -188,6 +188,69 @@
 
 ---
 
+## Sprint 8 — Notification Centre & Open House Scheduler
+
+> Spec: see product spec artifact (alert vs. scheduled-visit distinction). Everything here depends on `BE-811` — DDF sync must run on a schedule, not the current manual script, or nothing generates on its own.
+
+### Backend — Alerts
+
+- [x] `BE-811` Move DDF property sync from manual `sync-now.ts` script to a scheduled `@Cron` job — blocking dependency for all alert generation below
+- [x] `BE-801` `Alert` table — shared model for all alert types (`type`, `userId`, `propertyId`/`ddfOpenHouseKey`, `payload`, `createdAt`, `readAt`)
+- [x] `BE-802` Generate new-listing alerts — diff newly-synced properties against each user's `SavedSearch` filters
+- [x] `BE-803` Generate open-house alerts — match upcoming `OpenHouse` records against `SavedProperty` and `SavedSearch` matches
+- [x] `BE-805` Add price-history tracking to property sync (previous price or history table) — prerequisite for `BE-804`
+- [x] `BE-804` Generate price-drop alerts on saved/visited properties
+- [x] `BE-807` Add status-history tracking to property sync (previous status) — prerequisite for `BE-806`
+- [x] `BE-806` Generate status-change alerts on saved/visited properties (e.g. Active → Pending/Sold, back on market)
+- [x] `BE-808` `GET /users/me/alerts` — list, paginated, filterable by type
+- [x] `BE-809` `PATCH /users/me/alerts/:id` — mark read
+- [x] `BE-810` `PATCH /users/me/alerts/read-all` — mark all read
+
+### Frontend — Notification Centre
+
+- [x] `FE-801` Wire `NotificationsPanel` to real `/users/me/alerts` (replace current placeholder that re-displays `SavedSearch` rows as static cards)
+- [x] `FE-802` Alert item variants: new listing, open house, price drop, status change
+- [x] `FE-803` Mark-as-read interaction (individual + "mark all read")
+- [x] `FE-804` Wire Alerts tab filtering to real data, or trim the unused Messages/Schedule tabs if out of scope for this sprint
+
+### Backend — Open House Scheduler
+
+- [x] `BE-820` `OpenHouseVisit` table (`userId`, `ddfOpenHouseKey`, `status`: planned/attended/skipped, unique on user + occurrence)
+- [x] `BE-821` `POST /users/me/open-house-visits/:key` — add to schedule
+- [x] `BE-822` `PATCH /users/me/open-house-visits/:key` — mark attended/skipped
+- [x] `BE-823` `DELETE /users/me/open-house-visits/:key` — remove
+- [x] `BE-824` `GET /users/me/open-house-visits` — list, grouped by day
+- [ ] `BE-825` Auto-mark "attended" when the user views that listing's page on or after the scheduled date
+
+### Frontend — Open House Scheduler
+
+- [x] `FE-820` **Decision needed before building:** resolve "Visited Properties" naming/semantics — it's auto-tracked from page views but labeled "toured in person," which collides with a real in-person concept once this ships. Rename the section or give a confirmed visit a distinct state. *(Resolved: renamed dashboard section to "Recently Viewed"; open-house scheduler owns "Planned/Attended/Skipped" language exclusively.)*
+- [x] `FE-821` Build "My Open House Schedule" dashboard section — day-grouped timeline, placed between Saved and Visited Properties
+- [x] `FE-822` "Add to my schedule" CTA on open-house alert cards
+- [x] `FE-823` "Add to my schedule" CTA on Property Detail page's open-house slots
+
+---
+
+## 🏘️ Neighbourhoods — 2-level filter redesign
+
+> Goal: replace the flat neighbourhood grid with a two-level city → type filter so users can drill down without leaving the page. Level 1 = city pill tabs; Level 2 = flavour/type chips within the selected city. All filtering is client-side on the pre-fetched list; no extra API round-trips at filter time.
+
+### Backend
+
+- [ ] `NBR-01` Add `city VARCHAR` column + index to `Neighbourhood` Prisma model; generate + apply migration (`add_neighbourhood_city`)
+- [ ] `NBR-02` Populate `city` in seed script (`seed-neighbourhoods.ts`) and in DDF-synced neighbourhood upserts
+- [ ] `NBR-03` `GET /neighbourhoods/cities` — return distinct city list with neighbourhood count per city; Redis-cached (1 h TTL)
+- [ ] `NBR-04` Add optional `?city=` query param to `GET /neighbourhoods`; filter at DB level so paginated future use is possible
+
+### Frontend
+
+- [ ] `NBR-05` Extract `NeighbourhoodsGrid` as a `'use client'` component; it receives the full list from the Server Component and owns `activeCity` + `activeType` state
+- [ ] `NBR-06` **Level 1 — City tabs:** horizontal scrollable pill row below the page header; "All" pill selected by default; selecting a city filters the grid client-side; active pill uses brand accent underline
+- [ ] `NBR-07` **Level 2 — Type chips:** a second row of chips that appears once a city is selected, derived from `neighbourhood.flavors`; chips are multi-select; grid updates live on toggle
+- [ ] `NBR-08` Sync filter state to URL query params (`?city=Toronto&type=urban,trendy`) for shareability + browser back-nav; "Clear filters" pill resets both levels and clears params
+
+---
+
 ## Backlog (Post-MVP)
 
 - [ ] Agent dashboard and listing management
@@ -196,7 +259,6 @@
 - [ ] Mobile app (React Native or Flutter consuming same REST API)
 - [ ] Admin panel for editorial content management
 - [ ] Algolia analytics for search insights
-- [ ] Push notifications for saved search alerts
 
 ---
 

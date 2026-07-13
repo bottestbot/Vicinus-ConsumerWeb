@@ -297,6 +297,7 @@ export async function getNearbyOpenHouses(id: string): Promise<OpenHouseProperty
     if (!Array.isArray(data)) return []
     return data.map((oh) => ({
       id: String(oh.id ?? ''),
+      openHouseKey: String(oh.openHouseKey ?? ''),
       address: oh.address ?? '',
       city: oh.city ?? '',
       province: oh.province ?? '',

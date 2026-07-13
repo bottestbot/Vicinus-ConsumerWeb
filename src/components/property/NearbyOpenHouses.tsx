@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Bed, Bath, Maximize2, Clock } from 'lucide-react'
 import type { OpenHouseProperty } from '@/types/property'
 import { formatFullPrice } from '@/types/search'
+import AddToScheduleButton from './AddToScheduleButton'
 
 interface NearbyOpenHousesProps {
   openHouses: OpenHouseProperty[]
@@ -112,13 +113,20 @@ export default function NearbyOpenHouses({ openHouses }: NearbyOpenHousesProps) 
               </div>
 
               {/* Open house time */}
-              <div className="bg-[#F7F5F0] rounded-lg px-3 py-2">
-                <p className="text-[11px] font-semibold text-[#1C3829]">
-                  {formatDate(oh.openHouseDate)}
-                </p>
-                <p className="text-[11px] text-[#6B6B6B]">
-                  {oh.openHouseStartTime} – {oh.openHouseEndTime}
-                </p>
+              <div className="bg-[#F7F5F0] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-semibold text-[#1C3829]">
+                    {formatDate(oh.openHouseDate)}
+                  </p>
+                  <p className="text-[11px] text-[#6B6B6B]">
+                    {oh.openHouseStartTime} – {oh.openHouseEndTime}
+                  </p>
+                </div>
+                <AddToScheduleButton
+                  openHouseKey={oh.openHouseKey}
+                  currentListingId={oh.id}
+                  className="shrink-0 text-[9px] px-2 py-1"
+                />
               </div>
 
               {/* Agent */}

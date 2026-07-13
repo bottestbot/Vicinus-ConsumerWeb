@@ -60,7 +60,7 @@ function SectionSkeleton({ className = 'h-40' }: { className?: string }) {
 async function OpenHouseSection({ id }: { id: string }) {
   const slots = await getListingOpenHouses(id)
   if (slots.length === 0) return null
-  return <OpenHouseSchedule slots={slots} />
+  return <OpenHouseSchedule slots={slots} listingId={id} />
 }
 
 async function AiSummarySection({ id }: { id: string }) {

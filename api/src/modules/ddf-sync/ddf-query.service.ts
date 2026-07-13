@@ -1,53 +1,56 @@
-import { Injectable, Logger } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
-import { HttpService } from '@nestjs/axios'
-import { firstValueFrom } from 'rxjs'
-import { PrismaService } from '../../prisma/prisma.service'
-import { DdfAuthService } from './ddf-auth.service'
-import { SearchQueryDto } from '../search/dto/search-query.dto'
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import { PrismaService } from '../../prisma/prisma.service';
+import { DdfAuthService } from './ddf-auth.service';
+import { SearchQueryDto } from '../search/dto/search-query.dto';
+import { isPhotoMedia } from './ddf-media.util';
 
 export interface MapPin {
-  id: string
-  lat: number | null
-  lng: number | null
-  price: number | null
+  id: string;
+  lat: number | null;
+  lng: number | null;
+  price: number | null;
 }
 
 export interface SearchResult {
-  data: unknown[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
+  data: unknown[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export interface OpenHouseSlot {
-  id: string
-  listingKey: string
-  date: string | null
-  startTime: string | null
-  endTime: string | null
-  type: string | null
-  remarks: string | null
-  livestreamUrl: string | null
+  id: string;
+  listingKey: string;
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  type: string | null;
+  remarks: string | null;
+  livestreamUrl: string | null;
 }
 
 /** A nearby listing that has an upcoming open house. Matches the FE `OpenHouseProperty` type. */
 export interface NearbyOpenHouse {
-  id: string
-  address: string
-  city: string
-  province: string
-  price: number | null
-  beds: number | null
-  baths: number | null
-  sqft: number | null
-  imageUrl: string
-  openHouseDate: string
-  openHouseStartTime: string | null
-  openHouseEndTime: string | null
-  agentName: string
-  brokerageName: string
+  id: string;
+  /** The open house's own DDF OpenHouseKey (distinct from `id`, the listing's ListingKey) — needed to schedule it. */
+  openHouseKey: string;
+  address: string;
+  city: string;
+  province: string;
+  price: number | null;
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
+  imageUrl: string;
+  openHouseDate: string;
+  openHouseStartTime: string | null;
+  openHouseEndTime: string | null;
+  agentName: string;
+  brokerageName: string;
 }
 
 /**
@@ -58,7 +61,7 @@ export interface NearbyOpenHouse {
  * (the dwelling style lives in a separate field), so this short list covers all
  * residential stock.
  */
-const RESIDENTIAL_SUBTYPES = ['Single Family', 'Multi-family', 'Recreational']
+const RESIDENTIAL_SUBTYPES = ['Single Family', 'Multi-family', 'Recreational'];
 
 /**
  * DDF `StructureType` is the field that distinguishes dwelling form (House vs
@@ -79,11 +82,11 @@ const KNOWN_STRUCTURE_TYPES = [
   'Park Model Mobile Home',
   'Recreational',
   'Other',
-]
+];
 
 @Injectable()
 export class DdfQueryService {
-  private readonly logger = new Logger(DdfQueryService.name)
+  private readonly logger = new Logger(DdfQueryService.name);
 
   constructor(
     private auth: DdfAuthService,
@@ -98,41 +101,54 @@ export class DdfQueryService {
    * same filters as the list.
    */
   private buildFilterParts(dto: SearchQueryDto): string[] {
-    const filterParts: string[] = ['InternetEntireListingDisplayYN eq true']
-    filterParts.push(`StandardStatus eq '${this.sanitize(dto.status ?? 'Active')}'`)
+    const filterParts: string[] = ['InternetEntireListingDisplayYN eq true'];
+    filterParts.push(
+      `StandardStatus eq '${this.sanitize(dto.status ?? 'Active')}'`,
+    );
 
     // Sale vs lease: rentals carry a LeaseAmount, sales do not.
     if (dto.listingType === 'For Rent') {
-      filterParts.push('LeaseAmount ne null')
+      filterParts.push('LeaseAmount ne null');
     } else if (dto.listingType === 'For Sale') {
-      filterParts.push('LeaseAmount eq null')
+      filterParts.push('LeaseAmount eq null');
     }
 
     if (dto.city) {
       // DDF OData does not support tolower() — match on canonical (title) case
-      filterParts.push(`City eq '${this.sanitize(this.toTitleCase(dto.city))}'`)
+      filterParts.push(
+        `City eq '${this.sanitize(this.toTitleCase(dto.city))}'`,
+      );
     }
     if (dto.province) {
       // DDF stores the full province name in title case ("Ontario"), so map
       // 2-letter codes to names and title-case anything else
       filterParts.push(
         `StateOrProvince eq '${this.sanitize(this.normalizeProvince(dto.province))}'`,
-      )
+      );
     }
 
     // For rentals, LeaseAmount holds the asking price; for sales it's ListPrice.
-    const priceField = dto.listingType === 'For Rent' ? 'LeaseAmount' : 'ListPrice'
-    if (dto.minPrice !== undefined) filterParts.push(`${priceField} ge ${dto.minPrice}`)
-    if (dto.maxPrice !== undefined) filterParts.push(`${priceField} le ${dto.maxPrice}`)
+    const priceField =
+      dto.listingType === 'For Rent' ? 'LeaseAmount' : 'ListPrice';
+    if (dto.minPrice !== undefined)
+      filterParts.push(`${priceField} ge ${dto.minPrice}`);
+    if (dto.maxPrice !== undefined)
+      filterParts.push(`${priceField} le ${dto.maxPrice}`);
     // Beds/baths are a minimum ("N+") by default, or an exact match when the
     // FE sends exactBedsBaths=true (the "Use exact match" toggle).
-    const bedBathOp = dto.exactBedsBaths ? 'eq' : 'ge'
-    if (dto.beds !== undefined) filterParts.push(`BedroomsTotal ${bedBathOp} ${dto.beds}`)
-    if (dto.baths !== undefined) filterParts.push(`BathroomsTotalInteger ${bedBathOp} ${dto.baths}`)
-    if (dto.minSqft !== undefined) filterParts.push(`LivingArea ge ${dto.minSqft}`)
-    if (dto.maxSqft !== undefined) filterParts.push(`LivingArea le ${dto.maxSqft}`)
-    if (dto.yearBuiltMin !== undefined) filterParts.push(`YearBuilt ge ${dto.yearBuiltMin}`)
-    if (dto.parkingMin !== undefined) filterParts.push(`ParkingTotal ge ${dto.parkingMin}`)
+    const bedBathOp = dto.exactBedsBaths ? 'eq' : 'ge';
+    if (dto.beds !== undefined)
+      filterParts.push(`BedroomsTotal ${bedBathOp} ${dto.beds}`);
+    if (dto.baths !== undefined)
+      filterParts.push(`BathroomsTotalInteger ${bedBathOp} ${dto.baths}`);
+    if (dto.minSqft !== undefined)
+      filterParts.push(`LivingArea ge ${dto.minSqft}`);
+    if (dto.maxSqft !== undefined)
+      filterParts.push(`LivingArea le ${dto.maxSqft}`);
+    if (dto.yearBuiltMin !== undefined)
+      filterParts.push(`YearBuilt ge ${dto.yearBuiltMin}`);
+    if (dto.parkingMin !== undefined)
+      filterParts.push(`ParkingTotal ge ${dto.parkingMin}`);
 
     // Restrict to residential stock. When the user has picked explicit
     // sub-types, intersect their choice with the residential whitelist;
@@ -140,17 +156,18 @@ export class DdfQueryService {
     const requested = (dto.propertyType ?? '')
       .split(',')
       .map((t) => t.trim())
-      .filter(Boolean)
-    const subtypes = requested.length > 0
-      ? requested.filter((t) => RESIDENTIAL_SUBTYPES.includes(t))
-      : RESIDENTIAL_SUBTYPES
+      .filter(Boolean);
+    const subtypes =
+      requested.length > 0
+        ? requested.filter((t) => RESIDENTIAL_SUBTYPES.includes(t))
+        : RESIDENTIAL_SUBTYPES;
     // If the request asked only for non-residential types, fall back to the
     // residential whitelist rather than returning an impossible filter.
-    const effective = subtypes.length > 0 ? subtypes : RESIDENTIAL_SUBTYPES
+    const effective = subtypes.length > 0 ? subtypes : RESIDENTIAL_SUBTYPES;
     const typeFilter = effective
       .map((t) => `PropertySubType eq '${this.sanitize(t)}'`)
-      .join(' or ')
-    filterParts.push(`(${typeFilter})`)
+      .join(' or ');
+    filterParts.push(`(${typeFilter})`);
 
     // Home-type filter (BUG-06): StructureType is a DDF collection field, so it
     // is filtered with the OData `any()` lambda. Layered on top of the
@@ -158,111 +175,128 @@ export class DdfQueryService {
     const structureTypes = (dto.structureType ?? '')
       .split(',')
       .map((t) => t.trim())
-      .filter((t) => KNOWN_STRUCTURE_TYPES.includes(t))
+      .filter((t) => KNOWN_STRUCTURE_TYPES.includes(t));
     if (structureTypes.length > 0) {
       const structureFilter = structureTypes
         .map((t) => `StructureType/any(s:s eq '${this.sanitize(t)}')`)
-        .join(' or ')
-      filterParts.push(`(${structureFilter})`)
+        .join(' or ');
+      filterParts.push(`(${structureFilter})`);
     }
 
     if (dto.bbox) {
-      const coords = this.parseBbox(dto.bbox)
+      const coords = this.parseBbox(dto.bbox);
       if (coords) {
-        const { west, south, east, north } = coords
+        const { west, south, east, north } = coords;
         filterParts.push(
           `Latitude ge ${south} and Latitude le ${north} and Longitude ge ${west} and Longitude le ${east}`,
-        )
+        );
       }
     }
 
     if (dto.q) {
       // DDF OData does not support tolower() — search with title-cased value
       // (matches how addresses/cities are stored) plus raw postal-code match
-      const q = this.sanitize(this.toTitleCase(dto.q))
-      const postal = this.sanitize(dto.q.toUpperCase())
+      const q = this.sanitize(this.toTitleCase(dto.q));
+      const postal = this.sanitize(dto.q.toUpperCase());
       filterParts.push(
         `(contains(UnparsedAddress,'${q}') or contains(City,'${q}') or contains(PostalCode,'${postal}'))`,
-      )
+      );
     }
 
-    return filterParts
+    return filterParts;
   }
 
-  async searchProperties(dto: SearchQueryDto, skip: number, limit: number): Promise<SearchResult> {
-    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
+  async searchProperties(
+    dto: SearchQueryDto,
+    skip: number,
+    limit: number,
+  ): Promise<SearchResult> {
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
 
-    const filter = this.buildFilterParts(dto).join(' and ')
+    const filter = this.buildFilterParts(dto).join(' and ');
     const url =
       `${baseUrl}/Property` +
       `?$top=${limit}` +
       `&$skip=${skip}` +
       `&$filter=${encodeURIComponent(filter)}` +
       `&$orderby=ModificationTimestamp%20desc` +
-      `&$count=true`
+      `&$count=true`;
 
     try {
-      const token = await this.auth.getToken()
+      const token = await this.auth.getToken();
       const response = await firstValueFrom(
         this.http.get(url, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
         }),
-      )
+      );
 
-      const properties = (response.data.value as Record<string, unknown>[]) ?? []
-      const total = (response.data['@odata.count'] as number | undefined) ?? properties.length
-      const page = dto.page ?? 1
-      const data = properties.map((p) => this.mapProperty(p))
+      const properties =
+        (response.data.value as Record<string, unknown>[]) ?? [];
+      const total =
+        (response.data['@odata.count'] as number | undefined) ??
+        properties.length;
+      const page = dto.page ?? 1;
+      const data = properties.map((p) => this.mapProperty(p));
       // Most live records carry only ListAgentKey / ListOfficeKey, so fill in
       // the realtor names from the synced Member / Office tables (cheap, batched).
-      await this.enrichRealtorNamesBatch(properties, data)
+      await this.enrichRealtorNamesBatch(properties, data);
 
-      return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+      return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
     } catch (err) {
-      const body = (err as { response?: { data?: unknown } }).response?.data
-      this.logger.error(`DDF search failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`)
-      return { data: [], total: 0, page: dto.page ?? 1, limit, totalPages: 0 }
+      const body = (err as { response?: { data?: unknown } }).response?.data;
+      this.logger.error(
+        `DDF search failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
+      );
+      return { data: [], total: 0, page: dto.page ?? 1, limit, totalPages: 0 };
     }
   }
 
   async getMapPins(dto: SearchQueryDto): Promise<MapPin[]> {
-    if (!dto.bbox || !this.parseBbox(dto.bbox)) return []
+    if (!dto.bbox || !this.parseBbox(dto.bbox)) return [];
 
-    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
 
     // Reuse the list search's filter builder so the map reflects the same
     // filters (price, beds, sale/rent, residential restriction, …) as the list.
-    const filter = this.buildFilterParts(dto).join(' and ')
+    const filter = this.buildFilterParts(dto).join(' and ');
 
     // DDF caps $top at 100 — fire all pages in parallel to gather up to 500 pins.
-    const PAGE = 100
-    const MAX_PINS = 500
-    const SKIPS = Array.from({ length: MAX_PINS / PAGE }, (_, i) => i * PAGE)
+    const PAGE = 100;
+    const MAX_PINS = 500;
+    const SKIPS = Array.from({ length: MAX_PINS / PAGE }, (_, i) => i * PAGE);
 
     try {
-      const token = await this.auth.getToken()
+      const token = await this.auth.getToken();
 
-      const fetchPage = async (skip: number): Promise<Record<string, unknown>[]> => {
+      const fetchPage = async (
+        skip: number,
+      ): Promise<Record<string, unknown>[]> => {
         const url =
           `${baseUrl}/Property` +
           `?$top=${PAGE}` +
           `&$skip=${skip}` +
           `&$filter=${encodeURIComponent(filter)}` +
-          `&$select=ListingKey,Latitude,Longitude,ListPrice,LeaseAmount`
+          `&$select=ListingKey,Latitude,Longitude,ListPrice,LeaseAmount`;
         try {
           const response = await firstValueFrom(
             this.http.get(url, {
-              headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+              },
             }),
-          )
-          return (response.data.value as Record<string, unknown>[]) ?? []
+          );
+          return (response.data.value as Record<string, unknown>[]) ?? [];
         } catch {
-          return []
+          return [];
         }
-      }
+      };
 
-      const pages = await Promise.all(SKIPS.map(fetchPage))
-      const pins: MapPin[] = []
+      const pages = await Promise.all(SKIPS.map(fetchPage));
+      const pins: MapPin[] = [];
       for (const rows of pages) {
         for (const p of rows) {
           pins.push({
@@ -273,15 +307,17 @@ export class DdfQueryService {
               (p['ListPrice'] as number | null) ??
               (p['LeaseAmount'] as number | null) ??
               null,
-          })
+          });
         }
       }
 
-      return pins
+      return pins;
     } catch (err) {
-      const body = (err as { response?: { data?: unknown } }).response?.data
-      this.logger.error(`DDF map-pins failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`)
-      return []
+      const body = (err as { response?: { data?: unknown } }).response?.data;
+      this.logger.error(
+        `DDF map-pins failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
+      );
+      return [];
     }
   }
 
@@ -290,35 +326,40 @@ export class DdfQueryService {
    * and media. Returns the same mapped shape as search results, or null if the
    * listing is not found / no longer available on DDF.
    */
-  async getListingByKey(listingKey: string): Promise<Record<string, unknown> | null> {
-    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
-    const key = this.sanitize(listingKey)
+  async getListingByKey(
+    listingKey: string,
+  ): Promise<Record<string, unknown> | null> {
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
+    const key = this.sanitize(listingKey);
     // Media is returned inline on this DDF feed — $expand=Media is rejected
     const url =
       `${baseUrl}/Property` +
       `?$filter=${encodeURIComponent(`ListingKey eq '${key}'`)}` +
-      `&$top=1`
+      `&$top=1`;
 
     try {
-      const token = await this.auth.getToken()
+      const token = await this.auth.getToken();
       const response = await firstValueFrom(
         this.http.get(url, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
         }),
-      )
-      const rows = (response.data.value as Record<string, unknown>[]) ?? []
-      if (rows.length === 0) return null
-      const mapped = this.mapPropertyDetail(rows[0])
+      );
+      const rows = (response.data.value as Record<string, unknown>[]) ?? [];
+      if (rows.length === 0) return null;
+      const mapped = this.mapPropertyDetail(rows[0]);
       // The flat record usually names the realtor only by ListAgentKey /
       // ListOfficeKey; resolve those to real names (DB first, then live DDF).
-      await this.enrichRealtorNames(rows[0], mapped)
-      return mapped
+      await this.enrichRealtorNames(rows[0], mapped);
+      return mapped;
     } catch (err) {
-      const body = (err as { response?: { data?: unknown } }).response?.data
+      const body = (err as { response?: { data?: unknown } }).response?.data;
       this.logger.error(
         `DDF listing fetch failed for ${listingKey}: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
-      )
-      return null
+      );
+      return null;
     }
   }
 
@@ -328,22 +369,25 @@ export class DdfQueryService {
    * dated slots, sorted soonest-first.
    */
   async getOpenHousesByKey(listingKey: string): Promise<OpenHouseSlot[]> {
-    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
-    const key = this.sanitize(listingKey)
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
+    const key = this.sanitize(listingKey);
     const url =
       `${baseUrl}/OpenHouse` +
       `?$filter=${encodeURIComponent(`ListingKey eq '${key}' and OpenHouseStatus eq 'Active'`)}` +
-      `&$top=25`
+      `&$top=25`;
 
     try {
-      const token = await this.auth.getToken()
+      const token = await this.auth.getToken();
       const response = await firstValueFrom(
         this.http.get(url, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
         }),
-      )
-      const rows = (response.data.value as Record<string, unknown>[]) ?? []
-      const todayStr = new Date().toISOString().slice(0, 10)
+      );
+      const rows = (response.data.value as Record<string, unknown>[]) ?? [];
+      const todayStr = new Date().toISOString().slice(0, 10);
 
       return rows
         .map((oh) => ({
@@ -354,65 +398,123 @@ export class DdfQueryService {
           endTime: (oh['OpenHouseEndTime'] as string | null) ?? null,
           type: (oh['OpenHouseType'] as string | null) ?? null,
           remarks: (oh['OpenHouseRemarks'] as string | null) ?? null,
-          livestreamUrl: (oh['LivestreamOpenHouseURL'] as string | null) ?? null,
+          livestreamUrl:
+            (oh['LivestreamOpenHouseURL'] as string | null) ?? null,
         }))
         .filter((oh) => oh.date !== null && oh.date >= todayStr)
-        .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '') || (a.startTime ?? '').localeCompare(b.startTime ?? ''))
+        .sort(
+          (a, b) =>
+            (a.date ?? '').localeCompare(b.date ?? '') ||
+            (a.startTime ?? '').localeCompare(b.startTime ?? ''),
+        );
     } catch (err) {
-      const body = (err as { response?: { data?: unknown } }).response?.data
+      const body = (err as { response?: { data?: unknown } }).response?.data;
       this.logger.error(
         `DDF open-house fetch failed for ${listingKey}: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
-      )
-      return []
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Single open-house record lookup by its own key, live from DDF — used when
+   * a user schedules an open house that hasn't synced into the local
+   * OpenHouse table yet (e.g. clicked from the live NearbyOpenHouses carousel).
+   */
+  async getOpenHouseByKey(openHouseKey: string): Promise<{
+    listingKey: string | null;
+    date: string | null;
+    startTime: string | null;
+    endTime: string | null;
+  } | null> {
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
+    const key = this.sanitize(openHouseKey);
+    const url =
+      `${baseUrl}/OpenHouse` +
+      `?$filter=${encodeURIComponent(`OpenHouseKey eq '${key}'`)}` +
+      `&$top=1`;
+
+    try {
+      const token = await this.auth.getToken();
+      const response = await firstValueFrom(
+        this.http.get(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        }),
+      );
+      const rows = (response.data.value as Record<string, unknown>[]) ?? [];
+      if (rows.length === 0) return null;
+      const oh = rows[0];
+      return {
+        listingKey: oh['ListingKey'] ? String(oh['ListingKey']) : null,
+        date: (oh['OpenHouseDate'] as string | null) ?? null,
+        startTime: (oh['OpenHouseStartTime'] as string | null) ?? null,
+        endTime: (oh['OpenHouseEndTime'] as string | null) ?? null,
+      };
+    } catch (err) {
+      const body = (err as { response?: { data?: unknown } }).response?.data;
+      this.logger.error(
+        `DDF open-house lookup failed for ${openHouseKey}: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
+      );
+      return null;
     }
   }
 
   private mapProperty(p: Record<string, unknown>): Record<string, unknown> {
-    const media = (p['Media'] as Record<string, unknown>[]) ?? []
-    const agentName = this.resolveAgentName(p)
-    const officeName = this.resolveOfficeName(p, media)
+    const media = (p['Media'] as Record<string, unknown>[]) ?? [];
+    const agentName = this.resolveAgentName(p);
+    const officeName = this.resolveOfficeName(p, media);
     return {
       id: String(p['ListingKey']),
       ddfListingKey: String(p['ListingKey']),
-      ddfListingId: (p['ListingId'] as string | null) ?? null,
-      realtorUrl: (p['ListingURL'] as string) ?? '',
-      status: (p['StandardStatus'] as string) ?? 'Active',
-      price: (p['ListPrice'] as number | null) ?? null,
-      leaseAmount: (p['LeaseAmount'] as number | null) ?? null,
-      leaseFrequency: (p['LeaseAmountFrequency'] as string | null) ?? null,
-      propertySubType: (p['PropertySubType'] as string | null) ?? null,
+      ddfListingId: p['ListingId'] ?? null,
+      realtorUrl: p['ListingURL'] ?? '',
+      status: p['StandardStatus'] ?? 'Active',
+      price: p['ListPrice'] ?? null,
+      leaseAmount: p['LeaseAmount'] ?? null,
+      leaseFrequency: p['LeaseAmountFrequency'] ?? null,
+      propertySubType: p['PropertySubType'] ?? null,
       // StructureType (collection) is the real dwelling-form field — surfaced on
       // the flat search payload so the FE can label House/Condo/Townhouse
       // instead of the catch-all "Single Family" PropertySubType.
-      structureType: (p['StructureType'] as string[] | null) ?? null,
-      beds: (p['BedroomsTotal'] as number | null) ?? null,
-      baths: (p['BathroomsTotalInteger'] as number | null) ?? null,
-      bathsPartial: (p['BathroomsPartial'] as number | null) ?? null,
-      sqft: (p['LivingArea'] as number | null) ?? null,
-      lotSize: (p['LotSizeArea'] as number | null) ?? null,
-      yearBuilt: (p['YearBuilt'] as number | null) ?? null,
-      parkingTotal: (p['ParkingTotal'] as number | null) ?? null,
-      stories: (p['Stories'] as number | null) ?? null,
-      address: (p['UnparsedAddress'] as string | null) ?? null,
-      streetNumber: (p['StreetNumber'] as string | null) ?? null,
-      streetName: (p['StreetName'] as string | null) ?? null,
-      city: (p['City'] as string | null) ?? null,
-      province: (p['StateOrProvince'] as string | null) ?? null,
-      postalCode: (p['PostalCode'] as string | null) ?? null,
-      country: (p['Country'] as string) ?? 'Canada',
-      lat: (p['Latitude'] as number | null) ?? null,
-      lng: (p['Longitude'] as number | null) ?? null,
-      description: (p['PublicRemarks'] as string | null) ?? null,
-      images: media.map((m) => ({ url: m['MediaURL'], order: m['Order'], isPrimary: m['PreferredPhotoYN'] })),
-      virtualTourUrl: (p['VirtualTourURLBranded'] as string | null) ?? (p['VirtualTourURLUnbranded'] as string | null) ?? null,
+      structureType: p['StructureType'] ?? null,
+      beds: p['BedroomsTotal'] ?? null,
+      baths: p['BathroomsTotalInteger'] ?? null,
+      bathsPartial: p['BathroomsPartial'] ?? null,
+      sqft: p['LivingArea'] ?? null,
+      lotSize: p['LotSizeArea'] ?? null,
+      yearBuilt: p['YearBuilt'] ?? null,
+      parkingTotal: p['ParkingTotal'] ?? null,
+      stories: p['Stories'] ?? null,
+      address: p['UnparsedAddress'] ?? null,
+      streetNumber: p['StreetNumber'] ?? null,
+      streetName: p['StreetName'] ?? null,
+      city: p['City'] ?? null,
+      province: p['StateOrProvince'] ?? null,
+      postalCode: p['PostalCode'] ?? null,
+      country: p['Country'] ?? 'Canada',
+      lat: p['Latitude'] ?? null,
+      lng: p['Longitude'] ?? null,
+      description: p['PublicRemarks'] ?? null,
+      images: media.filter(isPhotoMedia).map((m) => ({
+        url: m['MediaURL'],
+        order: m['Order'],
+        isPrimary: m['PreferredPhotoYN'],
+      })),
+      virtualTourUrl:
+        p['VirtualTourURLBranded'] ?? p['VirtualTourURLUnbranded'] ?? null,
       youtubeUrl: this.extractYoutubeUrl(media),
-      photosCount: (p['PhotosCount'] as number | null) ?? null,
-      taxAnnual: (p['TaxAnnualAmount'] as number | null) ?? null,
-      taxYear: (p['TaxYear'] as number | null) ?? null,
-      listedAt: p['OriginalEntryTimestamp'] ? new Date(p['OriginalEntryTimestamp'] as string) : null,
+      photosCount: p['PhotosCount'] ?? null,
+      taxAnnual: p['TaxAnnualAmount'] ?? null,
+      taxYear: p['TaxYear'] ?? null,
+      listedAt: p['OriginalEntryTimestamp']
+        ? new Date(p['OriginalEntryTimestamp'] as string)
+        : null,
       agent: agentName ? { fullName: agentName } : null,
       office: officeName ? { name: officeName } : null,
-    }
+    };
   }
 
   /**
@@ -421,12 +523,12 @@ export class DdfQueryService {
    * fields — fall back to those so the agent line isn't blank (QA-09).
    */
   private resolveAgentName(p: Record<string, unknown>): string | null {
-    const full = (p['ListAgentFullName'] as string | null) ?? null
-    if (full && full.trim()) return full.trim()
-    const first = ((p['ListAgentFirstName'] as string | null) ?? '').trim()
-    const last = ((p['ListAgentLastName'] as string | null) ?? '').trim()
-    const joined = [first, last].filter(Boolean).join(' ')
-    return joined || null
+    const full = (p['ListAgentFullName'] as string | null) ?? null;
+    if (full && full.trim()) return full.trim();
+    const first = ((p['ListAgentFirstName'] as string | null) ?? '').trim();
+    const last = ((p['ListAgentLastName'] as string | null) ?? '').trim();
+    const joined = [first, last].filter(Boolean).join(' ');
+    return joined || null;
   }
 
   /**
@@ -439,18 +541,20 @@ export class DdfQueryService {
     p: Record<string, unknown>,
     media: Record<string, unknown>[],
   ): string | null {
-    const direct = (p['ListOfficeName'] as string | null) ?? null
-    if (direct && direct.trim()) return direct.trim()
+    const direct = (p['ListOfficeName'] as string | null) ?? null;
+    if (direct && direct.trim()) return direct.trim();
 
-    const BROKERAGE_HINT = /realty|brokerage|real estate|remax|re\/max|royal lepage|century 21|sotheby|keller williams|realtor|properties|homes|group|inc\.?|ltd\.?/i
+    const BROKERAGE_HINT =
+      /realty|brokerage|real estate|remax|re\/max|royal lepage|century 21|sotheby|keller williams|realtor|properties|homes|group|inc\.?|ltd\.?/i;
     for (const m of media) {
-      const caption =
-        ((m['ShortDescription'] as string | null) ??
-          (m['LongDescription'] as string | null) ??
-          '').trim()
-      if (caption && BROKERAGE_HINT.test(caption)) return caption
+      const caption = (
+        (m['ShortDescription'] as string | null) ??
+        (m['LongDescription'] as string | null) ??
+        ''
+      ).trim();
+      if (caption && BROKERAGE_HINT.test(caption)) return caption;
     }
-    return null
+    return null;
   }
 
   /**
@@ -465,16 +569,18 @@ export class DdfQueryService {
     raw: Record<string, unknown>,
     mapped: Record<string, unknown>,
   ): Promise<void> {
-    const agentKey = raw['ListAgentKey'] ? String(raw['ListAgentKey']) : null
-    const officeKey = raw['ListOfficeKey'] ? String(raw['ListOfficeKey']) : null
+    const agentKey = raw['ListAgentKey'] ? String(raw['ListAgentKey']) : null;
+    const officeKey = raw['ListOfficeKey']
+      ? String(raw['ListOfficeKey'])
+      : null;
 
     if (!mapped.agent && agentKey) {
-      const name = await this.lookupAgentName(agentKey)
-      if (name) mapped.agent = { fullName: name }
+      const name = await this.lookupAgentName(agentKey);
+      if (name) mapped.agent = { fullName: name };
     }
     if (!mapped.office && officeKey) {
-      const name = await this.lookupOfficeName(officeKey)
-      if (name) mapped.office = { name }
+      const name = await this.lookupOfficeName(officeKey);
+      if (name) mapped.office = { name };
     }
   }
 
@@ -488,13 +594,15 @@ export class DdfQueryService {
     raw: Record<string, unknown>[],
     mapped: Record<string, unknown>[],
   ): Promise<void> {
-    const agentKeys = new Set<string>()
-    const officeKeys = new Set<string>()
+    const agentKeys = new Set<string>();
+    const officeKeys = new Set<string>();
     raw.forEach((p, i) => {
-      if (!mapped[i].agent && p['ListAgentKey']) agentKeys.add(String(p['ListAgentKey']))
-      if (!mapped[i].office && p['ListOfficeKey']) officeKeys.add(String(p['ListOfficeKey']))
-    })
-    if (agentKeys.size === 0 && officeKeys.size === 0) return
+      if (!mapped[i].agent && p['ListAgentKey'])
+        agentKeys.add(String(p['ListAgentKey']));
+      if (!mapped[i].office && p['ListOfficeKey'])
+        officeKeys.add(String(p['ListOfficeKey']));
+    });
+    if (agentKeys.size === 0 && officeKeys.size === 0) return;
 
     const [agents, offices] = await Promise.all([
       agentKeys.size
@@ -509,23 +617,28 @@ export class DdfQueryService {
             select: { ddfOfficeKey: true, name: true },
           })
         : Promise.resolve([]),
-    ])
+    ]);
 
-    const agentMap = new Map(agents.map((a) => [a.ddfMemberKey, a.fullName?.trim() || null]))
+    const agentMap = new Map(
+      agents.map((a) => [a.ddfMemberKey, a.fullName?.trim() || null]),
+    );
     const officeMap = new Map(
-      offices.map((o) => [o.ddfOfficeKey, o.name?.trim() && o.name !== 'Unknown' ? o.name.trim() : null]),
-    )
+      offices.map((o) => [
+        o.ddfOfficeKey,
+        o.name?.trim() && o.name !== 'Unknown' ? o.name.trim() : null,
+      ]),
+    );
 
     raw.forEach((p, i) => {
       if (!mapped[i].agent && p['ListAgentKey']) {
-        const name = agentMap.get(String(p['ListAgentKey']))
-        if (name) mapped[i].agent = { fullName: name }
+        const name = agentMap.get(String(p['ListAgentKey']));
+        if (name) mapped[i].agent = { fullName: name };
       }
       if (!mapped[i].office && p['ListOfficeKey']) {
-        const name = officeMap.get(String(p['ListOfficeKey']))
-        if (name) mapped[i].office = { name }
+        const name = officeMap.get(String(p['ListOfficeKey']));
+        if (name) mapped[i].office = { name };
       }
-    })
+    });
   }
 
   /** Resolve a Member key to a full name — synced Agent table first, then live DDF (cached). */
@@ -533,13 +646,14 @@ export class DdfQueryService {
     const local = await this.prisma.agent.findUnique({
       where: { ddfMemberKey: key },
       select: { fullName: true },
-    })
-    if (local?.fullName?.trim()) return local.fullName.trim()
+    });
+    if (local?.fullName?.trim()) return local.fullName.trim();
 
-    const m = await this.fetchDdfEntity('Member', 'MemberKey', key)
-    if (!m) return null
-    const name = `${m['MemberFirstName'] || ''} ${m['MemberLastName'] || ''}`.trim()
-    if (!name) return null
+    const m = await this.fetchDdfEntity('Member', 'MemberKey', key);
+    if (!m) return null;
+    const name =
+      `${m['MemberFirstName'] || ''} ${m['MemberLastName'] || ''}`.trim();
+    if (!name) return null;
 
     await this.prisma.agent
       .upsert({
@@ -552,8 +666,8 @@ export class DdfQueryService {
         },
         update: { fullName: name },
       })
-      .catch(() => undefined)
-    return name
+      .catch(() => undefined);
+    return name;
   }
 
   /** Resolve an Office key to a brokerage name — synced Office table first, then live DDF (cached). */
@@ -561,13 +675,14 @@ export class DdfQueryService {
     const local = await this.prisma.office.findUnique({
       where: { ddfOfficeKey: key },
       select: { name: true },
-    })
-    if (local?.name?.trim() && local.name !== 'Unknown') return local.name.trim()
+    });
+    if (local?.name?.trim() && local.name !== 'Unknown')
+      return local.name.trim();
 
-    const o = await this.fetchDdfEntity('Office', 'OfficeKey', key)
-    if (!o) return null
-    const name = ((o['OfficeName'] as string | null) ?? '').trim()
-    if (!name) return null
+    const o = await this.fetchDdfEntity('Office', 'OfficeKey', key);
+    if (!o) return null;
+    const name = ((o['OfficeName'] as string | null) ?? '').trim();
+    if (!name) return null;
 
     await this.prisma.office
       .upsert({
@@ -580,8 +695,8 @@ export class DdfQueryService {
         },
         update: { name },
       })
-      .catch(() => undefined)
-    return name
+      .catch(() => undefined);
+    return name;
   }
 
   /** Fetch a single DDF entity row by its key field, or null on miss/error. */
@@ -590,26 +705,29 @@ export class DdfQueryService {
     keyField: string,
     key: string,
   ): Promise<Record<string, unknown> | null> {
-    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
     const url =
       `${baseUrl}/${entity}` +
       `?$filter=${encodeURIComponent(`${keyField} eq '${this.sanitize(key)}'`)}` +
-      `&$top=1`
+      `&$top=1`;
     try {
-      const token = await this.auth.getToken()
+      const token = await this.auth.getToken();
       const response = await firstValueFrom(
         this.http.get(url, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
         }),
-      )
-      const rows = (response.data.value as Record<string, unknown>[]) ?? []
-      return rows[0] ?? null
+      );
+      const rows = (response.data.value as Record<string, unknown>[]) ?? [];
+      return rows[0] ?? null;
     } catch (err) {
-      const body = (err as { response?: { data?: unknown } }).response?.data
+      const body = (err as { response?: { data?: unknown } }).response?.data;
       this.logger.error(
         `DDF ${entity} fetch failed for ${key}: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
-      )
-      return null
+      );
+      return null;
     }
   }
 
@@ -619,31 +737,38 @@ export class DdfQueryService {
    * additive nested `details` object. Kept separate from `mapProperty` so the
    * list/search payloads stay lean.
    */
-  private mapPropertyDetail(p: Record<string, unknown>): Record<string, unknown> {
-    const base = this.mapProperty(p)
+  private mapPropertyDetail(
+    p: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const base = this.mapProperty(p);
 
-    const num = (k: string): number | null => (p[k] as number | null) ?? null
-    const str = (k: string): string | null => (p[k] as string | null) ?? null
-    const bool = (k: string): boolean | null => (p[k] as boolean | null) ?? null
-    const arr = (k: string): string[] => ((p[k] as string[] | null) ?? []).filter((v) => v != null)
+    const num = (k: string): number | null => (p[k] as number | null) ?? null;
+    const str = (k: string): string | null => (p[k] as string | null) ?? null;
+    const bool = (k: string): boolean | null =>
+      (p[k] as boolean | null) ?? null;
+    const arr = (k: string): string[] =>
+      ((p[k] as string[] | null) ?? []).filter((v) => v != null);
 
-    const listPrice = (p['ListPrice'] as number | null) ?? null
-    const livingArea = (p['LivingArea'] as number | null) ?? null
+    const listPrice = (p['ListPrice'] as number | null) ?? null;
+    const livingArea = (p['LivingArea'] as number | null) ?? null;
     const pricePerSqft =
-      listPrice !== null && listPrice > 0 && livingArea !== null && livingArea > 0
+      listPrice !== null &&
+      listPrice > 0 &&
+      livingArea !== null &&
+      livingArea > 0
         ? Math.round(listPrice / livingArea)
-        : null
+        : null;
 
-    const bathsTotal = (p['BathroomsTotalInteger'] as number | null) ?? 0
-    const bathsPartial = (p['BathroomsPartial'] as number | null) ?? 0
-    const bathsFull = Math.max(0, bathsTotal - bathsPartial)
+    const bathsTotal = (p['BathroomsTotalInteger'] as number | null) ?? 0;
+    const bathsPartial = (p['BathroomsPartial'] as number | null) ?? 0;
+    const bathsFull = Math.max(0, bathsTotal - bathsPartial);
 
-    const rawRooms = (p['Rooms'] as Record<string, unknown>[] | null) ?? []
+    const rawRooms = (p['Rooms'] as Record<string, unknown>[] | null) ?? [];
     const rooms = rawRooms.map((r) => ({
       type: (r['RoomType'] as string | null) ?? null,
       level: (r['RoomLevel'] as string | null) ?? null,
       dimensions: (r['RoomDimensions'] as string | null) ?? null,
-    }))
+    }));
 
     return {
       ...base,
@@ -705,7 +830,7 @@ export class DdfQueryService {
           propertySubType: str('PropertySubType'),
         },
       },
-    }
+    };
   }
 
   /**
@@ -718,136 +843,156 @@ export class DdfQueryService {
    *  - `$top` is HARD-CAPPED at 100: `$top` > 100 → HTTP 400 (silently turned
    *    into [] by our try/catch). All requests below use `$top=100`.
    */
-  async getNearbyOpenHousesByKey(listingKey: string): Promise<NearbyOpenHouse[]> {
-    const NEARBY_DELTA = 0.05 // ~5km
-    const WIDE_DELTA = 0.1 // ~10km fallback
-    const MAX_CANDIDATES = 100
-    const MAX_RESULTS = 12
-    const BATCH_SIZE = 40
-    const MAX_CONCURRENT_BATCHES = 3
+  async getNearbyOpenHousesByKey(
+    listingKey: string,
+  ): Promise<NearbyOpenHouse[]> {
+    const NEARBY_DELTA = 0.05; // ~5km
+    const WIDE_DELTA = 0.1; // ~10km fallback
+    const MAX_CANDIDATES = 100;
+    const MAX_RESULTS = 12;
+    const BATCH_SIZE = 40;
+    const MAX_CONCURRENT_BATCHES = 3;
 
-    const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
-    const subjectKey = this.sanitize(listingKey)
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
+    const subjectKey = this.sanitize(listingKey);
 
     try {
       // 1. Subject lat/lng (lightweight)
       const subjUrl =
         `${baseUrl}/Property` +
         `?$filter=${encodeURIComponent(`ListingKey eq '${subjectKey}'`)}` +
-        `&$select=ListingKey,Latitude,Longitude&$top=1`
-      const token = await this.auth.getToken()
+        `&$select=ListingKey,Latitude,Longitude&$top=1`;
+      const token = await this.auth.getToken();
       const subjResp = await firstValueFrom(
         this.http.get(subjUrl, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
         }),
-      )
-      const subj = ((subjResp.data.value as Record<string, unknown>[]) ?? [])[0]
-      const lat = (subj?.['Latitude'] as number | null) ?? null
-      const lng = (subj?.['Longitude'] as number | null) ?? null
-      if (lat === null || lng === null) return []
+      );
+      const subj = ((subjResp.data.value as Record<string, unknown>[]) ??
+        [])[0];
+      const lat = (subj?.['Latitude'] as number | null) ?? null;
+      const lng = (subj?.['Longitude'] as number | null) ?? null;
+      if (lat === null || lng === null) return [];
 
       // 2-4. Candidate keys within bbox, widening once if empty
       const fetchCandidates = async (delta: number): Promise<string[]> => {
-        const south = lat - delta
-        const north = lat + delta
-        const west = lng - delta
-        const east = lng + delta
+        const south = lat - delta;
+        const north = lat + delta;
+        const west = lng - delta;
+        const east = lng + delta;
         const filter =
           `InternetEntireListingDisplayYN eq true` +
           ` and StandardStatus eq 'Active'` +
           ` and Latitude ge ${south} and Latitude le ${north}` +
           ` and Longitude ge ${west} and Longitude le ${east}` +
-          ` and ListingKey ne '${subjectKey}'`
+          ` and ListingKey ne '${subjectKey}'`;
         const url =
           `${baseUrl}/Property` +
           `?$filter=${encodeURIComponent(filter)}` +
-          `&$select=ListingKey&$top=100`
-        const t = await this.auth.getToken()
+          `&$select=ListingKey&$top=100`;
+        const t = await this.auth.getToken();
         const resp = await firstValueFrom(
           this.http.get(url, {
-            headers: { Authorization: `Bearer ${t}`, Accept: 'application/json' },
+            headers: {
+              Authorization: `Bearer ${t}`,
+              Accept: 'application/json',
+            },
           }),
-        )
-        const rows = (resp.data.value as Record<string, unknown>[]) ?? []
+        );
+        const rows = (resp.data.value as Record<string, unknown>[]) ?? [];
         return rows
           .map((r) => String(r['ListingKey']))
-          .filter((k) => k !== listingKey)
-      }
+          .filter((k) => k !== listingKey);
+      };
 
-      let candidates = await fetchCandidates(NEARBY_DELTA)
-      if (candidates.length === 0) candidates = await fetchCandidates(WIDE_DELTA)
-      candidates = candidates.slice(0, MAX_CANDIDATES)
-      if (candidates.length === 0) return []
+      let candidates = await fetchCandidates(NEARBY_DELTA);
+      if (candidates.length === 0)
+        candidates = await fetchCandidates(WIDE_DELTA);
+      candidates = candidates.slice(0, MAX_CANDIDATES);
+      if (candidates.length === 0) return [];
 
       // 5. OpenHouse join — batch candidate keys, bounded concurrency
-      const todayStr = new Date().toISOString().slice(0, 10)
-      const batches: string[][] = []
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const batches: string[][] = [];
       for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
-        batches.push(candidates.slice(i, i + BATCH_SIZE))
+        batches.push(candidates.slice(i, i + BATCH_SIZE));
       }
 
       // soonest upcoming slot per ListingKey
       const soonest = new Map<
         string,
-        { date: string; startTime: string | null; endTime: string | null }
-      >()
+        { date: string; startTime: string | null; endTime: string | null; openHouseKey: string }
+      >();
 
       const runBatch = async (keys: string[]): Promise<void> => {
-        const keyList = keys.map((k) => `'${this.sanitize(k)}'`).join(',')
-        const filter = `OpenHouseStatus eq 'Active' and ListingKey in (${keyList})`
+        const keyList = keys.map((k) => `'${this.sanitize(k)}'`).join(',');
+        const filter = `OpenHouseStatus eq 'Active' and ListingKey in (${keyList})`;
         const url =
           `${baseUrl}/OpenHouse` +
-          `?$filter=${encodeURIComponent(filter)}&$top=100`
+          `?$filter=${encodeURIComponent(filter)}&$top=100`;
         try {
-          const t = await this.auth.getToken()
+          const t = await this.auth.getToken();
           const resp = await firstValueFrom(
             this.http.get(url, {
-              headers: { Authorization: `Bearer ${t}`, Accept: 'application/json' },
+              headers: {
+                Authorization: `Bearer ${t}`,
+                Accept: 'application/json',
+              },
             }),
-          )
-          const rows = (resp.data.value as Record<string, unknown>[]) ?? []
+          );
+          const rows = (resp.data.value as Record<string, unknown>[]) ?? [];
           for (const oh of rows) {
-            const k = String(oh['ListingKey'])
-            const date = (oh['OpenHouseDate'] as string | null) ?? null
-            if (date === null || date < todayStr) continue
-            const startTime = (oh['OpenHouseStartTime'] as string | null) ?? null
-            const endTime = (oh['OpenHouseEndTime'] as string | null) ?? null
-            const existing = soonest.get(k)
+            const k = String(oh['ListingKey']);
+            const date = (oh['OpenHouseDate'] as string | null) ?? null;
+            if (date === null || date < todayStr) continue;
+            const startTime =
+              (oh['OpenHouseStartTime'] as string | null) ?? null;
+            const endTime = (oh['OpenHouseEndTime'] as string | null) ?? null;
+            const openHouseKey = String(oh['OpenHouseKey']);
+            const existing = soonest.get(k);
             if (
               !existing ||
               date < existing.date ||
-              (date === existing.date && (startTime ?? '') < (existing.startTime ?? ''))
+              (date === existing.date &&
+                (startTime ?? '') < (existing.startTime ?? ''))
             ) {
-              soonest.set(k, { date, startTime, endTime })
+              soonest.set(k, { date, startTime, endTime, openHouseKey });
             }
           }
         } catch (err) {
-          const body = (err as { response?: { data?: unknown } }).response?.data
+          const body = (err as { response?: { data?: unknown } }).response
+            ?.data;
           this.logger.error(
             `DDF nearby open-house batch failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
-          )
+          );
           // swallow — partial results
         }
-      }
+      };
 
       for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
-        const slice = batches.slice(i, i + MAX_CONCURRENT_BATCHES)
-        await Promise.all(slice.map((b) => runBatch(b)))
+        const slice = batches.slice(i, i + MAX_CONCURRENT_BATCHES);
+        await Promise.all(slice.map((b) => runBatch(b)));
       }
 
-      const keysWithOH = [...soonest.keys()]
-      if (keysWithOH.length === 0) return []
+      const keysWithOH = [...soonest.keys()];
+      if (keysWithOH.length === 0) return [];
 
       // 6. Hydrate cards — single Property query for keys with OHs
-      const hydrateKeys = keysWithOH.slice(0, BATCH_SIZE * MAX_CONCURRENT_BATCHES)
-      const hydrateMap = new Map<string, Record<string, unknown>>()
-      const hydrateBatches: string[][] = []
+      const hydrateKeys = keysWithOH.slice(
+        0,
+        BATCH_SIZE * MAX_CONCURRENT_BATCHES,
+      );
+      const hydrateMap = new Map<string, Record<string, unknown>>();
+      const hydrateBatches: string[][] = [];
       for (let i = 0; i < hydrateKeys.length; i += BATCH_SIZE) {
-        hydrateBatches.push(hydrateKeys.slice(i, i + BATCH_SIZE))
+        hydrateBatches.push(hydrateKeys.slice(i, i + BATCH_SIZE));
       }
       const hydrateBatch = async (keys: string[]): Promise<void> => {
-        const keyList = keys.map((k) => `'${this.sanitize(k)}'`).join(',')
-        const filter = `ListingKey in (${keyList})`
+        const keyList = keys.map((k) => `'${this.sanitize(k)}'`).join(',');
+        const filter = `ListingKey in (${keyList})`;
         // NOTE: `ListAgentFullName` / `ListOfficeName` are NOT $select-able on the
         // DDF Property entity (verified: `$select=...,ListAgentFullName` → HTTP 400,
         // "Could not find a property named 'ListAgentFullName'"), even though they
@@ -856,38 +1001,45 @@ export class DdfQueryService {
         const url =
           `${baseUrl}/Property` +
           `?$filter=${encodeURIComponent(filter)}` +
-          `&$top=100`
+          `&$top=100`;
         try {
-          const t = await this.auth.getToken()
+          const t = await this.auth.getToken();
           const resp = await firstValueFrom(
             this.http.get(url, {
-              headers: { Authorization: `Bearer ${t}`, Accept: 'application/json' },
+              headers: {
+                Authorization: `Bearer ${t}`,
+                Accept: 'application/json',
+              },
             }),
-          )
-          const rows = (resp.data.value as Record<string, unknown>[]) ?? []
-          for (const r of rows) hydrateMap.set(String(r['ListingKey']), r)
+          );
+          const rows = (resp.data.value as Record<string, unknown>[]) ?? [];
+          for (const r of rows) hydrateMap.set(String(r['ListingKey']), r);
         } catch (err) {
-          const body = (err as { response?: { data?: unknown } }).response?.data
+          const body = (err as { response?: { data?: unknown } }).response
+            ?.data;
           this.logger.error(
             `DDF nearby hydrate batch failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
-          )
+          );
         }
-      }
+      };
       for (let i = 0; i < hydrateBatches.length; i += MAX_CONCURRENT_BATCHES) {
-        const slice = hydrateBatches.slice(i, i + MAX_CONCURRENT_BATCHES)
-        await Promise.all(slice.map((b) => hydrateBatch(b)))
+        const slice = hydrateBatches.slice(i, i + MAX_CONCURRENT_BATCHES);
+        await Promise.all(slice.map((b) => hydrateBatch(b)));
       }
 
       // 7. Map to card shape, sort by openHouseDate asc, cap
-      const cards: NearbyOpenHouse[] = []
+      const cards: NearbyOpenHouse[] = [];
       for (const [k, oh] of soonest) {
-        const p = hydrateMap.get(k)
-        if (!p) continue
-        const media = (p['Media'] as Record<string, unknown>[]) ?? []
-        const primary = media.find((m) => m['PreferredPhotoYN'] === true) ?? media[0]
-        const imageUrl = (primary?.['MediaURL'] as string | null) ?? ''
+        const p = hydrateMap.get(k);
+        if (!p) continue;
+        const media = (p['Media'] as Record<string, unknown>[]) ?? [];
+        const photos = media.filter(isPhotoMedia);
+        const primary =
+          photos.find((m) => m['PreferredPhotoYN'] === true) ?? photos[0];
+        const imageUrl = (primary?.['MediaURL'] as string | null) ?? '';
         cards.push({
           id: k,
+          openHouseKey: oh.openHouseKey,
           address: (p['UnparsedAddress'] as string | null) ?? '',
           city: (p['City'] as string | null) ?? '',
           province: (p['StateOrProvince'] as string | null) ?? '',
@@ -901,49 +1053,53 @@ export class DdfQueryService {
           openHouseEndTime: oh.endTime,
           agentName: this.resolveAgentName(p) ?? '',
           brokerageName: this.resolveOfficeName(p, media) ?? '',
-        })
+        });
       }
 
       cards.sort(
         (a, b) =>
           a.openHouseDate.localeCompare(b.openHouseDate) ||
-          (a.openHouseStartTime ?? '').localeCompare(b.openHouseStartTime ?? ''),
-      )
-      return cards.slice(0, MAX_RESULTS)
+          (a.openHouseStartTime ?? '').localeCompare(
+            b.openHouseStartTime ?? '',
+          ),
+      );
+      return cards.slice(0, MAX_RESULTS);
     } catch (err) {
-      const body = (err as { response?: { data?: unknown } }).response?.data
+      const body = (err as { response?: { data?: unknown } }).response?.data;
       this.logger.error(
         `DDF nearby open-houses failed for ${listingKey}: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
-      )
-      return []
+      );
+      return [];
     }
   }
 
-  private parseBbox(bbox: string): { west: number; south: number; east: number; north: number } | null {
-    const parts = bbox.split(',').map(Number)
+  private parseBbox(
+    bbox: string,
+  ): { west: number; south: number; east: number; north: number } | null {
+    const parts = bbox.split(',').map(Number);
     if (parts.length !== 4 || parts.some(isNaN)) {
-      this.logger.warn(`Invalid bbox: "${bbox}"`)
-      return null
+      this.logger.warn(`Invalid bbox: "${bbox}"`);
+      return null;
     }
-    const [west, south, east, north] = parts
-    return { west, south, east, north }
+    const [west, south, east, north] = parts;
+    return { west, south, east, north };
   }
 
   /** Extract the first YouTube URL from a Media array (MediaCategory "Video Tour Website"). */
   private extractYoutubeUrl(media: Record<string, unknown>[]): string | null {
     for (const m of media) {
-      const cat = (m['MediaCategory'] as string | null) ?? ''
-      const url = (m['MediaURL'] as string | null) ?? ''
+      const cat = (m['MediaCategory'] as string | null) ?? '';
+      const url = (m['MediaURL'] as string | null) ?? '';
       if (cat === 'Video Tour Website' && /youtu(\.be|be\.com)/i.test(url)) {
-        return url
+        return url;
       }
     }
-    return null
+    return null;
   }
 
   /** Escape single quotes to prevent OData filter injection. */
   private sanitize(value: string): string {
-    return value.replace(/'/g, "''")
+    return value.replace(/'/g, "''");
   }
 
   /**
@@ -952,9 +1108,7 @@ export class DdfQueryService {
    * city/address values in the case the data is stored (title case).
    */
   private toTitleCase(value: string): string {
-    return value
-      .toLowerCase()
-      .replace(/\b\w/g, (c) => c.toUpperCase())
+    return value.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   /** Map a province code or name to DDF's canonical full title-case name. */
@@ -973,8 +1127,8 @@ export class DdfQueryService {
       QC: 'Quebec',
       SK: 'Saskatchewan',
       YT: 'Yukon',
-    }
-    const trimmed = value.trim()
-    return codes[trimmed.toUpperCase()] ?? this.toTitleCase(trimmed)
+    };
+    const trimmed = value.trim();
+    return codes[trimmed.toUpperCase()] ?? this.toTitleCase(trimmed);
   }
 }
