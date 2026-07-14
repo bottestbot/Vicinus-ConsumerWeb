@@ -7,3 +7,5 @@ export const getAlerts = (params: { type?: AlertType; page?: number; limit?: num
 export const markAlertRead = (id: string) => apiClient.patch(`/users/me/alerts/${id}`)
 
 export const markAllAlertsRead = () => apiClient.patch<{ count: number }>('/users/me/alerts/read-all')
+
+export const deleteAlert = (id: string) => apiClient.delete(`/users/me/alerts/${id}`)

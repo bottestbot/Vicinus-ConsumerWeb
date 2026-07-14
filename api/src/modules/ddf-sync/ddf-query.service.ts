@@ -61,7 +61,7 @@ export interface NearbyOpenHouse {
  * (the dwelling style lives in a separate field), so this short list covers all
  * residential stock.
  */
-const RESIDENTIAL_SUBTYPES = ['Single Family', 'Multi-family', 'Recreational'];
+export const RESIDENTIAL_SUBTYPES = ['Single Family', 'Multi-family', 'Recreational'];
 
 /**
  * DDF `StructureType` is the field that distinguishes dwelling form (House vs

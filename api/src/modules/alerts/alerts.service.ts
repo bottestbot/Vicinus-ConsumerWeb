@@ -16,6 +16,7 @@ import {
   DASHBOARD_PROPERTY_SELECT,
   localToDashboardProperty,
 } from '../users/users.service';
+import { RESIDENTIAL_SUBTYPES } from '../ddf-sync/ddf-query.service';
 import { matchesSavedSearch } from './saved-search-matcher.util';
 
 /** Status transitions worth alerting on — DDF's `StandardStatus` is a fairly
@@ -103,11 +104,24 @@ export class AlertsService {
     });
   }
 
+  /** "Mark all read" clears the list entirely rather than leaving read
+   *  alerts around to scroll past — there's no separate archive/read view. */
+  /** Opening a notification's detail page counts as consumed — delete it
+   *  outright rather than just flagging it read, matching markAllRead. */
+  async delete(clerkId: string, alertId: string) {
+    const user = await this.users.getMe(clerkId);
+    const alert = await this.prisma.alert.findUnique({
+      where: { id: alertId },
+    });
+    if (!alert) throw new NotFoundException('Alert not found');
+    if (alert.userId !== user.id) throw new ForbiddenException();
+    await this.prisma.alert.delete({ where: { id: alertId } });
+  }
+
   async markAllRead(clerkId: string) {
     const user = await this.users.getMe(clerkId);
-    const result = await this.prisma.alert.updateMany({
-      where: { userId: user.id, readAt: null },
-      data: { readAt: new Date() },
+    const result = await this.prisma.alert.deleteMany({
+      where: { userId: user.id },
     });
     return { count: result.count };
   }
@@ -165,8 +179,17 @@ export class AlertsService {
     }
   }
 
-  /** BE-802: diff a newly-synced property against every user's saved search. */
+  /** BE-802: diff a newly-synced property against every user's saved search.
+   *  DDF mixes commercial/land listings into the same Property resource as
+   *  residential stock (see RESIDENTIAL_SUBTYPES) — new-listing alerts are a
+   *  buyer-facing feature, so commercial inventory should never fire one. */
   async generateNewListingAlerts(property: Property): Promise<void> {
+    if (
+      !property.propertySubType ||
+      !RESIDENTIAL_SUBTYPES.includes(property.propertySubType)
+    ) {
+      return;
+    }
     const searches = await this.prisma.savedSearch.findMany();
     for (const search of searches) {
       const filters = (search.filters as Record<string, unknown>) ?? {};

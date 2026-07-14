@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { CalendarPlus, Calendar, ArrowDown, RefreshCw, Home } from 'lucide-react'
-import { useAlerts, useMarkAlertRead, useMarkAllAlertsRead } from '@/hooks/useAlerts'
+import { useAlerts, useDeleteAlert, useMarkAllAlertsRead } from '@/hooks/useAlerts'
 import { useOpenHouseVisits } from '@/hooks/useOpenHouseVisits'
 import AddToScheduleButton from '@/components/property/AddToScheduleButton'
 import type { Alert, DashboardProperty, OpenHouseVisit } from '@/types/dashboard'
@@ -234,10 +235,11 @@ function formatScheduleTime(visit: OpenHouseVisit): string {
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function NotificationsPanel() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('All')
   const { data } = useAlerts()
   const { data: scheduleGroups } = useOpenHouseVisits()
-  const markRead = useMarkAlertRead()
+  const deleteAlert = useDeleteAlert()
   const markAllRead = useMarkAllAlertsRead()
 
   const alerts = data?.alerts ?? []
@@ -309,6 +311,7 @@ export default function NotificationsPanel() {
                 </p>
                 {group.items.map((alert) => {
                   const visual = alertVisual(alert)
+                  const propertyId = alert.property?.id ?? alert.propertyId
                   return (
                     <AlertItem
                       key={alert.id}
@@ -319,7 +322,14 @@ export default function NotificationsPanel() {
                       iconBg={visual.iconBg}
                       time={formatTime(alert.createdAt)}
                       badge={!alert.readAt ? 'New' : undefined}
-                      onClick={!alert.readAt ? () => markRead.mutate(alert.id) : undefined}
+                      onClick={
+                        propertyId
+                          ? () => {
+                              deleteAlert.mutate(alert.id)
+                              router.push(`/properties/${propertyId}`)
+                            }
+                          : undefined
+                      }
                       action={
                         alert.type === 'OPEN_HOUSE' && alert.ddfOpenHouseKey ? (
                           <AddToScheduleButton

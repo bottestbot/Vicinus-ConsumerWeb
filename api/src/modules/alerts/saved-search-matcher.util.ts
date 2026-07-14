@@ -24,6 +24,22 @@ export function matchesSavedSearch(
   if (province && property.province?.toLowerCase() !== province.toLowerCase())
     return false;
 
+  // Mirrors ddf-query.service.ts's live-search handling of the same fields:
+  // `q` is a free-text OR-contains match against address/city/postalCode
+  // (not province or description, despite SearchQueryDto's stale comment),
+  // and `status` is an exact match against DDF's StandardStatus.
+  const q = (filters.q as string | undefined)?.trim().toLowerCase();
+  if (q) {
+    const haystack = [property.address, property.city, property.postalCode]
+      .filter((v): v is string => !!v)
+      .map((v) => v.toLowerCase());
+    if (!haystack.some((v) => v.includes(q))) return false;
+  }
+
+  const status = filters.status as string | undefined;
+  if (status && property.status.toLowerCase() !== status.toLowerCase())
+    return false;
+
   const listingType = (filters.listingType as string | undefined) ?? 'For Sale';
   const priceField =
     listingType === 'For Rent' ? property.leaseAmount : property.price;

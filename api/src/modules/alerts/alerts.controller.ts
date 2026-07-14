@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -41,5 +42,11 @@ export class AlertsController {
   @ApiOperation({ summary: 'Mark a single alert as read' })
   markRead(@CurrentUser() clerkId: string, @Param('id') id: string) {
     return this.alerts.markRead(clerkId, id);
+  }
+
+  @Delete('me/alerts/:id')
+  @ApiOperation({ summary: 'Delete a single alert' })
+  delete(@CurrentUser() clerkId: string, @Param('id') id: string) {
+    return this.alerts.delete(clerkId, id);
   }
 }
