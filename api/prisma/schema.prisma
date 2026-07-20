@@ -159,8 +159,55 @@ model Neighbourhood {
   lng          Float?
   createdAt    DateTime @default(now())
 
+  // NBHD-01 — geographic unit + percentile reference frame.
+  // `boundary` holds a GeoJSON Polygon/MultiPolygon (Json, not PostGIS — the DB
+  // has no postgis extension and v1 does no native geo queries). Polygon
+  // ingestion (StatsCan / curated) is a separate data task and is not wired
+  // here; `centroidLat/Lng` fall back to `lat/lng` until boundaries land.
+  // `referenceRegion` is the pool the "Top X%" percentile is computed against
+  // (defaults to `city ?? province` when scores are computed).
+  boundary        Json?
+  centroidLat     Float?
+  centroidLng     Float?
+  referenceRegion String?
+
+  // NBHD-07 — deterministic livability composite + versioned, reproducible
+  // storage. These computed scores are the source of truth going forward; the
+  // legacy seeded `walkScore`/`transitScore`/`livingGrade` above are retained
+  // for backwards-compat but superseded by the `*Score` floats below.
+  livabilityScore         Float?
+  walkabilityScore        Float?
+  transitSubScore         Float? // computed transit sub-score (legacy `transitScore Int?` kept intact)
+  schoolsScore            Float?
+  amenitiesScore          Float?
+  livabilityPercentile    Float?
+  livabilityWeightsVersion String?
+  livabilityComputedAt    DateTime?
+
   properties      Property[]
   localEssentials LocalEssential[]
+  pois            NeighbourhoodPoi[]
+}
+
+// NBHD-02 — raw OSM/Overpass POIs, snapshotted per ingestion run so a quarterly
+// refresh can be applied atomically and older snapshots pruned. ODbL attribution
+// is required wherever these are surfaced (see PoiIngestionService).
+model NeighbourhoodPoi {
+  id              String   @id @default(uuid())
+  neighbourhoodId String
+  osmId           String
+  category        String
+  name            String?
+  lat             Float
+  lng             Float
+  snapshotVersion String
+  createdAt       DateTime @default(now())
+
+  neighbourhood Neighbourhood @relation(fields: [neighbourhoodId], references: [id])
+
+  @@index([neighbourhoodId])
+  @@index([neighbourhoodId, category])
+  @@index([neighbourhoodId, snapshotVersion])
 }
 
 model LocalEssential {
