@@ -1,108 +1,111 @@
-import { BookOpen, Heart, TreePine, Baby } from 'lucide-react'
-import type { Essential, EssentialCategory } from '@/types/neighbourhood'
+'use client'
+
+// NBHD-13 — Local essentials. Four tabs (Schools · Healthcare · Parks · Shop &
+// Eat), each listing up to six POIs with a category icon, formatted distance,
+// and a lime "walkable" chip for anything within 400 m. Per-tab empty state.
+import { useState } from 'react'
+import { GraduationCap, HeartPulse, TreePine, ShoppingBag, type LucideIcon } from 'lucide-react'
+import { formatDistance } from '@/lib/format'
+import type { NeighbourhoodDetailResponse, PoiItem } from '@/types/neighbourhood-detail'
 
 interface Props {
-  essentials: Essential[]
+  localEssentials: NeighbourhoodDetailResponse['localEssentials']
 }
 
-const CATEGORY_META: Record<
-  EssentialCategory,
-  { label: string; icon: React.ReactNode; accent: string }
-> = {
-  education: {
-    label: 'Education',
-    icon: <BookOpen size={15} />,
-    accent: 'text-[#1C3829] bg-[#EAF0EC]',
-  },
-  healthcare: {
-    label: 'Healthcare',
-    icon: <Heart size={15} />,
-    accent: 'text-[#1C5460] bg-[#E8F4F7]',
-  },
-  parks: {
-    label: 'Nature & Parks',
-    icon: <TreePine size={15} />,
-    accent: 'text-white bg-[#1C3829]',
-  },
-  childcare: {
-    label: 'Child Care',
-    icon: <Baby size={15} />,
-    accent: 'text-[#6B3A1C] bg-[#F7EDE8]',
-  },
-}
+type TabKey = keyof NeighbourhoodDetailResponse['localEssentials']
 
-const CATEGORY_ORDER: EssentialCategory[] = ['education', 'healthcare', 'parks', 'childcare']
+const WALKABLE_THRESHOLD_M = 400
+const MAX_ITEMS = 6
 
-function EssentialGroup({
-  category,
-  items,
-}: {
-  category: EssentialCategory
-  items: Essential[]
-}) {
-  const meta = CATEGORY_META[category]
-  const isDark = category === 'parks'
+const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
+  { key: 'schools', label: 'Schools', icon: GraduationCap },
+  { key: 'healthcare', label: 'Healthcare', icon: HeartPulse },
+  { key: 'parks', label: 'Parks', icon: TreePine },
+  { key: 'shopAndEat', label: 'Shop & Eat', icon: ShoppingBag },
+]
 
+function PoiRow({ item, Icon }: { item: PoiItem; Icon: LucideIcon }) {
+  const walkable = item.distanceM <= WALKABLE_THRESHOLD_M
   return (
-    <div
-      className={[
-        'rounded-xl p-4',
-        isDark ? 'bg-[#1C3829]' : 'bg-white border border-[#E8E6E1]',
-      ].join(' ')}
-    >
-      <div className={['flex items-center gap-2 mb-3', isDark ? 'text-white' : 'text-[#111111]'].join(' ')}>
-        <span className={['p-1.5 rounded-lg', meta.accent].join(' ')}>{meta.icon}</span>
-        <p className="text-xs font-semibold uppercase tracking-widest">{meta.label}</p>
+    <li className="flex items-center justify-between gap-3 py-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EAF0EC] text-[#1C3829]">
+          <Icon size={16} />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-[#111111]">{item.name}</p>
+          <p className="truncate text-xs capitalize text-[#6B6B6B]">{item.category}</p>
+        </div>
       </div>
-
-      {items.length === 0 ? (
-        <p className={['text-xs', isDark ? 'text-white/50' : 'text-[#6B6B6B]'].join(' ')}>
-          None nearby
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {items.map((item) => (
-            <li key={item.id} className="flex items-start justify-between gap-2">
-              <span className={['text-xs leading-snug', isDark ? 'text-white/90' : 'text-[#111111]'].join(' ')}>
-                {item.name}
-              </span>
-              <span className={['text-[10px] shrink-0', isDark ? 'text-white/55' : 'text-[#6B6B6B]'].join(' ')}>
-                {item.distance}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {walkable && (
+          <span className="rounded-full bg-[#A3E635] px-2 py-0.5 text-[10px] font-semibold text-[#1C3829]">
+            walkable
+          </span>
+        )}
+        <span className="tabular-nums text-xs text-[#6B6B6B]">{formatDistance(item.distanceM)}</span>
+      </div>
+    </li>
   )
 }
 
-export default function LocalEssentials({ essentials }: Props) {
-  if (essentials.length === 0) {
-    return null
-  }
-
-  const grouped = CATEGORY_ORDER.reduce<Record<EssentialCategory, Essential[]>>(
-    (acc, cat) => {
-      acc[cat] = essentials.filter((e) => e.category === cat)
-      return acc
-    },
-    { education: [], healthcare: [], parks: [], childcare: [] },
-  )
+export default function LocalEssentials({ localEssentials }: Props) {
+  const [active, setActive] = useState<TabKey>('schools')
+  const activeTab = TABS.find((t) => t.key === active)!
+  const items = localEssentials[active].slice(0, MAX_ITEMS)
 
   return (
     <section className="py-10 border-b border-[#E8E6E1]">
-      <p className="text-[11px] font-semibold text-[#1C3829] uppercase tracking-widest mb-1">
-        For Your Family
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#1C3829]">
+        Around Here
       </p>
-      <h2 className="font-heading text-3xl font-semibold text-[#111111] mb-6">
-        Local Essentials.
-      </h2>
+      <h2 className="mb-6 font-heading text-3xl font-semibold text-[#111111]">Local Essentials.</h2>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {CATEGORY_ORDER.map((cat) => (
-          <EssentialGroup key={cat} category={cat} items={grouped[cat]} />
-        ))}
+      {/* Tabs */}
+      <div
+        role="tablist"
+        aria-label="Local essentials categories"
+        className="mb-4 flex flex-wrap gap-2"
+      >
+        {TABS.map((tab) => {
+          const selected = tab.key === active
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setActive(tab.key)}
+              className={[
+                'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+                selected
+                  ? 'border-[#1C3829] bg-[#1C3829] text-white'
+                  : 'border-[#E8E6E1] bg-white text-[#6B6B6B] hover:border-[#1C3829]/40 hover:text-[#111111]',
+              ].join(' ')}
+            >
+              <Icon size={15} />
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Panel */}
+      <div
+        role="tabpanel"
+        className="rounded-xl border border-[#E8E6E1] bg-white px-4 sm:px-5"
+      >
+        {items.length === 0 ? (
+          <p className="py-8 text-center text-sm text-[#6B6B6B]">
+            No {activeTab.label.toLowerCase()} found nearby yet.
+          </p>
+        ) : (
+          <ul className="divide-y divide-[#F2F0EB]">
+            {items.map((item) => (
+              <PoiRow key={item.id} item={item} Icon={activeTab.icon} />
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   )
