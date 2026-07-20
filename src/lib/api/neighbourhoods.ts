@@ -338,6 +338,17 @@ function composeDetail(
     shopAndEat: [] as PoiItem[], // no shop/eat category in the legacy essentials feed
   }
 
+  // Cold-start personalization: no signed-in user context here, so isPersonalized
+  // is false and the reason chips are derived from the area's *actual* strengths
+  // (never fabricated user history). The AI fit card renders its cold-start
+  // variant. Real per-user match data arrives from NBHD-08 via the /detail endpoint.
+  const reasonChips: string[] = []
+  if (walkability >= 80) reasonChips.push(`Walk score ${walkability} · walk-everywhere`)
+  else if (walkability >= 60) reasonChips.push(`Walkable · score ${walkability}`)
+  if (schools >= 75) reasonChips.push('Strong school access')
+  if (amenities >= 80) reasonChips.push('Amenities close by')
+  if (transit != null && transit >= 70) reasonChips.push(`Transit score ${transit}`)
+
   return {
     neighbourhood: {
       id: n.slug,
@@ -358,14 +369,21 @@ function composeDetail(
     },
     livability: {
       score,
-      percentile: score, // placeholder; real /detail supplies the true percentile
+      // 0 = unknown here; the panel hides the "Top X%" line until the real
+      // /detail endpoint supplies a true percentile rank across the reference set.
+      percentile: 0,
       breakdown: { walkability, schools, amenities, transit },
       weightsVersion: LIVABILITY_WEIGHTS_VERSION,
     },
     localEssentials: byCategory,
     localInfoTiles: { staticMapUrl: null, streetViewUrl: null },
     liveListings: listings.slice(0, 6).map(listingToSummary),
-    personalization: null,
+    personalization: {
+      matchPercent: 0,
+      reasonChips: reasonChips.slice(0, 3),
+      cautionChips: [],
+      isPersonalized: false,
+    },
   }
 }
 

@@ -27,6 +27,9 @@ export interface PropertySummary {
   agentName?: string | null
   brokerageName?: string | null
   mlsNumber?: string | null
+  /** True when this listing matches the signed-in user's priorities — renders
+   *  the lime "For you" flag. Set by the personalization layer (NBHD-08). */
+  isMatch?: boolean
 }
 
 export interface NeighbourhoodDetailResponse {
