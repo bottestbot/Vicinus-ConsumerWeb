@@ -2,10 +2,9 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { Heart, Share2, Maximize2, Bed, Bath } from 'lucide-react'
+import { Heart, Share2, Maximize2 } from 'lucide-react'
 import type { Property } from '@/types/search'
-import { formatFullPrice } from '@/types/search'
-import { formatNumber } from '@/lib/format'
+import PropertyCell, { ListingAttribution } from '@/components/property/PropertyCell'
 
 interface CuratorChoiceCardProps {
   property: Property
@@ -33,7 +32,7 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
             alt={property.address}
             fill
             sizes="400px"
-            className="object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+            className="object-cover object-left-top opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
           />
 
           {/* Gradient overlay */}
@@ -71,34 +70,23 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
 
       {/* Content below image */}
       <div className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <p className="font-heading text-2xl font-semibold text-[#111111]">
-              {property.price > 0 ? formatFullPrice(property.price) : 'Price on request'}
-            </p>
-            <p className="text-sm text-[#111111] mt-0.5">{property.address}</p>
-            <p className="text-xs text-[#6B6B6B]">
-              {property.city}, {property.province} {property.postalCode}
-            </p>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="flex items-center gap-3 text-xs text-[#6B6B6B] mb-3">
-          <span className="flex items-center gap-1">
-            <Bed size={12} /> {property.beds} bd
-          </span>
-          <span className="text-[#E8E6E1]">|</span>
-          <span className="flex items-center gap-1">
-            <Bath size={12} /> {property.baths} ba
-          </span>
-          {property.sqft > 0 && (
-            <>
-              <span className="text-[#E8E6E1]">|</span>
-              <span>{formatNumber(property.sqft)} sqft</span>
-            </>
-          )}
-        </div>
+        {/* Standardized listing-info cell (Task #12) — attribution rendered
+            separately below the features + CTA. */}
+        <PropertyCell
+          className="mb-3"
+          showAttribution={false}
+          data={{
+            price: property.price,
+            address: property.address,
+            location: [`${property.city}, ${property.province}`, property.postalCode]
+              .filter(Boolean)
+              .join(' '),
+            beds: property.beds,
+            baths: property.baths,
+            sqft: property.sqft,
+            propertyType: property.propertyType,
+          }}
+        />
 
         {/* Features */}
         {property.features && property.features.length > 0 && (
@@ -118,20 +106,14 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
           </button>
         </Link>
 
-        {/* CREA compliance */}
-        <div className="mt-3 flex items-center justify-between">
-          <p className="text-[10px] text-[#6B6B6B]">
-            {property.agentName} · {property.brokerageName}
-          </p>
-          <a
-            href="https://www.realtor.ca"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[9px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors"
-          >
-            Powered by <span className="font-semibold">REALTOR.ca</span>
-          </a>
-        </div>
+        {/* CREA compliance — standardized attribution + deep-linked badge */}
+        <ListingAttribution
+          className="mt-3"
+          agentName={property.agentName}
+          brokerageName={property.brokerageName}
+          mlsNumber={property.mlsNumber}
+          realtorUrl={property.realtorUrl}
+        />
       </div>
     </div>
   )

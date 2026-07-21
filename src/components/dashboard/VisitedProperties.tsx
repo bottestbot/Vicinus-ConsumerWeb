@@ -2,15 +2,11 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Bed, Bath, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { VisitedPropertyRecord } from '@/types/dashboard'
+import PropertyCell from '@/components/property/PropertyCell'
 
 const CARDS_PER_PAGE = 2
-
-function formatPrice(price: number | null): string {
-  if (!price) return 'Price on request'
-  return `$${price.toLocaleString()}`
-}
 
 function buildAddress(p: VisitedPropertyRecord['property']): string {
   const street =
@@ -45,7 +41,7 @@ function VisitedCard({ record, index }: { record: VisitedPropertyRecord; index: 
           alt={buildAddress(property)}
           fill
           sizes="200px"
-          className="object-cover group-hover:scale-105 transition-transform duration-500"
+          className="object-cover object-left-top group-hover:scale-105 transition-transform duration-500"
         />
         {/* Date badge */}
         <div className="absolute top-2.5 left-2.5">
@@ -58,31 +54,23 @@ function VisitedCard({ record, index }: { record: VisitedPropertyRecord; index: 
       {/* Right: info */}
       <div className="flex-1 p-3.5 flex flex-col justify-between min-w-0">
         <div>
-          <p className="font-heading text-base font-semibold text-[#111111] mb-0.5 leading-snug line-clamp-2">
-            {buildAddress(property)}
-          </p>
-          <p className="text-sm font-semibold text-[#111111] mb-2">
-            {formatPrice(property.price)}
-          </p>
+          {/* Standardized listing-info cell (Task #12) */}
+          <PropertyCell
+            compact
+            showAttribution={false}
+            data={{
+              price: property.price,
+              address: buildAddress(property),
+              beds: property.beds,
+              baths: property.baths,
+              sqft: property.sqft,
+            }}
+          />
 
           {/* Status tag */}
-          <span className="inline-block text-[10px] font-semibold text-[#6B6B6B] border border-[#E8E6E1] px-2 py-0.5 rounded-full uppercase tracking-wide mb-2">
+          <span className="inline-block text-[10px] font-semibold text-[#6B6B6B] border border-[#E8E6E1] px-2 py-0.5 rounded-full uppercase tracking-wide mt-2">
             {status}
           </span>
-
-          {/* Beds / baths */}
-          <div className="flex items-center gap-2 text-[11px] text-[#6B6B6B]">
-            {property.beds != null && (
-              <span className="flex items-center gap-0.5">
-                <Bed size={10} /> {property.beds}
-              </span>
-            )}
-            {property.baths != null && (
-              <span className="flex items-center gap-0.5">
-                <Bath size={10} /> {property.baths}
-              </span>
-            )}
-          </div>
         </div>
 
         {/* Action buttons */}

@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
 import { getPropertyDetail, getListingOpenHouses, getNearbyOpenHouses, getPropertyAiSummary, getMarketContext } from '@/lib/api/properties'
+import { realtorHref } from '@/lib/format'
 import OpenHouseSchedule from '@/components/property/OpenHouseSchedule'
 import PropertyGallery from '@/components/property/PropertyGallery'
 import PropertyStats from '@/components/property/PropertyStats'
@@ -21,6 +22,7 @@ import ListingActivityMap from '@/components/property/ListingActivityMap'
 import ActionBar from '@/components/property/ActionBar'
 import AgentCard from '@/components/property/AgentCard'
 import TrackVisited from '@/components/property/TrackVisited'
+import ListingViewTracker from '@/components/property/ListingViewTracker'
 import PropertySummary from '@/components/property/PropertySummary'
 import VirtualTour from '@/components/property/VirtualTour'
 import PropertyLocationLinks from '@/components/property/PropertyLocationLinks'
@@ -99,6 +101,8 @@ export default async function PropertyDetailPage({
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-32 font-ui">
       {/* ── Track visited (client effect) ─────────────────────────────── */}
       <TrackVisited propertyId={id} />
+      {/* ── CREA DDF `view` analytics event (Task #2). id is the ListingKey. ── */}
+      <ListingViewTracker listingKey={id} />
 
       {/* ── Breadcrumb / Back nav ──────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
@@ -214,7 +218,7 @@ export default async function PropertyDetailPage({
               </p>
             </div>
             <a
-              href="https://www.realtor.ca"
+              href={realtorHref(property.realtorUrl)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-[#6B6B6B] hover:text-[#1C3829] transition-colors shrink-0"

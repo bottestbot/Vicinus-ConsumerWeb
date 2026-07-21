@@ -43,6 +43,8 @@ export interface OpenHouseProperty {
   openHouseEndTime: string
   agentName: string
   brokerageName: string
+  /** DDF ListingURL — deep-links the "Powered by REALTOR.ca" badge. */
+  realtorUrl?: string | null
 }
 
 // ─── Facts & features (Redfin-style tabbed detail block) ───────────────────────
@@ -141,6 +143,8 @@ export interface PropertyDetail {
   agentPhone?: string
   agentPhoto?: string
   mlsNumber: string
+  /** DDF ListingURL — deep-links the "Powered by REALTOR.ca" badge (Task #4/#5). */
+  realtorUrl?: string | null
   yearBuilt?: number
   parking?: number
   stories?: number

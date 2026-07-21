@@ -43,4 +43,6 @@ export interface NeighbourhoodListing {
   agentName?: string
   brokerageName?: string
   mlsNumber?: string
+  /** DDF ListingURL — deep-links the "Powered by REALTOR.ca" badge. */
+  realtorUrl?: string | null
 }

@@ -184,6 +184,8 @@ export class PropertiesService {
           baths: (p['baths'] as number | null) ?? null,
           sqft: (p['sqft'] as number | null) ?? null,
           image,
+          // Task #4: deep-link target for the "Powered by REALTOR.ca" badge.
+          realtorUrl: (p['realtorUrl'] as string | null) ?? null,
           badge: 'Featured',
           href: `/properties/${key}`,
         }

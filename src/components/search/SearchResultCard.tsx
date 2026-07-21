@@ -2,11 +2,10 @@
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Bed, Bath, Maximize2, Star } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property } from '@/types/search'
-import { formatFullPrice } from '@/types/search'
-import { formatNumber } from '@/lib/format'
+import PropertyCell from '@/components/property/PropertyCell'
 
 interface SearchResultCardProps {
   property: Property
@@ -46,7 +45,7 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
             alt={property.address}
             fill
             sizes="(max-width: 768px) 100vw, 400px"
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-cover object-left-top group-hover:scale-105 transition-transform duration-500"
           />
 
           {/* Status badge */}
@@ -74,58 +73,25 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
           )}
         </div>
 
-        {/* Content */}
+        {/* Content — standardized listing-info cell (Task #12) */}
         <div className="p-3.5">
-          {/* Price — DDF sometimes omits ListPrice; show a label instead of $0 */}
-          <p className="font-heading text-xl font-semibold text-[#111111] mb-0.5">
-            {property.price > 0 ? formatFullPrice(property.price) : 'Price on request'}
-          </p>
-
-          {/* Address */}
-          <p className="text-sm text-[#111111] mb-0.5 truncate">{property.address}</p>
-          <p className="text-xs text-[#6B6B6B] mb-2.5">
-            {property.city}, {property.province} {property.postalCode}
-          </p>
-
-          {/* Stats */}
-          <div className="flex items-center gap-3 text-xs text-[#6B6B6B]">
-            <span className="flex items-center gap-1">
-              <Bed size={12} /> {property.beds} bd
-            </span>
-            <span className="text-[#E8E6E1]">|</span>
-            <span className="flex items-center gap-1">
-              <Bath size={12} /> {property.baths} ba
-            </span>
-            {property.sqft > 0 && (
-              <>
-                <span className="text-[#E8E6E1]">|</span>
-                <span className="flex items-center gap-1">
-                  <Maximize2 size={12} /> {formatNumber(property.sqft)} sqft
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Agent / CREA compliance footer */}
-          <div className="mt-3 pt-2.5 border-t border-[#F2F0EB]">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-[10px] font-semibold text-[#111111]">{property.agentName}</p>
-                <p className="text-[10px] text-[#6B6B6B]">{property.brokerageName}</p>
-              </div>
-              <a
-                href="https://www.realtor.ca"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-[9px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors text-right shrink-0"
-              >
-                Powered by<br />
-                <span className="font-semibold">REALTOR.ca</span>
-              </a>
-            </div>
-            <p className="text-xs text-[#6B6B6B] mt-1">Data provided by CREA</p>
-          </div>
+          <PropertyCell
+            data={{
+              price: property.price,
+              address: property.address,
+              location: [`${property.city}, ${property.province}`, property.postalCode]
+                .filter(Boolean)
+                .join(' '),
+              beds: property.beds,
+              baths: property.baths,
+              sqft: property.sqft,
+              propertyType: property.propertyType,
+              agentName: property.agentName,
+              brokerageName: property.brokerageName,
+              mlsNumber: property.mlsNumber,
+              realtorUrl: property.realtorUrl,
+            }}
+          />
         </div>
       </article>
     </div>

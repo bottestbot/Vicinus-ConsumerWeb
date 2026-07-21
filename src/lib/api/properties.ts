@@ -43,6 +43,8 @@ interface ApiListingImage {
 interface ApiListing {
   id: string
   ddfListingId?: string | null
+  /** DDF ListingURL — deep-links the "Powered by REALTOR.ca" badge (Task #4). */
+  realtorUrl?: string | null
   status?: string | null
   price?: number | null
   leaseAmount?: number | null
@@ -130,6 +132,7 @@ function toPropertyDetail(l: ApiListing): PropertyDetail {
     agentTitle: 'REALTOR®',
     brokerageName: l.office?.name ?? '',
     mlsNumber: l.ddfListingId ?? String(l.id),
+    realtorUrl: l.realtorUrl ?? null,
     yearBuilt: l.yearBuilt ?? undefined,
     parking: l.parkingTotal ?? undefined,
     stories: l.stories ?? undefined,

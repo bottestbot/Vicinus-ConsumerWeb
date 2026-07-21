@@ -26,6 +26,8 @@ export interface DashboardProperty {
   agentName: string | null
   brokerageName: string | null
   mlsNumber: string | null
+  /** DDF ListingURL — deep-links the "Powered by REALTOR.ca" badge. */
+  realtorUrl?: string | null
 }
 
 export interface SavedPropertyRecord {

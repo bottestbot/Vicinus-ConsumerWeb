@@ -24,6 +24,8 @@ export interface Property {
   agentTitle: string
   brokerageName: string
   mlsNumber: string
+  /** DDF ListingURL — deep-links the "Powered by REALTOR.ca" badge (Task #4/#5). */
+  realtorUrl?: string | null
   yearBuilt?: number
   parking?: number
   stories?: number

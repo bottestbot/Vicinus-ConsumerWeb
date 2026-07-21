@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { Property } from '@/types/search'
 import { formatNumber, formatPrice as formatPriceCA } from '@/lib/format'
+import { ListingAttribution } from '@/components/property/PropertyCell'
 
 interface Props {
   property: Property
@@ -89,6 +90,10 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
   const [imgIndex, setImgIndex] = useState(0)
   const [muted, setMuted] = useState(true)
   const [saved, setSaved] = useState(isSaved)
+  // isSaved often starts false and flips true once SavedPropertiesGate finishes
+  // hydrating the saved-ids store after this card has already mounted — keep
+  // local state in sync instead of freezing at the initial value.
+  useEffect(() => setSaved(isSaved), [isSaved])
   const [videoFailed, setVideoFailed] = useState(false)
   // User-initiated pause of the native video (tap-to-pause). Lets buyers dwell
   // on a frame instead of being carried along by autoplay.
@@ -216,7 +221,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             <video
               ref={videoRef}
               src={property.virtualTourUrl!}
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover object-left-top"
               loop muted={muted} playsInline autoPlay={isActive}
               onError={() => setVideoFailed(true)}
             />
@@ -259,7 +264,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
                 key={src}
                 src={src}
                 alt=""
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                className={`absolute inset-0 w-full h-full object-cover object-left-top transition-opacity duration-700 ${
                   !isOnYoutube && i === imageSlideIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
                 }`}
                 draggable={false}
@@ -302,7 +307,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
               <img
                 src={FALLBACK_IMAGE}
                 alt=""
-                className="absolute inset-0 w-full h-full object-cover z-0"
+                className="absolute inset-0 w-full h-full object-cover object-left-top z-0"
                 draggable={false}
               />
             )}
@@ -327,7 +332,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
         <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/95 via-black/55 to-transparent z-10 pointer-events-none" />
 
         {/* ── Right action rail — utilities only (Save / Share) ─────── */}
-        <div className="absolute right-3 bottom-28 z-20 flex flex-col items-center gap-4">
+        <div className="absolute right-3 bottom-28 z-30 flex flex-col items-center gap-4">
           <ActionBtn
             icon={<Bookmark size={19} className={saved ? 'fill-white text-white' : 'text-white'} />}
             label="Save"
@@ -347,8 +352,13 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
         </div>
 
         {/* ── Bottom info ───────────────────────────── */}
-        <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-5 pr-16">
-          <Link href={`/properties/${property.id}`} className="block group mb-1">
+        {/* pointer-events-none on the box itself: it spans the full card width
+            (inset-x-0) and can grow tall enough to sit under the right action
+            rail on short viewports, which — tied at the same z-index — would
+            otherwise win hit-testing and swallow Save/Share taps. Only the
+            actual interactive children opt back in. */}
+        <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-5 pr-16 pointer-events-none">
+          <Link href={`/properties/${property.id}`} className="pointer-events-auto block group mb-1">
             <h2 className="font-heading text-white text-lg font-semibold leading-snug group-hover:underline line-clamp-1">
               {streetLine}
             </h2>
@@ -394,14 +404,19 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             </div>
           )}
 
-          {/* Brokerage + MLS — demoted trust/reference line */}
-          <p className="text-white/55 text-[10px] leading-tight">
-            {[property.brokerageName, property.mlsNumber ? `MLS: ${property.mlsNumber}` : null]
-              .filter(Boolean).join(' · ')}
-          </p>
+          {/* Brokerage + MLS® + deep-linked REALTOR.ca badge (Task #4/#5/#8) */}
+          <ListingAttribution
+            theme="dark"
+            bordered={false}
+            showCrea={false}
+            className="mt-2 pointer-events-auto"
+            brokerageName={property.brokerageName}
+            mlsNumber={property.mlsNumber}
+            realtorUrl={property.realtorUrl}
+          />
 
           {/* ── Primary CTA + route back to full listing ─────────── */}
-          <div className="mt-3 flex items-center gap-3">
+          <div className="mt-3 flex items-center gap-3 pointer-events-auto">
             <Link
               href={`/properties/${property.id}#contact`}
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#1C3829] px-4 py-2.5 text-white text-sm font-semibold shadow-lg transition-all hover:bg-[#24493594] hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"

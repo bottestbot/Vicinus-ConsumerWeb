@@ -3,15 +3,11 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Bed, Bath, Heart, ChevronLeft, ChevronRight, Bookmark, Calendar } from 'lucide-react'
+import { Heart, ChevronLeft, ChevronRight, Bookmark, Calendar } from 'lucide-react'
 import type { SavedPropertyRecord } from '@/types/dashboard'
+import PropertyCell from '@/components/property/PropertyCell'
 
 const CARDS_PER_PAGE = 3
-
-function formatPrice(price: number | null): string {
-  if (!price) return 'Price on request'
-  return `$${price.toLocaleString()}`
-}
 
 function buildAddress(p: SavedPropertyRecord['property']): string {
   const street =
@@ -39,7 +35,7 @@ function PropertyCard({ record }: CardProps) {
             alt={buildAddress(property)}
             fill
             sizes="(max-width: 768px) 100vw, 320px"
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-cover object-left-top group-hover:scale-105 transition-transform duration-500"
           />
           {/* Red heart top-right */}
           <div className="absolute top-2.5 right-2.5">
@@ -49,29 +45,21 @@ function PropertyCard({ record }: CardProps) {
           </div>
         </div>
 
-        {/* Info */}
+        {/* Info — standardized listing-info cell (Task #12) */}
         <div className="p-3.5 flex-1">
-          <p className="font-heading text-lg font-semibold text-[#111111] mb-0.5 leading-tight">
-            {buildAddress(property)}
-          </p>
-          <p className="text-base font-semibold text-[#111111] mb-2">
-            {formatPrice(property.price)}
-          </p>
-          <div className="flex items-center gap-3 text-xs text-[#6B6B6B]">
-            {property.beds != null && (
-              <span className="flex items-center gap-1">
-                <Bed size={12} /> {property.beds} Beds
-              </span>
-            )}
-            {property.baths != null && (
-              <>
-                <span className="text-[#E8E6E1]">·</span>
-                <span className="flex items-center gap-1">
-                  <Bath size={12} /> {property.baths} Baths
-                </span>
-              </>
-            )}
-          </div>
+          <PropertyCell
+            data={{
+              price: property.price,
+              address: buildAddress(property),
+              beds: property.beds,
+              baths: property.baths,
+              sqft: property.sqft,
+              agentName: property.agentName,
+              brokerageName: property.brokerageName,
+              mlsNumber: property.mlsNumber,
+              realtorUrl: property.realtorUrl,
+            }}
+          />
         </div>
       </Link>
 

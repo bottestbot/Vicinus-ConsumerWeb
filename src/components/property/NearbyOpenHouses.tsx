@@ -4,9 +4,10 @@
 import { useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, Bed, Bath, Maximize2, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import type { OpenHouseProperty } from '@/types/property'
-import { formatFullPrice } from '@/types/search'
+import { formatOpenHouseTimeRange } from '@/lib/format'
+import PropertyCell, { ListingAttribution } from '@/components/property/PropertyCell'
 import AddToScheduleButton from './AddToScheduleButton'
 
 interface NearbyOpenHousesProps {
@@ -76,7 +77,7 @@ export default function NearbyOpenHouses({ openHouses }: NearbyOpenHousesProps) 
                 alt={oh.address}
                 fill
                 sizes="288px"
-                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                className="object-cover object-left-top group-hover:scale-105 transition-transform duration-500"
               />
               {/* Open house badge — forest green */}
               <div className="absolute top-3 left-3">
@@ -87,30 +88,20 @@ export default function NearbyOpenHouses({ openHouses }: NearbyOpenHousesProps) 
               </div>
             </div>
 
-            {/* Content */}
+            {/* Content — standardized listing-info cell (Task #12) */}
             <div className="p-4">
-              <p className="font-heading text-lg font-semibold text-[#111111] mb-0.5">
-                {formatFullPrice(oh.price)}
-              </p>
-              <p className="text-sm text-[#111111] truncate mb-0.5">{oh.address}</p>
-              <p className="text-xs text-[#6B6B6B] mb-3">
-                {oh.city}, {oh.province}
-              </p>
-
-              {/* Stats */}
-              <div className="flex items-center gap-2.5 text-xs text-[#6B6B6B] mb-3">
-                <span className="flex items-center gap-1">
-                  <Bed size={11} /> {oh.beds} bd
-                </span>
-                <span className="text-[#D1CEC9]">·</span>
-                <span className="flex items-center gap-1">
-                  <Bath size={11} /> {oh.baths} ba
-                </span>
-                <span className="text-[#D1CEC9]">·</span>
-                <span className="flex items-center gap-1">
-                  <Maximize2 size={11} /> {oh.sqft.toLocaleString()} sqft
-                </span>
-              </div>
+              <PropertyCell
+                className="mb-3"
+                showAttribution={false}
+                data={{
+                  price: oh.price,
+                  address: oh.address,
+                  location: [oh.city, oh.province].filter(Boolean).join(', '),
+                  beds: oh.beds,
+                  baths: oh.baths,
+                  sqft: oh.sqft,
+                }}
+              />
 
               {/* Open house time */}
               <div className="bg-[#F7F5F0] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
@@ -119,7 +110,7 @@ export default function NearbyOpenHouses({ openHouses }: NearbyOpenHousesProps) 
                     {formatDate(oh.openHouseDate)}
                   </p>
                   <p className="text-[11px] text-[#6B6B6B]">
-                    {oh.openHouseStartTime} – {oh.openHouseEndTime}
+                    {formatOpenHouseTimeRange(oh.openHouseStartTime, oh.openHouseEndTime)}
                   </p>
                 </div>
                 <AddToScheduleButton
@@ -129,11 +120,13 @@ export default function NearbyOpenHouses({ openHouses }: NearbyOpenHousesProps) 
                 />
               </div>
 
-              {/* Agent */}
-              <div className="mt-3 pt-2.5 border-t border-[#F2F0EB]">
-                <p className="text-[10px] font-semibold text-[#111111]">{oh.agentName}</p>
-                <p className="text-[10px] text-[#6B6B6B]">{oh.brokerageName}</p>
-              </div>
+              {/* Agent / CREA compliance */}
+              <ListingAttribution
+                className="mt-3"
+                agentName={oh.agentName}
+                brokerageName={oh.brokerageName}
+                realtorUrl={oh.realtorUrl}
+              />
             </div>
           </Link>
         ))}

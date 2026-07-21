@@ -4,9 +4,9 @@ import { useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Bed, Bath, ChevronLeft, ChevronRight } from 'lucide-react'
-import { formatPrice } from '@/types/search'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { NeighbourhoodListing } from '@/types/neighbourhood'
+import PropertyCell from '@/components/property/PropertyCell'
 
 interface Props {
   listings: NeighbourhoodListing[]
@@ -32,46 +32,23 @@ function ListingCard({ listing }: { listing: NeighbourhoodListing }) {
             alt={listing.address}
             fill
             sizes="240px"
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-cover object-left-top group-hover:scale-105 transition-transform duration-500"
           />
         </div>
+        {/* Standardized listing-info cell (Task #12) */}
         <div className="p-3.5">
-          <p className="font-heading text-lg font-semibold text-[#111111] mb-0.5">
-            {formatPrice(listing.price)}
-          </p>
-          <p className="text-xs text-[#111111] truncate mb-2">{listing.address}</p>
-          <div className="flex items-center gap-2.5 text-xs text-[#6B6B6B]">
-            <span className="flex items-center gap-1">
-              <Bed size={11} /> {listing.beds} bd
-            </span>
-            <span className="text-[#E8E6E1]">|</span>
-            <span className="flex items-center gap-1">
-              <Bath size={11} /> {listing.baths} ba
-            </span>
-          </div>
-          {/* CREA DDF compliance */}
-          <div className="mt-2.5 pt-2 border-t border-[#F2F0EB]">
-            <div className="flex items-center justify-between gap-1">
-              <div className="min-w-0">
-                {listing.agentName && (
-                  <p className="text-[9px] font-semibold text-[#111111] truncate">{listing.agentName}</p>
-                )}
-                {listing.brokerageName && (
-                  <p className="text-[9px] text-[#6B6B6B] truncate">{listing.brokerageName}</p>
-                )}
-              </div>
-              <a
-                href="https://www.realtor.ca"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-[9px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors shrink-0"
-              >
-                REALTOR.ca
-              </a>
-            </div>
-            <p className="text-xs text-[#6B6B6B] mt-0.5">Data provided by CREA</p>
-          </div>
+          <PropertyCell
+            data={{
+              price: listing.price,
+              address: listing.address,
+              beds: listing.beds,
+              baths: listing.baths,
+              agentName: listing.agentName,
+              brokerageName: listing.brokerageName,
+              mlsNumber: listing.mlsNumber,
+              realtorUrl: listing.realtorUrl,
+            }}
+          />
         </div>
       </article>
     </div>

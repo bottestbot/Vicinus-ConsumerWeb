@@ -1,6 +1,7 @@
 'use client'
 
-import { Popup } from 'react-map-gl/mapbox'
+import { Popup, useMap } from 'react-map-gl/mapbox'
+import type { PopupProps } from 'react-map-gl/mapbox'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Heart, X } from 'lucide-react'
@@ -8,7 +9,7 @@ import { useUser } from '@clerk/nextjs'
 import { getPropertyDetail } from '@/lib/api/properties'
 import { saveProperty, unsaveProperty } from '@/lib/api/users'
 import { useUserStore } from '@/store/userStore'
-import { formatNumber, formatPrice } from '@/lib/format'
+import PropertyCell from '@/components/property/PropertyCell'
 
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80'
@@ -20,8 +21,47 @@ interface Props {
   onClose: () => void
 }
 
+// Approximate rendered popup card size (w-[256px] shell + ~144px photo + body).
+const CARD_W = 256
+const CARD_H = 300
+// Keep the card at least this far from the map's own edges.
+const EDGE_MARGIN = 12
+// The floating filter bar (SearchPageClient) is layered over the top of the map
+// pane — Mapbox's own popup auto-flip only accounts for the map container, not
+// this overlay, so a pin high in the viewport opens upward and hides behind it.
+const OVERLAY_TOP = 84
+
+/**
+ * Choose the popup anchor so the card always opens into visible space: below the
+ * pin when there isn't room above the overlay bar, and shifted left/right when a
+ * centered card would spill past a horizontal edge. Anchor = the popup point
+ * pinned to the marker, so `top` opens the card downward, `bottom` upward, and a
+ * `-left`/`-right` suffix pins that side to the marker so the card extends inward.
+ */
+function pickAnchor(map: ReturnType<typeof useMap>['current'], lng: number, lat: number): PopupProps['anchor'] {
+  if (!map) return 'bottom'
+  const el = map.getContainer()
+  const w = el.clientWidth
+  const h = el.clientHeight
+  const { x, y } = map.project([lng, lat])
+
+  const fitsAbove = y - OVERLAY_TOP >= CARD_H
+  const vertical = fitsAbove || y - OVERLAY_TOP >= h - y ? 'bottom' : 'top'
+
+  // A centered card spans x ± CARD_W/2 (bounded by the container width so a card
+  // wider than the viewport still resolves to a definite side). If that would
+  // cross either edge, pin the nearer side to the marker so it opens inward.
+  const half = Math.min(CARD_W, w - EDGE_MARGIN * 2) / 2
+  let horizontal = ''
+  if (x - half < EDGE_MARGIN) horizontal = '-left'
+  else if (x + half > w - EDGE_MARGIN) horizontal = '-right'
+
+  return `${vertical}${horizontal}` as PopupProps['anchor']
+}
+
 export default function MapListingPopup({ listingKey, longitude, latitude, onClose }: Props) {
   const router = useRouter()
+  const { current: map } = useMap()
   const { isSignedIn } = useUser()
   const { savedPropertyIds, toggleSaved } = useUserStore()
   const isSaved = savedPropertyIds.has(listingKey)
@@ -41,10 +81,12 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
     try {
       if (isSaved) await unsaveProperty(listingKey)
       else await saveProperty(listingKey)
+      // Only flip the heart once the write actually succeeds — toggling
+      // unconditionally made a failed save look identical to a real one.
+      toggleSaved(listingKey)
     } catch {
-      // optimistic — still reflect locally
+      // Leave state untouched; the click silently did nothing on the backend.
     }
-    toggleSaved(listingKey)
   }
 
   const openDetail = () => router.push(`/properties/${listingKey}`)
@@ -53,7 +95,7 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
     <Popup
       longitude={longitude}
       latitude={latitude}
-      anchor="bottom"
+      anchor={pickAnchor(map, longitude, latitude)}
       offset={20}
       closeButton={false}
       closeOnClick={false}
@@ -66,7 +108,7 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
         tabIndex={0}
         onClick={openDetail}
         onKeyDown={(e) => e.key === 'Enter' && openDetail()}
-        className="w-[256px] cursor-pointer bg-white rounded-xl overflow-hidden font-ui text-left"
+        className="w-[256px] max-w-[calc(100vw-1.5rem)] cursor-pointer bg-white rounded-xl overflow-hidden font-ui text-left"
       >
         {/* Photo */}
         <div className="relative h-36 bg-[#F2F0EB]">
@@ -75,7 +117,7 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
           <img
             src={data?.images?.[0] || FALLBACK_IMG}
             alt={data?.address || 'Listing'}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-left-top"
           />
           {/* Close */}
           <button
@@ -107,31 +149,21 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
               <div className="h-3 bg-[#F2F0EB] rounded w-1/2" />
             </div>
           ) : (
-            <>
-              <p className="text-lg font-bold text-[#111111] leading-tight">
-                {data.price > 0 ? formatPrice(data.price) : 'Price on request'}
-              </p>
-              <p className="text-sm text-[#111111] mt-0.5">
-                <span className="font-semibold">{data.beds}</span> bds
-                {' · '}
-                <span className="font-semibold">{data.baths}</span> ba
-                {data.sqft > 0 && (
-                  <>
-                    {' · '}
-                    <span className="font-semibold">{formatNumber(data.sqft)}</span> sqft
-                  </>
-                )}
-                {' · '}
-                {data.listingType}
-              </p>
-              <p className="text-sm text-[#6B6B6B] truncate mt-0.5">
-                {[data.address, data.city].filter(Boolean).join(', ')}
-              </p>
-              <p className="text-[10px] text-[#9B9B9B] mt-1 uppercase tracking-wide">
-                MLS® {data.mlsNumber}
-                {data.brokerageName ? ` · ${data.brokerageName}` : ''}
-              </p>
-            </>
+            <PropertyCell
+              compact
+              data={{
+                price: data.price,
+                address: data.address,
+                location: data.city,
+                beds: data.beds,
+                baths: data.baths,
+                sqft: data.sqft,
+                propertyType: data.propertyType,
+                brokerageName: data.brokerageName,
+                mlsNumber: data.mlsNumber,
+                realtorUrl: data.realtorUrl,
+              }}
+            />
           )}
         </div>
       </div>

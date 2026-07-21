@@ -1,6 +1,7 @@
 // Agent contact card — appears in the right sidebar of the detail page
 import { Phone, Mail, ExternalLink } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
+import { realtorHref } from '@/lib/format'
 
 interface AgentCardProps {
   property: PropertyDetail
@@ -55,7 +56,7 @@ export default function AgentCard({ property }: AgentCardProps) {
           Send Message
         </button>
         <a
-          href="https://www.realtor.ca"
+          href={realtorHref(property.realtorUrl)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-1.5 text-[10px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors mt-1"
