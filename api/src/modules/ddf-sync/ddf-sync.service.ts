@@ -13,9 +13,11 @@ import { DdfReconciliationSync } from './ddf-reconciliation.sync'
  * (BE-802/803/804/806) to diff new/changed rows against. Search itself still
  * queries the DDF API live on demand and does not depend on this cron —
  * this sync exists purely to feed Alert generation. `syncMembersAndOffices()`
- * remains on its own manually-triggered cadence and no longer chains the
- * open-house sync (it now runs independently, more frequently, on the cron
- * below) to avoid redundant double-syncing.
+ * runs on its own daily cron (3AM) and no longer chains the open-house sync
+ * (that now runs independently, more frequently, on the cron below) to avoid
+ * redundant double-syncing. `reconcileListings()` runs daily at 4AM to delete
+ * listings that have fallen off the DDF master list — see
+ * {@link DdfReconciliationSync}, which is dry-run by default.
  */
 @Injectable()
 export class DdfSyncService {

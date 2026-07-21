@@ -1,7 +1,10 @@
+'use client'
+
 // Agent contact card — appears in the right sidebar of the detail page
 import { Phone, Mail, ExternalLink } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
 import { realtorHref } from '@/lib/format'
+import { logEmailRealtor, logListingClick } from '@/lib/api/analytics'
 
 interface AgentCardProps {
   property: PropertyDetail
@@ -18,6 +21,10 @@ export default function AgentCard({ property }: AgentCardProps) {
       .join('')
       .toUpperCase()
       .slice(0, 2) || 'RE'
+
+  // CREA-05: contacting the listing REALTOR(R) is the `email_realtor` event the
+  // REAW tier requires us to report. Both CTAs below are leads, so both fire it.
+  const reportLead = () => logEmailRealtor(property.id)
 
   return (
     <div className="bg-white rounded-2xl border border-[#E8E6E1] shadow-sm p-6 sticky top-20">
@@ -45,18 +52,22 @@ export default function AgentCard({ property }: AgentCardProps) {
         {property.agentPhone && (
           <a
             href={`tel:${property.agentPhone}`}
+            onClick={reportLead}
             className="flex items-center justify-center gap-2 w-full bg-[#1C3829] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#2D5A3D] transition-colors"
           >
             <Phone size={14} />
             Contact Agent
           </a>
         )}
-        <button className="flex items-center justify-center gap-2 w-full border border-[#E8E6E1] text-[#111111] text-sm font-medium py-2.5 rounded-xl hover:border-[#1C3829] transition-colors">
+        <button
+          onClick={reportLead}
+          className="flex items-center justify-center gap-2 w-full border border-[#E8E6E1] text-[#111111] text-sm font-medium py-2.5 rounded-xl hover:border-[#1C3829] transition-colors">
           <Mail size={14} />
           Send Message
         </button>
         <a
           href={realtorHref(property.realtorUrl)}
+          onClick={() => logListingClick(property.id)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-1.5 text-[10px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors mt-1"

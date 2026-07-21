@@ -39,6 +39,10 @@ export interface DashboardProperty {
   agentName: string | null
   brokerageName: string | null
   mlsNumber: string | null
+  // CREA-06: deep-link target for the "Powered by REALTOR.ca" attribution
+  // badge. Without it PropertyCell falls back to the REALTOR.ca homepage,
+  // which does not satisfy the DDF attribution requirement.
+  realtorUrl: string | null
 }
 
 // Fields pulled from the local Property table to build a dashboard card.
@@ -59,6 +63,7 @@ export const DASHBOARD_PROPERTY_SELECT = {
   province: true,
   postalCode: true,
   images: true,
+  realtorUrl: true,
   agent: { select: { fullName: true } },
   office: { select: { name: true } },
 } satisfies Prisma.PropertySelect
@@ -83,6 +88,7 @@ export function localToDashboardProperty(p: LocalPropertyRow): DashboardProperty
     agentName: p.agent?.fullName ?? null,
     brokerageName: p.office?.name ?? null,
     mlsNumber: p.ddfListingId ?? p.ddfListingKey,
+    realtorUrl: p.realtorUrl ?? null,
   }
 }
 
@@ -107,6 +113,7 @@ function ddfToDashboardProperty(d: Record<string, unknown>): DashboardProperty {
     agentName: agent?.fullName ?? null,
     brokerageName: office?.name ?? null,
     mlsNumber: (d.ddfListingId as string | null) ?? key,
+    realtorUrl: (d.realtorUrl as string | null) ?? null,
   }
 }
 

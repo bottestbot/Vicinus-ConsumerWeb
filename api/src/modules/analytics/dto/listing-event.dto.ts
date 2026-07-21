@@ -21,11 +21,14 @@ export class ListingEventDto {
   @IsIn(['view', 'Click', 'email_realtor'])
   eventType!: CreaEventType
 
-  /** Stable per-user / per-device id (the DestinationId is appended server-side). */
-  @ApiProperty({ description: 'Stable per-user/device identifier' })
-  @IsString()
-  @MaxLength(128)
-  uuid!: string
+  /**
+   * CREA-02: REMOVED. The visitor identifier is now issued server-side and
+   * read from a signed HttpOnly cookie (see visitor-id.util.ts). A
+   * caller-supplied uuid could simply be rotated per request, defeating CREA's
+   * 5-minute dedup window and letting anyone inflate counts under our
+   * DestinationId. Any `uuid` in the body is stripped by the global
+   * ValidationPipe and ignored.
+   */
 
   @ApiPropertyOptional({ description: 'Referring URL' })
   @IsOptional()

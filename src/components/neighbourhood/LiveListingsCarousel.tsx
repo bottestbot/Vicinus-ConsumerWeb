@@ -72,6 +72,7 @@ function ListingCard({ listing }: { listing: PropertySummary }) {
               brokerageName: listing.brokerageName,
               mlsNumber: listing.mlsNumber,
               realtorUrl: listing.realtorUrl,
+              listingKey: listing.id,
             }}
           />
         </div>

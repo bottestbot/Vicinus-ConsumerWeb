@@ -11,6 +11,7 @@
 import { Fragment, type ComponentType } from 'react'
 import { Bed, Bath, Maximize2 } from 'lucide-react'
 import { formatPrice, formatNumber, realtorHref } from '@/lib/format'
+import { logListingClick } from '@/lib/api/analytics'
 import { STRINGS } from '@/lib/strings'
 
 export interface PropertyCellData {
@@ -28,6 +29,8 @@ export interface PropertyCellData {
   mlsNumber?: string | null
   /** DDF ListingURL — deep-links the REALTOR.ca badge to this exact listing. */
   realtorUrl?: string | null
+  /** DDF ListingKey. Needed to report the CREA `Click` event (CREA-05). */
+  listingKey?: string | null
 }
 
 type Theme = 'light' | 'dark'
@@ -74,6 +77,8 @@ interface AttributionProps {
   brokerageName?: string | null
   mlsNumber?: string | null
   realtorUrl?: string | null
+  /** DDF ListingKey — reports the CREA `Click` event on the badge (CREA-05). */
+  listingKey?: string | null
   theme?: Theme
   /** Show the "Data provided by CREA" line (default true). */
   showCrea?: boolean
@@ -93,6 +98,7 @@ export function ListingAttribution({
   brokerageName,
   mlsNumber,
   realtorUrl,
+  listingKey,
   theme = 'light',
   showCrea = true,
   bordered = true,
@@ -115,7 +121,12 @@ export function ListingAttribution({
           href={realtorHref(realtorUrl)}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            // CREA-05: click-through to the listing on REALTOR.ca is the
+            // `Click` event the REAW tier requires us to report.
+            if (listingKey) logListingClick(listingKey)
+          }}
           className={`text-[9px] ${t.link} transition-colors text-right shrink-0 leading-tight`}
         >
           {STRINGS.SEARCH_CARD_POWERED_BY}
@@ -212,6 +223,7 @@ export default function PropertyCell({
           brokerageName={data.brokerageName}
           mlsNumber={data.mlsNumber}
           realtorUrl={data.realtorUrl}
+          listingKey={data.listingKey}
           theme={theme}
           className={compact ? 'mt-2.5' : 'mt-3'}
         />

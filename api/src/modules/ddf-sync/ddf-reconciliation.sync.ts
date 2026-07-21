@@ -22,6 +22,11 @@ export interface ReconciliationResult {
  */
 const MAX_DELETE_RATIO = 0.3
 
+/** CREA-07c: size of the last successfully-fetched master list. */
+const LAST_MASTER_COUNT_KEY = 'ddf:reconcile:last-master-count'
+/** Long enough to span several missed runs, short enough to expire if abandoned. */
+const LAST_MASTER_COUNT_TTL_SECONDS = 30 * 24 * 60 * 60
+
 /**
  * DDF replication reconciliation (Task #1).
  *
@@ -132,6 +137,11 @@ export class DdfReconciliationSync {
   /**
    * Page through `Property/PropertyReplication()` collecting every ListingKey
    * in the master list. Scoped to the configured DestinationId when set.
+   *
+   * CREA-07c: a silently short master list is the dangerous failure — every
+   * listing missing from it looks stale and would be deleted. So each page is
+   * retried before giving up, and a partial walk throws rather than returning
+   * what it managed to collect.
    */
   private async fetchMasterListingKeys(): Promise<Set<string>> {
     const baseUrl = this.config.get<string>('DDF_API_BASE_URL')
@@ -142,23 +152,92 @@ export class DdfReconciliationSync {
       ? `${baseUrl}/Property/PropertyReplication(DestinationId=${destinationId})`
       : `${baseUrl}/Property/PropertyReplication()`
 
-    while (url) {
-      const token = await this.auth.getToken()
-      const response = await firstValueFrom(
-        this.http.get(url, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-        }),
-      )
+    let declaredTotal: number | undefined
+    let pages = 0
 
-      const rows = (response.data.value as Record<string, unknown>[]) || []
+    while (url) {
+      const response = await this.fetchPageWithRetry(url)
+      pages += 1
+
+      // CREA-07c: OData may declare the full count up front. When it does it is
+      // the most direct completeness check available.
+      const count = response['@odata.count']
+      if (declaredTotal === undefined && typeof count === 'number') declaredTotal = count
+
+      const rows = (response.value as Record<string, unknown>[]) || []
       for (const r of rows) {
         const key = r['ListingKey']
         if (key !== undefined && key !== null) keys.add(String(key))
       }
 
-      url = (response.data['@odata.nextLink'] as string) || ''
+      url = (response['@odata.nextLink'] as string) || ''
     }
 
+    // CREA-07c: if CREA told us how many rows to expect, insist on having them.
+    if (declaredTotal !== undefined && keys.size < declaredTotal) {
+      throw new Error(
+        `PropertyReplication truncated: collected ${keys.size} of ${declaredTotal} ` +
+          `declared keys over ${pages} page(s) — refusing to reconcile against a partial list`,
+      )
+    }
+
+    // CREA-07c: otherwise compare against the last observed master size. A list
+    // that suddenly loses a large share of its rows is far more likely to be a
+    // broken paging walk than genuine mass expiry. Kept in Redis rather than a
+    // new DdfSyncLog column so this needs no migration; if the key is evicted
+    // the check simply no-ops and the ratio ceiling (CREA-07a) still applies.
+    const previousCount = Number(
+      (await this.redis.get(LAST_MASTER_COUNT_KEY).catch(() => null)) ?? 0,
+    )
+    if (previousCount > 0 && keys.size < previousCount * (1 - MAX_DELETE_RATIO)) {
+      throw new Error(
+        `PropertyReplication returned ${keys.size} keys vs ${previousCount} on the ` +
+          `previous run — refusing to reconcile against a likely-truncated list`,
+      )
+    }
+
+    await this.redis
+      .set(LAST_MASTER_COUNT_KEY, String(keys.size), LAST_MASTER_COUNT_TTL_SECONDS)
+      .catch(() => undefined)
+
     return keys
+  }
+
+  /**
+   * One page of the master list, retried on transient failure. A page that
+   * cannot be fetched must abort the whole walk (CREA-07c) — silently skipping
+   * it would shorten the master list and mark real listings as stale.
+   */
+  private async fetchPageWithRetry(
+    url: string,
+    attempts = 3,
+  ): Promise<Record<string, unknown>> {
+    let lastError: unknown
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        const token = await this.auth.getToken()
+        const response = await firstValueFrom(
+          this.http.get(url, {
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          }),
+        )
+        return response.data as Record<string, unknown>
+      } catch (err) {
+        lastError = err
+        if (attempt < attempts) {
+          const backoffMs = 1_000 * 2 ** (attempt - 1)
+          this.logger.warn(
+            `PropertyReplication page failed (attempt ${attempt}/${attempts}), ` +
+              `retrying in ${backoffMs}ms: ${(err as Error).message}`,
+          )
+          await new Promise((resolve) => setTimeout(resolve, backoffMs))
+        }
+      }
+    }
+
+    throw new Error(
+      `PropertyReplication page failed after ${attempts} attempts: ${(lastError as Error)?.message}`,
+    )
   }
 }

@@ -58,6 +58,7 @@ function PropertyCard({ record }: CardProps) {
               brokerageName: property.brokerageName,
               mlsNumber: property.mlsNumber,
               realtorUrl: property.realtorUrl,
+              listingKey: property.id,
             }}
           />
         </div>

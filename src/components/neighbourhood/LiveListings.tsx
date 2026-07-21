@@ -47,6 +47,7 @@ function ListingCard({ listing }: { listing: NeighbourhoodListing }) {
               brokerageName: listing.brokerageName,
               mlsNumber: listing.mlsNumber,
               realtorUrl: listing.realtorUrl,
+              listingKey: listing.id,
             }}
           />
         </div>

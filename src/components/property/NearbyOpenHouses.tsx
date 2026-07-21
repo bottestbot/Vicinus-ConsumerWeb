@@ -126,6 +126,7 @@ export default function NearbyOpenHouses({ openHouses }: NearbyOpenHousesProps) 
                 agentName={oh.agentName}
                 brokerageName={oh.brokerageName}
                 realtorUrl={oh.realtorUrl}
+                listingKey={oh.id}
               />
             </div>
           </Link>

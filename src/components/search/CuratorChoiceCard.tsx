@@ -113,6 +113,7 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
           brokerageName={property.brokerageName}
           mlsNumber={property.mlsNumber}
           realtorUrl={property.realtorUrl}
+          listingKey={property.id}
         />
       </div>
     </div>

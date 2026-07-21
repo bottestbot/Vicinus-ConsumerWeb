@@ -413,6 +413,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             brokerageName={property.brokerageName}
             mlsNumber={property.mlsNumber}
             realtorUrl={property.realtorUrl}
+            listingKey={property.id}
           />
 
           {/* ── Primary CTA + route back to full listing ─────────── */}

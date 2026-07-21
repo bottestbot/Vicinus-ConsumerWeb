@@ -90,6 +90,7 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
               brokerageName: property.brokerageName,
               mlsNumber: property.mlsNumber,
               realtorUrl: property.realtorUrl,
+              listingKey: property.id,
             }}
           />
         </div>

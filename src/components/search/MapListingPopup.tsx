@@ -162,6 +162,7 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
                 brokerageName: data.brokerageName,
                 mlsNumber: data.mlsNumber,
                 realtorUrl: data.realtorUrl,
+                listingKey: data.id,
               }}
             />
           )}

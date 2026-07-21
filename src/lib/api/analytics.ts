@@ -4,7 +4,6 @@
 // blocks UI. Required of a Real Estate Advertising Website on the National
 // Shared Pool.
 import apiClient from './client'
-import { getDeviceId } from '@/lib/deviceId'
 
 export type ListingEventType = 'view' | 'Click' | 'email_realtor'
 
@@ -22,18 +21,41 @@ export async function logListingEvent({
   eventType,
   languageId,
 }: LogListingEventArgs): Promise<void> {
-  const uuid = getDeviceId()
-  if (!uuid || !listingKey) return
+  if (!listingKey || typeof window === 'undefined') return
 
   try {
-    await apiClient.post('/analytics/listing-event', {
-      listingKey,
-      eventType,
-      uuid,
-      referralUrl: typeof window !== 'undefined' ? window.location.href : undefined,
-      languageId,
-    })
+    await apiClient.post(
+      '/analytics/listing-event',
+      {
+        listingKey,
+        eventType,
+        referralUrl: window.location.href,
+        languageId,
+      },
+      // CREA-02: the visitor identity is a signed HttpOnly cookie issued by the
+      // API, so this request must carry credentials. We no longer send a
+      // client-generated uuid — a caller-chosen id can be rotated to defeat
+      // CREA's 5-minute dedup window.
+      { withCredentials: true },
+    )
   } catch {
     // Analytics must never surface to the user.
   }
+}
+
+/**
+ * CREA-05: click-through on a listing card. Fired when a user opens a listing
+ * from search, feed, map or a dashboard card — the REAW tier requires
+ * click reporting, not just impressions.
+ */
+export function logListingClick(listingKey: string): void {
+  void logListingEvent({ listingKey, eventType: 'Click' })
+}
+
+/**
+ * CREA-05: a lead sent to the listing REALTOR®. Fired when the user acts on
+ * the agent contact CTA.
+ */
+export function logEmailRealtor(listingKey: string): void {
+  void logListingEvent({ listingKey, eventType: 'email_realtor' })
 }
