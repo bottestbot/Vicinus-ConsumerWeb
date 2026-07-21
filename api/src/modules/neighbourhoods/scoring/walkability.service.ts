@@ -37,10 +37,17 @@ const CATEGORY_WEIGHTS: Record<PoiCategory, number> = {
 // category from dominating and keeps each category's raw contribution bounded.
 const CATEGORY_COUNT_CAP = 10
 
-// Fixed normalization anchor: the weighted-log total a "very walkable"
-// neighbourhood reaches. Calibrated so a dense urban core lands ~90-100 and a
-// car-dependent suburb lands low, without a paid Walk Score reference.
-const NORMALIZATION_ANCHOR = 14
+// Normalization anchor = the maximum attainable weighted-log total (every
+// category saturated at the cap), so a score is the fraction of the best
+// possible outcome. Derived rather than hand-tuned: an earlier fixed guess of
+// 14 was below the real ceiling of ~21.8, which pinned every urban
+// neighbourhood at exactly 100 and made the livability percentile meaningless.
+// Measured against real Overpass data this spreads ~11 (remote) to 100 (dense
+// urban core). Keep it derived so changing weights or the cap can't silently
+// re-saturate the scale.
+const NORMALIZATION_ANCHOR =
+  Math.log(1 + CATEGORY_COUNT_CAP) *
+  Object.values(CATEGORY_WEIGHTS).reduce((sum, w) => sum + w, 0)
 
 @Injectable()
 export class WalkabilityService {

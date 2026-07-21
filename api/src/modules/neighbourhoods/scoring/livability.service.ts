@@ -21,8 +21,16 @@ export class LivabilityService {
     private readonly schoolsAmenities: SchoolsAmenitiesService,
   ) {}
 
-  /** Compute + persist all sub-scores and the livability composite for one neighbourhood. */
-  async computeAndSaveScores(neighbourhoodId: string): Promise<SubScores & { livability: number | null }> {
+  /**
+   * Compute + persist all sub-scores and the livability composite for one
+   * neighbourhood. `skipPercentiles` defers the percentile pass to the caller —
+   * the batch job sets it so a 400-neighbourhood run doesn't re-rank the whole
+   * province once per neighbourhood (which is O(n²) updates).
+   */
+  async computeAndSaveScores(
+    neighbourhoodId: string,
+    options: { skipPercentiles?: boolean } = {},
+  ): Promise<SubScores & { livability: number | null }> {
     const neighbourhood = await this.prisma.neighbourhood.findUnique({
       where: { id: neighbourhoodId },
       select: {
@@ -48,6 +56,14 @@ export class LivabilityService {
 
     const pois = await this.loadLatestPois(neighbourhoodId)
 
+    // No POI snapshot means the ingest never succeeded here — scoring it would
+    // write 0s that are indistinguishable from a genuinely amenity-free area
+    // and would drag down every percentile in the region. Leave scores null.
+    if (pois.length === 0) {
+      this.logger.warn(`Neighbourhood ${neighbourhoodId} has no POIs — leaving scores unset`)
+      return { walkability: null, schools: null, amenities: null, transit: null, livability: null }
+    }
+
     const walk = this.walkability.score(pois, centroid)
     const { schoolsScore, amenitiesScore } = this.schoolsAmenities.score(pois, centroid)
     const transitResult = await this.transit.score(centroid)
@@ -60,9 +76,14 @@ export class LivabilityService {
     }
     const livability = blendLivability(sub, DEFAULT_WEIGHTS)
 
-    // referenceRegion defaults to city ?? province when not explicitly set.
+    // NBHD-01 reference frame: province, not city. The percentile pool must be
+    // large enough for "Top X%" to mean anything — defaulting to city produced
+    // pools of one (every neighbourhood ranked 100th percentile against itself).
+    // Metro area would be the ideal grain, but the schema has no metro field, so
+    // province is the coarsest-but-meaningful pool available (417 BC rows).
+    // An explicitly-set referenceRegion always wins.
     const referenceRegion =
-      neighbourhood.referenceRegion ?? neighbourhood.city ?? neighbourhood.province ?? null
+      neighbourhood.referenceRegion ?? neighbourhood.province ?? neighbourhood.city ?? null
 
     await this.prisma.neighbourhood.update({
       where: { id: neighbourhoodId },
@@ -79,7 +100,7 @@ export class LivabilityService {
     })
 
     // Percentile depends on peers in the same region — recompute the whole pool.
-    await this.recomputePercentiles(referenceRegion)
+    if (!options.skipPercentiles) await this.recomputePercentiles(referenceRegion)
 
     return { ...sub, livability }
   }
@@ -90,14 +111,14 @@ export class LivabilityService {
     let scored = 0
     for (const { id } of neighbourhoods) {
       try {
-        await this.computeAndSaveScores(id)
+        // Defer ranking: percentiles are only meaningful once every score is in.
+        await this.computeAndSaveScores(id, { skipPercentiles: true })
         scored += 1
       } catch (err) {
         this.logger.warn(`Failed to score neighbourhood ${id}: ${(err as Error).message}`)
       }
     }
-    // computeAndSaveScores already refreshes per-region percentiles, but run a
-    // final global pass in case regions were only partially populated mid-batch.
+    // Single ranking pass over every region now that all scores are written.
     await this.recomputePercentiles(null)
     return { scored }
   }

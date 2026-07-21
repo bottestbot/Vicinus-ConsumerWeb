@@ -24,7 +24,10 @@ const SCHOOL_FULL_M = 800
 const SCHOOL_ZERO_M = 3000
 type SchoolLevel = 'elementary' | 'middle' | 'secondary'
 const SCHOOL_LEVELS: SchoolLevel[] = ['elementary', 'middle', 'secondary']
-const ALL_LEVELS_BONUS = 15 // added when every level is represented
+// Weighting between raw proximity and identified per-level coverage. A single
+// school of unknown level nearby scores 60; full identified coverage scores 100.
+const PROXIMITY_SHARE = 0.6
+const COVERAGE_SHARE = 0.4
 
 // Amenities: distance-decayed POI density with a per-category cap of 3 so
 // variety (a grocer AND a café AND a park) beats raw count (ten cafés). To
@@ -49,26 +52,27 @@ export class SchoolsAmenitiesService {
     const schools = pois.filter((p) => p.category === 'schools')
     if (schools.length === 0) return 0
 
-    // Best (nearest, decayed) access per level.
-    const bestByLevel: Record<SchoolLevel, number> = {
-      elementary: 0,
-      middle: 0,
-      secondary: 0,
-    }
+    // Proximity to the single nearest school, whatever its level.
+    let nearestAccess = 0
+    // Best access per level, counting ONLY schools whose name identifies a level.
+    const bestByLevel: Record<SchoolLevel, number> = { elementary: 0, middle: 0, secondary: 0 }
+
     for (const school of schools) {
       const decay = distanceDecay(walkingMeters(centroid, school), SCHOOL_FULL_M, SCHOOL_ZERO_M)
       if (decay <= 0) continue
-      for (const level of levelsFor(school.name)) {
-        bestByLevel[level] = Math.max(bestByLevel[level], decay)
-      }
+      nearestAccess = Math.max(nearestAccess, decay)
+      const level = levelFor(school.name)
+      if (level) bestByLevel[level] = Math.max(bestByLevel[level], decay)
     }
 
+    // Split between "is there a school nearby at all" and "are the levels
+    // actually covered". Previously an unnamed school was credited to all three
+    // levels, which handed a perfect 100 to any area with one school of unknown
+    // type — OSM rarely tags `isced:level`, so that was inventing coverage.
+    // Unlabelled schools now count only toward proximity.
     const levelsCovered = SCHOOL_LEVELS.filter((l) => bestByLevel[l] > 0).length
-    const meanAccess =
-      (bestByLevel.elementary + bestByLevel.middle + bestByLevel.secondary) / SCHOOL_LEVELS.length
-    const base = meanAccess * 100
-    const bonus = levelsCovered === SCHOOL_LEVELS.length ? ALL_LEVELS_BONUS : 0
-    return clamp0to100(base + bonus)
+    const coverage = levelsCovered / SCHOOL_LEVELS.length
+    return clamp0to100((PROXIMITY_SHARE * nearestAccess + COVERAGE_SHARE * coverage) * 100)
   }
 
   private amenitiesScore(pois: ScorablePoi[], centroid: LatLng): number {
@@ -89,14 +93,15 @@ export class SchoolsAmenitiesService {
   }
 }
 
-// v1 level inference from the POI name. Unknown names count toward all levels so
-// a generically-named "school" doesn't zero out coverage.
-function levelsFor(name?: string | null): SchoolLevel[] {
+// v1 level inference from the POI name. Returns null when the name doesn't
+// identify a level — the caller counts those toward proximity only, never
+// toward level coverage.
+function levelFor(name?: string | null): SchoolLevel | null {
   const n = (name ?? '').toLowerCase()
-  if (/element|primary|public school|é(?:cole )?élémentaire/.test(n)) return ['elementary']
-  if (/middle|junior|intermediate/.test(n)) return ['middle']
-  if (/second|high school|senior|collegiate|academy/.test(n)) return ['secondary']
-  return ['elementary', 'middle', 'secondary']
+  if (/element|primary|élémentaire/.test(n)) return 'elementary'
+  if (/middle|junior|intermediate/.test(n)) return 'middle'
+  if (/second|high school|senior|collegiate/.test(n)) return 'secondary'
+  return null
 }
 
 function clamp0to100(n: number): number {
