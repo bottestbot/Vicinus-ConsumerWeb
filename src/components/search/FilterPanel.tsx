@@ -8,6 +8,8 @@ import { HOME_TYPES } from '@/types/search'
 import { searchProperties, type SearchParams } from '@/lib/api/search'
 import { formatNumber } from '@/lib/format'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
+import PriceFilterPopover from './PriceFilterPopover'
+import ResponsivePopover from './ResponsivePopover'
 import SaveSearch from './SaveSearch'
 import SearchBar from './SearchBar'
 import ViewToggle from './ViewToggle'
@@ -128,12 +130,8 @@ function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () =>
   const t = glass(theme)
   const inputCls = `w-full rounded-lg px-2.5 py-2 text-sm ${t.input}`
 
-  const MIN_PRICE = [null, 500_000, 1_000_000, 2_000_000, 3_000_000, 5_000_000]
-  const MAX_PRICE = [null, 1_000_000, 2_000_000, 3_000_000, 5_000_000, 10_000_000]
   const SQFT = [null, 500, 1000, 1500, 2000, 3000, 5000]
   const COUNTS = [null, 1, 2, 3, 4]
-  const fmtPrice = (v: number | null) =>
-    v === null ? 'Any' : v >= 1_000_000 ? `$${(v / 1e6).toFixed(1)}M` : `$${(v / 1000).toFixed(0)}K`
 
   const exact = filters.bedsBathsExact
   const isTypeOn = (values: string[]) => values.every((v) => filters.structureType.includes(v))
@@ -145,41 +143,9 @@ function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () =>
   }
 
   return (
-    <div
-      className={[
-        'absolute top-full right-0 mt-2 w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl z-[100]',
-        'max-h-[70vh] overflow-y-auto',
-        t.surface,
-        t.text,
-      ].join(' ')}
-    >
+    <>
       <div className="p-4 space-y-5">
         <p className={`text-xs font-semibold ${t.textFaint} uppercase tracking-widest`}>Filters</p>
-
-        {/* Price range */}
-        <div>
-          <SectionLabel theme={theme}>Price range</SectionLabel>
-          <div className="grid grid-cols-2 gap-3">
-            <select
-              value={filters.minPrice ?? ''}
-              onChange={(e) => setFilter('minPrice', e.target.value ? Number(e.target.value) : null)}
-              className={inputCls}
-            >
-              {MIN_PRICE.map((v) => (
-                <option key={v ?? 'any'} value={v ?? ''} className="text-black">{v === null ? 'Min' : fmtPrice(v)}</option>
-              ))}
-            </select>
-            <select
-              value={filters.maxPrice ?? ''}
-              onChange={(e) => setFilter('maxPrice', e.target.value ? Number(e.target.value) : null)}
-              className={inputCls}
-            >
-              {MAX_PRICE.map((v) => (
-                <option key={v ?? 'any'} value={v ?? ''} className="text-black">{v === null ? 'Max' : fmtPrice(v)}</option>
-              ))}
-            </select>
-          </div>
-        </div>
 
         {/* Beds */}
         <div>
@@ -364,7 +330,7 @@ function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () =>
           {count !== null ? `Show ${formatNumber(count)} results` : 'Show results'}
         </button>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -377,8 +343,8 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
   const t = glass(theme)
 
   // Count of active filter *groups* — drives the button badge + highlight.
+  // Price has its own pill/popover now, so it's intentionally excluded here.
   const activeCount =
-    (filters.minPrice !== null || filters.maxPrice !== null ? 1 : 0) +
     (filters.beds !== null || filters.baths !== null ? 1 : 0) +
     (filters.structureType.length > 0 ? 1 : 0) +
     (filters.minSqft !== null || filters.maxSqft !== null ? 1 : 0) +
@@ -407,6 +373,9 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
         <SearchBar theme={theme} placeholder="Search city, address…" className="h-9 text-xs" />
       </div>
 
+      {/* Price — its own pill + popover */}
+      <PriceFilterPopover theme={theme} />
+
       {/* Filter button + combined dropdown */}
       <div ref={wrapRef} className="relative shrink-0">
         <button
@@ -428,7 +397,9 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
           )}
         </button>
 
-        {open && <FiltersDropdown theme={theme} onClose={() => setOpen(false)} />}
+        <ResponsivePopover open={open} onClose={() => setOpen(false)} theme={theme}>
+          <FiltersDropdown theme={theme} onClose={() => setOpen(false)} />
+        </ResponsivePopover>
       </div>
 
       {/* Save search — hidden on the narrowest screens to keep the bar compact */}

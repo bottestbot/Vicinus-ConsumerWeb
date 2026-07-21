@@ -121,16 +121,10 @@ export default function ResultsList({
 
   return (
     <div className="h-full flex flex-col bg-[#FAF9F6]">
-      {/* Header */}
-      <div className="px-5 py-4 bg-white border-b border-[#E8E6E1] shrink-0">
-        <h2 className="font-heading text-2xl font-semibold text-[#111111] leading-tight">
-          {locationLabel}
-        </h2>
-        <p className="text-xs text-[#6B6B6B] mt-0.5">
-          Exclusive curated listings &amp; interior stories.
-        </p>
+      {/* Header — result count only; the location is already named in the search bar */}
+      <div className="px-5 py-3 bg-white border-b border-[#E8E6E1] shrink-0">
         {!isLoading && (
-          <p className="text-[10px] font-semibold text-[#6B6B6B] mt-2 uppercase tracking-widest">
+          <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-widest">
             {formatNumber(totalCount)} results found
             {totalPages > 1 && ` · page ${page} of ${formatNumber(totalPages)}`}
           </p>
