@@ -47,15 +47,26 @@ export default function LivabilityPanel({ livability, city }: Props) {
   const animate = mounted || reducedMotion
   const { score, percentile, breakdown, region } = livability
   const topPercent = Math.max(1, 100 - percentile)
+  // 0 is the API's stand-in for "no score computed yet" (batch not run).
+  const isScored = score > 0
 
   return (
     <section className="rounded-2xl bg-[#1C3829] p-6 text-white sm:p-8">
       <div className="grid gap-8 sm:grid-cols-[minmax(140px,1fr)_2fr] sm:items-center">
-        {/* Score */}
+        {/* Score. A score of 0 means "not yet computed", not "scores zero" —
+            the API coerces an unscored neighbourhood to 0 to satisfy the
+            numeric contract, so rendering a bare 0 would assert a rating we
+            never calculated. */}
         <div>
-          <p className="font-heading text-6xl font-semibold leading-none text-[#A3E635]">{score}</p>
+          {isScored ? (
+            <p className="font-heading text-6xl font-semibold leading-none text-[#A3E635]">{score}</p>
+          ) : (
+            <p className="font-heading text-3xl font-semibold leading-tight text-white/50">
+              Not yet rated
+            </p>
+          )}
           <p className="mt-2 text-sm font-medium text-white">Livability</p>
-          {percentile > 0 && (
+          {isScored && percentile > 0 && (
             <p className="text-xs text-white/70">
               Top {topPercent}%{region ?? city ? ` in ${region ?? city}` : ''}
             </p>

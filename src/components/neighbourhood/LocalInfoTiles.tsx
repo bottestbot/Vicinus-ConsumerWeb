@@ -82,13 +82,16 @@ export default function LocalInfoTiles({
       icon: GraduationCap,
       label: 'Schools',
       sublabel: `${schoolsCount} nearby`,
-      href: `/search?neighbourhood=${slug}`,
+      // /search ignores a `neighbourhood` param, so linking there dropped the
+      // user on an unfiltered listing page. The schools are already listed in
+      // Local essentials above — jump there instead.
+      href: '#local-essentials',
     },
     {
       icon: UtensilsCrossed,
       label: 'Shop & eat',
       sublabel: `${shopCount} ${shopCount === 1 ? 'place' : 'places'}`,
-      href: `/search?neighbourhood=${slug}`,
+      href: '#local-essentials',
     },
   ]
 

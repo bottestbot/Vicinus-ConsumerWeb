@@ -60,7 +60,7 @@ export default function LocalEssentials({ localEssentials, neighbourhood }: Prop
   const shopBuckets = bucketShopAndEat(shopAndEat)
 
   return (
-    <section className="py-10 border-b border-[#E8E6E1]">
+    <section id="local-essentials" className="py-10 border-b border-[#E8E6E1]">
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#1C3829]">
