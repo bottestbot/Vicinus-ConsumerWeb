@@ -1,4 +1,9 @@
 import type { Neighbourhood, Essential, NeighbourhoodAgent, NeighbourhoodListing } from '@/types/neighbourhood'
+import type {
+  NeighbourhoodDetailResponse,
+  PoiItem,
+  PropertySummary,
+} from '@/types/neighbourhood-detail'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'
 
@@ -167,9 +172,12 @@ interface ApiListing {
   listPrice?: number | null
   bedrooms?: number | null
   bathrooms?: number | null
+  sqft?: number | null
   mainPhotoUrl?: string | null
   agentName?: string | null
   brokerageName?: string | null
+  realtorUrl?: string | null
+  listingUrl?: string | null
 }
 
 function mapListing(l: ApiListing): NeighbourhoodListing {
@@ -183,6 +191,9 @@ function mapListing(l: ApiListing): NeighbourhoodListing {
     agentName: l.agentName ?? undefined,
     brokerageName: l.brokerageName ?? undefined,
     mlsNumber: l.listingKey ?? undefined,
+    // DDF ListingURL — deep-links the "Powered by REALTOR.ca" badge. Was
+    // previously dropped even though the type + PropertyCell already support it.
+    realtorUrl: l.realtorUrl ?? l.listingUrl ?? undefined,
   }
 }
 
@@ -232,5 +243,163 @@ export async function getNeighbourhoods(): Promise<Neighbourhood[]> {
   // empty response, which leaked 6 fake neighbourhoods into prod (their slugs
   // 404 on click). The client renders a proper empty state for [] instead.
   return data.map(mapNeighbourhood)
+}
+
+// ─── Aggregate detail endpoint (NBHD-09) ──────────────────────────────────────
+// Serves the redesigned detail page in one call. The backend is being built in
+// parallel; until `/neighbourhoods/:slug/detail` ships, `getNeighbourhoodDetail`
+// composes the response from today's live endpoints so the page renders real
+// data now. When the real endpoint lands, `apiFetch` returns it verbatim and the
+// composition path is simply never hit — the swap is a no-op for callers.
+
+const DETAIL_FALLBACK_HERO =
+  'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=1400&q=80'
+
+/** School letter grade → 0–100, for the composed livability blend. */
+function gradeToScore(grade?: string | null): number {
+  if (!grade) return 75
+  const map: Record<string, number> = {
+    'A+': 97, A: 93, 'A-': 90,
+    'B+': 87, B: 83, 'B-': 80,
+    'C+': 77, C: 73, 'C-': 70,
+    'D+': 67, D: 63, 'D-': 60,
+    F: 50,
+  }
+  return map[grade.trim().toUpperCase()] ?? 75
+}
+
+/** "0.3 km" / "320 m" → metres. Best-effort parse for the composed POIs. */
+function distanceToMetres(distance: string): number {
+  const m = distance.match(/([\d.]+)\s*(km|m)?/i)
+  if (!m) return 0
+  const value = parseFloat(m[1])
+  if (Number.isNaN(value)) return 0
+  return /km/i.test(m[2] ?? '') ? Math.round(value * 1000) : Math.round(value)
+}
+
+function essentialToPoi(e: Essential): PoiItem {
+  return {
+    id: e.id,
+    name: e.name,
+    category: e.category,
+    lat: 0,
+    lng: 0,
+    distanceM: distanceToMetres(e.distance),
+  }
+}
+
+function listingToSummary(l: NeighbourhoodListing): PropertySummary {
+  return {
+    id: l.id,
+    address: l.address,
+    price: l.price,
+    beds: l.beds,
+    baths: l.baths,
+    sqft: 0, // not carried on NeighbourhoodListing; real /detail supplies it
+    imageUrl: l.imageUrl,
+    slug: l.id,
+    realtorUrl: l.realtorUrl,
+    agentName: l.agentName,
+    brokerageName: l.brokerageName,
+    mlsNumber: l.mlsNumber,
+  }
+}
+
+// Livability blend weights — mirrors the deterministic backend composite
+// (Walk 0.30 · Schools 0.25 · Amenities 0.25 · Transit 0.20). Healthcare is
+// intentionally excluded (proximity ≠ access). See [[project_livability_scoring]].
+const LIVABILITY_WEIGHTS_VERSION = 'compose-v1'
+
+function composeDetail(
+  n: Neighbourhood,
+  essentials: Essential[],
+  listings: NeighbourhoodListing[],
+): NeighbourhoodDetailResponse {
+  const walkability = n.walkScore ?? 0
+  const transit = n.transitScore ?? null
+  const schools = gradeToScore(n.schoolGrade)
+  const amenities = walkability // proxy until real amenities sub-score exists
+
+  // Weighted mean over the sub-scores we actually have (renormalise when transit
+  // is absent so a missing GTFS area isn't penalised to 0).
+  const parts: Array<[number, number]> = [
+    [walkability, 0.3],
+    [schools, 0.25],
+    [amenities, 0.25],
+  ]
+  if (transit != null) parts.push([transit, 0.2])
+  const weightSum = parts.reduce((s, [, w]) => s + w, 0)
+  const score = weightSum > 0 ? Math.round(parts.reduce((s, [v, w]) => s + v * w, 0) / weightSum) : 0
+
+  const byCategory = {
+    schools: essentials.filter((e) => e.category === 'education').map(essentialToPoi),
+    healthcare: essentials.filter((e) => e.category === 'healthcare').map(essentialToPoi),
+    parks: essentials.filter((e) => e.category === 'parks').map(essentialToPoi),
+    shopAndEat: [] as PoiItem[], // no shop/eat category in the legacy essentials feed
+  }
+
+  // Cold-start personalization: no signed-in user context here, so isPersonalized
+  // is false and the reason chips are derived from the area's *actual* strengths
+  // (never fabricated user history). The AI fit card renders its cold-start
+  // variant. Real per-user match data arrives from NBHD-08 via the /detail endpoint.
+  const reasonChips: string[] = []
+  if (walkability >= 80) reasonChips.push(`Walk score ${walkability} · walk-everywhere`)
+  else if (walkability >= 60) reasonChips.push(`Walkable · score ${walkability}`)
+  if (schools >= 75) reasonChips.push('Strong school access')
+  if (amenities >= 80) reasonChips.push('Amenities close by')
+  if (transit != null && transit >= 70) reasonChips.push(`Transit score ${transit}`)
+
+  return {
+    neighbourhood: {
+      id: n.slug,
+      slug: n.slug,
+      name: n.name,
+      city: n.city,
+      description: n.bio ?? '',
+      heroImageUrl: n.imageUrl || DETAIL_FALLBACK_HERO,
+      flavors: [],
+      centroidLat: n.lat ?? 0,
+      centroidLng: n.lng ?? 0,
+    },
+    marketSnapshot: {
+      medianPrice: n.medianPrice ?? 0,
+      priceChange30d: 0, // unknown from legacy endpoints
+      daysOnMarket: 0,
+      activeListings: listings.length,
+    },
+    livability: {
+      score,
+      // 0 = unknown here; the panel hides the "Top X%" line until the real
+      // /detail endpoint supplies a true percentile rank across the reference set.
+      percentile: 0,
+      breakdown: { walkability, schools, amenities, transit },
+      weightsVersion: LIVABILITY_WEIGHTS_VERSION,
+    },
+    localEssentials: byCategory,
+    localInfoTiles: { staticMapUrl: null, streetViewUrl: null },
+    liveListings: listings.slice(0, 6).map(listingToSummary),
+    personalization: {
+      matchPercent: 0,
+      reasonChips: reasonChips.slice(0, 3),
+      cautionChips: [],
+      isPersonalized: false,
+    },
+  }
+}
+
+export async function getNeighbourhoodDetail(slug: string): Promise<NeighbourhoodDetailResponse> {
+  const direct = await apiFetch<NeighbourhoodDetailResponse | null>(
+    `/neighbourhoods/${slug}/detail`,
+    null,
+  )
+  if (direct && direct.neighbourhood) return direct
+
+  // Fallback: compose from the live endpoints so the page works pre-NBHD-09.
+  const [n, essentials, listings] = await Promise.all([
+    getNeighbourhood(slug),
+    getNeighbourhoodEssentials(slug),
+    getNeighbourhoodListings(slug),
+  ])
+  return composeDetail(n, essentials, listings)
 }
 

@@ -1,0 +1,11 @@
+// Barrel exports for the neighbourhood detail page components.
+export { default as NeighbourhoodDetailBody } from './NeighbourhoodDetailBody'
+export { default as NeighbourhoodHero, NeighbourhoodHeroSkeleton } from './NeighbourhoodHero'
+export { default as MarketSnapshot } from './MarketSnapshot'
+export { default as NeighbourhoodNarrative } from './NeighbourhoodNarrative'
+export { default as WhyItFitsCard } from './WhyItFitsCard'
+export { default as LocalEssentials } from './LocalEssentials'
+export { default as LivabilityPanel } from './LivabilityPanel'
+export { default as LocalInfoTiles } from './LocalInfoTiles'
+export { default as LiveListingsCarousel } from './LiveListingsCarousel'
+export { default as NeighbourhoodCTA } from './NeighbourhoodCTA'

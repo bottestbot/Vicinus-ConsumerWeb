@@ -11,6 +11,7 @@
   "scripts": {
     "build": "prisma generate && nest build",
     "db:seed:neighbourhoods": "ts-node --transpile-only prisma/seeds/metro-vancouver-neighbourhoods.ts && ts-node --transpile-only prisma/seeds/bc-neighbourhoods.ts",
+    "scores:neighbourhoods": "ts-node --transpile-only src/scripts/compute-neighbourhood-scores.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

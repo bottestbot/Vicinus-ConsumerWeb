@@ -1,11 +1,33 @@
-import { Controller, Get, Param } from '@nestjs/common'
+import { Controller, Get, Param, UseGuards } from '@nestjs/common'
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger'
-import { NeighbourhoodsService, AgentSummary, EssentialSummary, ListingSummary, NeighbourhoodSummary } from './neighbourhoods.service'
+import {
+  NeighbourhoodsService,
+  AgentSummary,
+  EssentialSummary,
+  ListingSummary,
+  NeighbourhoodDetail,
+  NeighbourhoodSummary,
+} from './neighbourhoods.service'
+import { OptionalClerkAuthGuard } from '../../common/guards/optional-clerk-auth.guard'
+import { CurrentUser } from '../../common/decorators/current-user.decorator'
 
 @ApiTags('neighbourhoods')
 @Controller('neighbourhoods')
 export class NeighbourhoodsController {
   constructor(private readonly service: NeighbourhoodsService) {}
+
+  // NBHD-09 — optional auth: anonymous callers get everything except the
+  // personalized match block; signed-in callers also get `personalization`.
+  @Get(':slug/detail')
+  @UseGuards(OptionalClerkAuthGuard)
+  @ApiOperation({ summary: 'Aggregate neighbourhood detail (market, livability, essentials, listings)' })
+  @ApiParam({ name: 'slug', description: 'Neighbourhood slug' })
+  getDetail(
+    @Param('slug') slug: string,
+    @CurrentUser() clerkId?: string,
+  ): Promise<NeighbourhoodDetail> {
+    return this.service.getDetail(slug, clerkId)
+  }
 
   @Get()
   @ApiOperation({ summary: 'List all curated neighbourhoods' })
