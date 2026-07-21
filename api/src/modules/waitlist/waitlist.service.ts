@@ -2,12 +2,16 @@ import { Injectable, Logger } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { JoinWaitlistDto } from './dto/join-waitlist.dto'
+import { AirtableWaitlistService } from './airtable-waitlist.service'
 
 @Injectable()
 export class WaitlistService {
   private readonly logger = new Logger(WaitlistService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly airtable: AirtableWaitlistService,
+  ) {}
 
   // Persist a Realtor Hub signup. Idempotent on email so a re-submit is a no-op
   // rather than an error. Never logs the email or name (PII).
@@ -26,16 +30,16 @@ export class WaitlistService {
       return { ok: true, alreadyJoined: true }
     }
 
+    const data = {
+      fullName: dto.fullName.trim(),
+      email,
+      brokerage: dto.brokerage?.trim() || null,
+      cityMarket: dto.cityMarket?.trim() || null,
+      source: 'realtor-hub',
+    }
+
     try {
-      await this.prisma.realtorWaitlist.create({
-        data: {
-          fullName: dto.fullName.trim(),
-          email,
-          brokerage: dto.brokerage?.trim() || null,
-          cityMarket: dto.cityMarket?.trim() || null,
-          source: 'realtor-hub',
-        },
-      })
+      await this.prisma.realtorWaitlist.create({ data })
     } catch (err) {
       // Concurrent submit lost the unique-email race — treat as already joined.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -44,8 +48,12 @@ export class WaitlistService {
       throw err
     }
 
-    // RH-BE-05: once the analytics pipeline (DATA-07) + notifications land, emit
-    // `realtor_waitlist_submitted` here and notify ops of the new signup.
+    // Mirror the signup into Airtable, where an automation emails ops about the
+    // new record. Fire-and-forget — never blocks or fails the signup.
+    this.airtable.pushRealtorSignup(data)
+
+    // RH-BE-05: once the analytics pipeline (DATA-07) lands, also emit
+    // `realtor_waitlist_submitted` here.
     this.logger.log('New realtor-waitlist signup captured')
 
     return { ok: true, alreadyJoined: false }
