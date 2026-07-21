@@ -6,6 +6,7 @@ import { DdfPropertySync } from './ddf-property.sync'
 import { DdfMemberSync } from './ddf-member.sync'
 import { DdfOfficeSync } from './ddf-office.sync'
 import { DdfOpenHouseSync } from './ddf-openhouse.sync'
+import { DdfReconciliationSync } from './ddf-reconciliation.sync'
 import { SearchModule } from '../search/search.module'
 import { AlertsModule } from '../alerts/alerts.module'
 
@@ -19,7 +20,15 @@ import { AlertsModule } from '../alerts/alerts.module'
     // DdfOpenHouseSync to generate alerts right after each upsert.
     AlertsModule,
   ],
-  providers: [DdfSyncService, DdfAuthService, DdfPropertySync, DdfMemberSync, DdfOfficeSync, DdfOpenHouseSync],
+  providers: [
+    DdfSyncService,
+    DdfAuthService,
+    DdfPropertySync,
+    DdfMemberSync,
+    DdfOfficeSync,
+    DdfOpenHouseSync,
+    DdfReconciliationSync,
+  ],
   exports: [DdfAuthService],
 })
 export class DdfSyncModule {}

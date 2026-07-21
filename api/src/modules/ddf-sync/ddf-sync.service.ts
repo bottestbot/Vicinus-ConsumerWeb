@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Cron } from '@nestjs/schedule'
+import { Cron, CronExpression } from '@nestjs/schedule'
 import { PrismaService } from '../../prisma/prisma.service'
 import { DdfPropertySync } from './ddf-property.sync'
 import { DdfMemberSync } from './ddf-member.sync'
 import { DdfOfficeSync } from './ddf-office.sync'
 import { DdfOpenHouseSync } from './ddf-openhouse.sync'
+import { DdfReconciliationSync } from './ddf-reconciliation.sync'
 
 /**
  * BE-811: `scheduledSync` runs `syncProperties()` and the open-house sync every
@@ -26,6 +27,7 @@ export class DdfSyncService {
     private memberSync: DdfMemberSync,
     private officeSync: DdfOfficeSync,
     private openHouseSync: DdfOpenHouseSync,
+    private reconciliationSync: DdfReconciliationSync,
   ) {}
 
   async syncProperties() {
@@ -48,6 +50,10 @@ export class DdfSyncService {
     })
   }
 
+  // BE-Task#9: brokerage/agent attribution must stay fresh, so the member/office
+  // sync now runs on its own daily cron (previously manual-only). Kept off the
+  // 15-min property cadence — agents/offices change far less often than listings.
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async syncMembersAndOffices() {
     this.logger.log('Starting member/office sync...')
     const lastSync = await this.getLastSync('Member')
@@ -83,6 +89,36 @@ export class DdfSyncService {
         data: { entity: 'OpenHouse', recordsSynced: 0, status: 'error', errorMessage: (err as Error).message },
       })
     }
+  }
+
+  // BE-Task#1: DDF requires deleting listings that fall off the authoritative
+  // PropertyReplication() master list (sold/cancelled/off-market). Runs once
+  // daily — separate from the 15-min incremental upsert sync above.
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
+  async reconcileListings() {
+    this.logger.log('Starting replication reconciliation...')
+    let status = 'success'
+    let errorMessage: string | undefined
+    let deletedCount = 0
+
+    try {
+      const result = await this.reconciliationSync.reconcile()
+      deletedCount = result.deletedCount
+    } catch (err) {
+      status = 'error'
+      errorMessage = (err as Error).message
+      this.logger.error('Replication reconciliation failed', err)
+    }
+
+    await this.prisma.ddfSyncLog.create({
+      data: {
+        entity: 'PropertyReplication',
+        recordsSynced: deletedCount,
+        lastModifiedTimestamp: new Date(),
+        status,
+        errorMessage,
+      },
+    })
   }
 
   private async getLastSync(entity: string): Promise<Date | null> {
