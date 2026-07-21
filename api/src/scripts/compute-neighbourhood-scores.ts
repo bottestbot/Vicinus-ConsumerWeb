@@ -69,8 +69,8 @@ async function main() {
   }
 
   console.log('Computing livability scores...')
-  const { scored } = await livability.computeAllScores()
-  console.log(`Scored ${scored}/${total} neighbourhoods.`)
+  const { scored, skipped, failed } = await livability.computeAllScores()
+  console.log(`Scored ${scored}/${total} neighbourhoods (${skipped} unrated, ${failed} errored).`)
 
   // Precomputed values just changed — drop the cached detail payloads so the
   // endpoint doesn't serve stale scores for up to 30 minutes.

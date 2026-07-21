@@ -106,21 +106,31 @@ export class LivabilityService {
   }
 
   /** Batch: score every neighbourhood, then recompute all percentiles once scores exist. */
-  async computeAllScores(): Promise<{ scored: number }> {
+  async computeAllScores(): Promise<{ scored: number; skipped: number; failed: number }> {
     const neighbourhoods = await this.prisma.neighbourhood.findMany({ select: { id: true } })
     let scored = 0
+    let skipped = 0
+    let failed = 0
     for (const { id } of neighbourhoods) {
       try {
         // Defer ranking: percentiles are only meaningful once every score is in.
-        await this.computeAndSaveScores(id, { skipPercentiles: true })
-        scored += 1
+        const result = await this.computeAndSaveScores(id, { skipPercentiles: true })
+        // A neighbourhood with no POIs or no centroid returns nulls without
+        // writing anything. Counting those as "scored" reported a clean
+        // 420/420 for a run that actually left 77 neighbourhoods unrated.
+        if (result.livability == null) skipped += 1
+        else scored += 1
       } catch (err) {
+        failed += 1
         this.logger.warn(`Failed to score neighbourhood ${id}: ${(err as Error).message}`)
       }
     }
     // Single ranking pass over every region now that all scores are written.
     await this.recomputePercentiles(null)
-    return { scored }
+    if (skipped > 0) {
+      this.logger.warn(`${skipped} neighbourhoods left unrated (no POI data or no centroid)`)
+    }
+    return { scored, skipped, failed }
   }
 
   /**
