@@ -1,9 +1,8 @@
 import Link from 'next/link'
 import Logo from '@/components/brand/Logo'
 
-// Only real, existing routes are linked here — Terms / About / Contact pages
-// don't exist yet, so they're intentionally omitted rather than shipped as 404s
-// (DSGN-03). Add them here once those pages are built.
+// Only real, existing routes are linked here so we never ship 404s.
+// About / Contact pages don't exist yet and are intentionally omitted.
 const EXPLORE_LINKS = [
   { label: 'Buy', href: '/search?listingType=For+Sale' },
   { label: 'Sell', href: '/sell' },
@@ -48,6 +47,12 @@ export default function Footer() {
             <p className="text-white/40 uppercase tracking-widest text-[10px] font-semibold mb-1">
               Legal
             </p>
+            <Link
+              href="/terms"
+              className="text-white/60 hover:text-white/90 transition-colors w-fit"
+            >
+              Terms of Service
+            </Link>
             <Link
               href="/privacy"
               className="text-white/60 hover:text-white/90 transition-colors w-fit"
