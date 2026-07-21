@@ -225,6 +225,23 @@ export class NeighbourhoodsService {
     return { ...base, personalization }
   }
 
+  /**
+   * Fetch a Static Map / Street View tile image for a neighbourhood, server-side.
+   * Returns null when there is no key or no centroid, so the controller can 404
+   * rather than emit a broken image.
+   */
+  async getTileImage(slug: string, kind: 'map' | 'street-view') {
+    const row = await this.prisma.neighbourhood.findUnique({
+      where: { slug },
+      select: { lat: true, lng: true, centroidLat: true, centroidLng: true },
+    })
+    if (!row) throw new NotFoundException(`Neighbourhood "${slug}" not found`)
+    const lat = row.centroidLat ?? row.lat
+    const lng = row.centroidLng ?? row.lng
+    if (lat == null || lng == null) return null
+    return this.maps.fetchTileImage(kind, lat, lng)
+  }
+
   private async getDetailBase(slug: string): Promise<NeighbourhoodDetailBase> {
     const cacheKey = `neighbourhood:${slug}:detail`
     const cached = await this.redis.get(cacheKey)
@@ -306,9 +323,13 @@ export class NeighbourhoodsService {
         weightsVersion: WEIGHTS_VERSION,
       },
       localEssentials,
+      // Proxied API paths, NOT Google URLs — the direct URLs carry the API key
+      // and must never reach the browser. The FE prefixes these with its API
+      // base. These are image sources for the tiles, not interactive links:
+      // the FE builds google.com/maps deep links from the centroid for that.
       localInfoTiles: {
-        staticMapUrl: centroid ? this.maps.getStaticMapUrl(centroid.lat, centroid.lng) : null,
-        streetViewUrl: centroid ? this.maps.getStreetViewUrl(centroid.lat, centroid.lng) : null,
+        staticMapUrl: centroid ? `/neighbourhoods/${slug}/tile/map` : null,
+        streetViewUrl: centroid ? `/neighbourhoods/${slug}/tile/street-view` : null,
       },
       liveListings,
     }

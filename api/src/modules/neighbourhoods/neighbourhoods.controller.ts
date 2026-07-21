@@ -1,5 +1,6 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common'
+import { Controller, Get, NotFoundException, Param, Res, UseGuards } from '@nestjs/common'
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger'
+import type { Response } from 'express'
 import {
   NeighbourhoodsService,
   AgentSummary,
@@ -40,6 +41,31 @@ export class NeighbourhoodsController {
   @ApiParam({ name: 'slug', description: 'Neighbourhood slug (e.g. rosedale-toronto)' })
   detail(@Param('slug') slug: string): Promise<NeighbourhoodSummary> {
     return this.service.findBySlug(slug)
+  }
+
+  // NBHD-03 — streams the Google tile image from the server so the API key is
+  // never exposed to the client. Cached hard: the underlying image only changes
+  // if the neighbourhood centroid moves.
+  @Get(':slug/tile/:kind')
+  @ApiOperation({ summary: 'Proxied Static Map / Street View image for a neighbourhood' })
+  @ApiParam({ name: 'slug', description: 'Neighbourhood slug' })
+  @ApiParam({ name: 'kind', enum: ['map', 'street-view'] })
+  async tile(
+    @Param('slug') slug: string,
+    @Param('kind') kind: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (kind !== 'map' && kind !== 'street-view') {
+      throw new NotFoundException(`Unknown tile kind "${kind}"`)
+    }
+    const image = await this.service.getTileImage(slug, kind)
+    if (!image) {
+      // No API key or no centroid — let the FE fall back to its own placeholder.
+      throw new NotFoundException('Tile image unavailable')
+    }
+    res.setHeader('Content-Type', image.contentType)
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.send(image.data)
   }
 
   @Get(':slug/listings')

@@ -388,12 +388,25 @@ function composeDetail(
   }
 }
 
+// The API returns tile images as its own relative paths (never Google URLs —
+// those carry the API key). Resolve them against the API origin so <img> works.
+function absolutiseTiles(d: NeighbourhoodDetailResponse): NeighbourhoodDetailResponse {
+  const toAbs = (u: string | null) => (u && u.startsWith('/') ? `${API_BASE}${u}` : u)
+  return {
+    ...d,
+    localInfoTiles: {
+      staticMapUrl: toAbs(d.localInfoTiles.staticMapUrl),
+      streetViewUrl: toAbs(d.localInfoTiles.streetViewUrl),
+    },
+  }
+}
+
 export async function getNeighbourhoodDetail(slug: string): Promise<NeighbourhoodDetailResponse> {
   const direct = await apiFetch<NeighbourhoodDetailResponse | null>(
     `/neighbourhoods/${slug}/detail`,
     null,
   )
-  if (direct && direct.neighbourhood) return direct
+  if (direct && direct.neighbourhood) return absolutiseTiles(direct)
 
   // Fallback: compose from the live endpoints so the page works pre-NBHD-09.
   const [n, essentials, listings] = await Promise.all([

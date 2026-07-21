@@ -68,6 +68,36 @@ export class GoogleMapsProxyService {
     return `${STREET_VIEW_URL}?${params.toString()}`
   }
 
+  /**
+   * Fetch a Static Map / Street View image server-side and return the bytes.
+   *
+   * The URL builders above embed the API key, so their output must NEVER reach
+   * the browser — returning them to the client leaked the key into the DOM.
+   * The controller streams these bytes instead, which is what "the key stays
+   * server-side" actually requires.
+   */
+  async fetchTileImage(
+    kind: 'map' | 'street-view',
+    lat: number,
+    lng: number,
+  ): Promise<{ data: Buffer; contentType: string } | null> {
+    if (!this.apiKey) return null
+    const url =
+      kind === 'map' ? this.getStaticMapUrl(lat, lng) : this.getStreetViewUrl(lat, lng)
+    try {
+      const response = await firstValueFrom(
+        this.http.get<ArrayBuffer>(url, { responseType: 'arraybuffer' }),
+      )
+      return {
+        data: Buffer.from(response.data),
+        contentType: (response.headers as Record<string, string>)['content-type'] ?? 'image/png',
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to fetch ${kind} tile: ${(err as Error).message}`)
+      return null
+    }
+  }
+
   /** Places Nearby, cached in Redis 24h. Fail-soft to []. */
   async getNearbyPlaces(
     lat: number,

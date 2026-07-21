@@ -1,3 +1,5 @@
+'use client'
+
 // NBHD-D08 — Local information tiles. Four compact icon tiles (Map view · Street
 // view · Schools · Shop & eat), each with a count/sublabel, opening the relevant
 // interactive experience.
@@ -18,6 +20,8 @@ interface Tile {
   sublabel: string
   href: string
   external?: boolean
+  /** Proxied preview image (API path, key-free). Omitted for non-visual tiles. */
+  preview?: string | null
 }
 
 export default function LocalInfoTiles({
@@ -30,15 +34,33 @@ export default function LocalInfoTiles({
   const hasCoords =
     Number.isFinite(centroidLat) && Number.isFinite(centroidLng) && (centroidLat !== 0 || centroidLng !== 0)
 
-  const streetViewHref =
-    localInfoTiles.streetViewUrl ??
-    (hasCoords
-      ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${centroidLat},${centroidLng}`
-      : `/search?neighbourhood=${slug}`)
+  // Interactive Google Maps deep links. These must be built from the centroid —
+  // never from localInfoTiles.*, which are Static API *image* endpoints: opening
+  // one shows a flat JPEG rather than an explorable map or pano.
+  const mapHref = hasCoords
+    ? `https://www.google.com/maps/@?api=1&map_action=map&center=${centroidLat},${centroidLng}&zoom=15`
+    : `/search?neighbourhood=${slug}`
+  const streetViewHref = hasCoords
+    ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${centroidLat},${centroidLng}`
+    : `/search?neighbourhood=${slug}`
 
   const tiles: Tile[] = [
-    { icon: Map, label: 'Map view', sublabel: 'Explore the area', href: `/search?neighbourhood=${slug}` },
-    { icon: Footprints, label: 'Street view', sublabel: 'Virtual walk', href: streetViewHref, external: true },
+    {
+      icon: Map,
+      label: 'Map view',
+      sublabel: 'Explore the area',
+      href: mapHref,
+      external: hasCoords,
+      preview: localInfoTiles.staticMapUrl,
+    },
+    {
+      icon: Footprints,
+      label: 'Street view',
+      sublabel: 'Virtual walk',
+      href: streetViewHref,
+      external: hasCoords,
+      preview: localInfoTiles.streetViewUrl,
+    },
     {
       icon: GraduationCap,
       label: 'Schools',
@@ -65,6 +87,20 @@ export default function LocalInfoTiles({
           const Icon = tile.icon
           const inner = (
             <>
+              {tile.preview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={tile.preview}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  className="mb-3 h-24 w-full rounded-lg object-cover"
+                  onError={(e) => {
+                    // Tile unavailable (no key / no imagery) — drop to the icon.
+                    e.currentTarget.style.display = 'none'
+                  }}
+                />
+              ) : null}
               <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#1C3829] ring-1 ring-[#E8E6E1]">
                 <Icon size={18} />
               </span>
