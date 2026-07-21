@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CalendarPlus, Calendar, ArrowDown, RefreshCw, Home } from 'lucide-react'
-import { useAlerts, useDeleteAlert, useMarkAllAlertsRead } from '@/hooks/useAlerts'
+import { useAlerts, useDeleteAlert, useMarkAllAlertsRead, ALERTS_PAGE_SIZE } from '@/hooks/useAlerts'
 import { useOpenHouseVisits } from '@/hooks/useOpenHouseVisits'
+import { formatOpenHouseTime, formatOpenHouseTimeRange } from '@/lib/format'
 import AddToScheduleButton from '@/components/property/AddToScheduleButton'
-import type { Alert, DashboardProperty, OpenHouseVisit } from '@/types/dashboard'
+import type { Alert, AlertType, DashboardProperty, OpenHouseVisit } from '@/types/dashboard'
 
 type Tab = 'All' | 'Alerts' | 'Schedule'
 const TABS: Tab[] = ['All', 'Alerts', 'Schedule']
@@ -139,17 +140,6 @@ function addressLabel(payload: Record<string, unknown>, property: DashboardPrope
   return 'A listing'
 }
 
-/** "14:00:00.00" → "2:00 PM" */
-function formatOpenHouseTime(time: string | undefined): string {
-  if (!time) return ''
-  const [h, m] = time.split(':')
-  const hour = Number(h)
-  if (Number.isNaN(hour)) return ''
-  const period = hour >= 12 ? 'PM' : 'AM'
-  const h12 = hour % 12 === 0 ? 12 : hour % 12
-  return `${h12}:${m ?? '00'} ${period}`
-}
-
 /** "2026-07-19T00:00:00.000Z" → "Jul 19" */
 function formatOpenHouseDate(dateStr: string | undefined): string {
   if (!dateStr) return ''
@@ -229,7 +219,102 @@ function formatScheduleDate(dateStr: string | null): string {
 
 function formatScheduleTime(visit: OpenHouseVisit): string {
   if (!visit.openHouseStartTime) return 'Time TBD'
-  return visit.openHouseEndTime ? `${visit.openHouseStartTime}–${visit.openHouseEndTime}` : visit.openHouseStartTime
+  return formatOpenHouseTimeRange(visit.openHouseStartTime, visit.openHouseEndTime)
+}
+
+/** Every alert type except OPEN_HOUSE — the "Alerts" tab's own server-side
+ *  filter, fetched via a dedicated query rather than sliced from "All"'s
+ *  paginated window (that window can be dominated by OPEN_HOUSE rows). */
+const NON_OPEN_HOUSE_TYPES: AlertType[] = ['NEW_LISTING', 'PRICE_DROP', 'STATUS_CHANGE']
+
+/** Numbered page controls — 1, 2, 3, 4… rather than "Load more". */
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number
+  totalPages: number
+  onChange: (page: number) => void
+}) {
+  if (totalPages <= 1) return null
+  return (
+    <div className="flex items-center justify-center gap-1 pt-3">
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+        <button
+          key={p}
+          onClick={() => onChange(p)}
+          aria-current={p === page ? 'page' : undefined}
+          className={`w-7 h-7 shrink-0 rounded-full text-[11px] font-semibold transition-colors ${
+            p === page ? 'bg-[#1C3829] text-white' : 'text-[#6B6B6B] hover:bg-[#F2F0EB]'
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ─── Day-grouped alert list — shared by the "All" and "Alerts" tabs, each of
+// which is backed by its own useAlerts() query/pagination state ──────────────
+
+function AlertsList({
+  alerts,
+  emptyMessage,
+  isFetching,
+  page,
+  totalPages,
+  onPageChange,
+  onOpenAlert,
+}: {
+  alerts: Alert[]
+  emptyMessage: string
+  isFetching: boolean
+  page: number
+  totalPages: number
+  onPageChange: (page: number) => void
+  onOpenAlert: (alert: Alert) => void
+}) {
+  return (
+    <div className={isFetching ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+      {groupByDay(alerts).map((group) => (
+        <div key={group.label}>
+          <p className="text-[10.5px] font-bold text-[#6B6B6B] uppercase tracking-widest mt-4 mb-2 first:mt-0">
+            {group.label}
+          </p>
+          {group.items.map((alert) => {
+            const visual = alertVisual(alert)
+            const propertyId = alert.property?.id ?? alert.propertyId
+            return (
+              <AlertItem
+                key={alert.id}
+                icon={visual.icon}
+                title={visual.title}
+                subtitle={visual.subtitle}
+                stripeColor={visual.stripeColor}
+                iconBg={visual.iconBg}
+                time={formatTime(alert.createdAt)}
+                badge={!alert.readAt ? 'New' : undefined}
+                onClick={propertyId ? () => onOpenAlert(alert) : undefined}
+                action={
+                  alert.type === 'OPEN_HOUSE' && alert.ddfOpenHouseKey ? (
+                    <AddToScheduleButton
+                      openHouseKey={alert.ddfOpenHouseKey}
+                      currentListingId={alert.property?.id ?? ''}
+                      className="shrink-0 text-[9px] px-2 py-1"
+                    />
+                  ) : undefined
+                }
+              />
+            )
+          })}
+        </div>
+      ))}
+      {alerts.length === 0 && <p className="text-sm text-[#6B6B6B] py-8 text-center">{emptyMessage}</p>}
+      <Pagination page={page} totalPages={totalPages} onChange={onPageChange} />
+    </div>
+  )
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
@@ -237,17 +322,30 @@ function formatScheduleTime(visit: OpenHouseVisit): string {
 export default function NotificationsPanel() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('All')
-  const { data } = useAlerts()
+  const [allPage, setAllPage] = useState(1)
+  const [alertsPage, setAlertsPage] = useState(1)
+  const all = useAlerts(allPage)
+  const alertsOnly = useAlerts(alertsPage, NON_OPEN_HOUSE_TYPES)
   const { data: scheduleGroups } = useOpenHouseVisits()
   const deleteAlert = useDeleteAlert()
   const markAllRead = useMarkAllAlertsRead()
 
-  const alerts = data?.alerts ?? []
-  const unreadCount = data?.unreadCount ?? 0
-  const alertsForAlertsTab = alerts.filter((a) => a.type !== 'OPEN_HOUSE')
+  const alerts = all.data?.alerts ?? []
+  const alertsForAlertsTab = alertsOnly.data?.alerts ?? []
+  const allTotalPages = Math.ceil((all.data?.total ?? 0) / ALERTS_PAGE_SIZE)
+  const alertsTotalPages = Math.ceil((alertsOnly.data?.total ?? 0) / ALERTS_PAGE_SIZE)
+  // The unread badge/footer count is global (repeated on every cached page of
+  // every tab's response) — "All" is as good a source as any.
+  const unreadCount = all.data?.unreadCount ?? 0
   const scheduleVisits = (scheduleGroups ?? []).flatMap((g) => g.visits)
 
-  const showAlerts = activeTab === 'All' || activeTab === 'Alerts'
+  const openAlert = (alert: Alert) => {
+    const propertyId = alert.property?.id ?? alert.propertyId
+    if (!propertyId) return
+    deleteAlert.mutate(alert.id)
+    router.push(`/properties/${propertyId}`)
+  }
+
   const showSchedule = activeTab === 'Schedule'
 
   return (
@@ -257,9 +355,11 @@ export default function NotificationsPanel() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-heading text-lg font-semibold text-[#111111]">Notifications</h2>
           {unreadCount > 0 && (
-            <span className="w-6 h-6 bg-[#1C3829] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {Math.min(unreadCount, 9)}
-            </span>
+            <span
+              className="w-2.5 h-2.5 rounded-full bg-[#1C3829]"
+              role="status"
+              aria-label={`${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`}
+            />
           )}
         </div>
 
@@ -301,55 +401,30 @@ export default function NotificationsPanel() {
           </div>
         )}
 
-        {/* Alerts — grouped by day so the full-height panel isn't just a flat list */}
-        {showAlerts && (
-          <div>
-            {groupByDay(activeTab === 'All' ? alerts : alertsForAlertsTab).map((group) => (
-              <div key={group.label}>
-                <p className="text-[10.5px] font-bold text-[#6B6B6B] uppercase tracking-widest mt-4 mb-2 first:mt-0">
-                  {group.label}
-                </p>
-                {group.items.map((alert) => {
-                  const visual = alertVisual(alert)
-                  const propertyId = alert.property?.id ?? alert.propertyId
-                  return (
-                    <AlertItem
-                      key={alert.id}
-                      icon={visual.icon}
-                      title={visual.title}
-                      subtitle={visual.subtitle}
-                      stripeColor={visual.stripeColor}
-                      iconBg={visual.iconBg}
-                      time={formatTime(alert.createdAt)}
-                      badge={!alert.readAt ? 'New' : undefined}
-                      onClick={
-                        propertyId
-                          ? () => {
-                              deleteAlert.mutate(alert.id)
-                              router.push(`/properties/${propertyId}`)
-                            }
-                          : undefined
-                      }
-                      action={
-                        alert.type === 'OPEN_HOUSE' && alert.ddfOpenHouseKey ? (
-                          <AddToScheduleButton
-                            openHouseKey={alert.ddfOpenHouseKey}
-                            currentListingId={alert.property?.id ?? ''}
-                            className="shrink-0 text-[9px] px-2 py-1"
-                          />
-                        ) : undefined
-                      }
-                    />
-                  )
-                })}
-              </div>
-            ))}
-            {alerts.length === 0 && (
-              <p className="text-sm text-[#6B6B6B] py-8 text-center">
-                {activeTab === 'Alerts' ? 'No alerts yet.' : 'No notifications yet.'}
-              </p>
-            )}
-          </div>
+        {/* Alerts — grouped by day so the full-height panel isn't just a flat list.
+            "All" and "Alerts" are independent queries/pagination, not a
+            client-side filter of one shared fetch. */}
+        {activeTab === 'All' && (
+          <AlertsList
+            alerts={alerts}
+            emptyMessage="No notifications yet."
+            isFetching={all.isFetching}
+            page={allPage}
+            totalPages={allTotalPages}
+            onPageChange={setAllPage}
+            onOpenAlert={openAlert}
+          />
+        )}
+        {activeTab === 'Alerts' && (
+          <AlertsList
+            alerts={alertsForAlertsTab}
+            emptyMessage="No alerts yet."
+            isFetching={alertsOnly.isFetching}
+            page={alertsPage}
+            totalPages={alertsTotalPages}
+            onPageChange={setAlertsPage}
+            onOpenAlert={openAlert}
+          />
         )}
       </div>
 

@@ -54,14 +54,21 @@ export class AlertsService {
 
   async listForUser(
     clerkId: string,
-    opts: { type?: AlertType; page?: number; limit?: number },
+    opts: { type?: AlertType | AlertType[]; page?: number; limit?: number },
   ) {
     const user = await this.users.getMe(clerkId);
     const page = opts.page ?? 1;
     const limit = opts.limit ?? 20;
+    const typeFilter = Array.isArray(opts.type)
+      ? opts.type.length > 0
+        ? { type: { in: opts.type } }
+        : {}
+      : opts.type
+        ? { type: opts.type }
+        : {};
     const where: Prisma.AlertWhereInput = {
       userId: user.id,
-      ...(opts.type ? { type: opts.type } : {}),
+      ...typeFilter,
     };
 
     const [rows, total, unreadCount] = await Promise.all([
@@ -215,13 +222,19 @@ export class AlertsService {
     }
   }
 
-  /** BE-804/805: fires only when the caller has already confirmed a price drop. */
+  /** BE-804/805: fires only when the caller has already confirmed a price drop.
+   *  Notifies both users interested in this exact listing (saved/visited) and
+   *  users whose SavedSearch filters match the property, unioned + deduped. */
   async generatePriceDropAlert(
     property: Property,
     previousPrice: number,
   ): Promise<void> {
     if (property.price === null) return;
-    const userIds = await this.interestedUserIds(property.ddfListingKey);
+    const [interested, searchMatched] = await Promise.all([
+      this.interestedUserIds(property.ddfListingKey),
+      this.savedSearchMatchedUserIds(property),
+    ]);
+    const userIds = new Set([...interested, ...searchMatched]);
     for (const userId of userIds) {
       await this.createAlert({
         userId,
@@ -238,13 +251,19 @@ export class AlertsService {
     }
   }
 
-  /** BE-806/807: fires only when the caller has already confirmed a status change. */
+  /** BE-806/807: fires only when the caller has already confirmed a status change.
+   *  Notifies both users interested in this exact listing (saved/visited) and
+   *  users whose SavedSearch filters match the property, unioned + deduped. */
   async generateStatusChangeAlert(
     property: Property,
     previousStatus: string,
   ): Promise<void> {
     if (!ALERT_WORTHY_STATUSES.has(property.status)) return;
-    const userIds = await this.interestedUserIds(property.ddfListingKey);
+    const [interested, searchMatched] = await Promise.all([
+      this.interestedUserIds(property.ddfListingKey),
+      this.savedSearchMatchedUserIds(property),
+    ]);
+    const userIds = new Set([...interested, ...searchMatched]);
     for (const userId of userIds) {
       await this.createAlert({
         userId,
@@ -273,15 +292,9 @@ export class AlertsService {
       }),
     ]);
 
-    const searchUserIds: string[] = [];
-    if (property) {
-      const searches = await this.prisma.savedSearch.findMany();
-      for (const search of searches) {
-        const filters = (search.filters as Record<string, unknown>) ?? {};
-        if (matchesSavedSearch(property, filters))
-          searchUserIds.push(search.userId);
-      }
-    }
+    const searchUserIds = property
+      ? await this.savedSearchMatchedUserIds(property)
+      : [];
 
     const userIds = new Set([...savedUserIds, ...searchUserIds]);
     for (const userId of userIds) {
@@ -299,6 +312,23 @@ export class AlertsService {
         },
       });
     }
+  }
+
+  /** Users whose SavedSearch filters match the given property.
+   *  NOTE: loads every SavedSearch row and matches in JS — this inherits the
+   *  same full-scan cost profile as generateNewListingAlerts/
+   *  generateOpenHouseAlerts's saved-search matching; no query-level
+   *  pre-filtering (e.g. by city/price range) exists yet for any alert type. */
+  private async savedSearchMatchedUserIds(
+    property: Property,
+  ): Promise<string[]> {
+    const searches = await this.prisma.savedSearch.findMany();
+    const userIds: string[] = [];
+    for (const search of searches) {
+      const filters = (search.filters as Record<string, unknown>) ?? {};
+      if (matchesSavedSearch(property, filters)) userIds.push(search.userId);
+    }
+    return userIds;
   }
 
   /** Users who saved or visited the given DDF ListingKey, deduped. */

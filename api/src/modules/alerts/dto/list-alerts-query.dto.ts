@@ -1,13 +1,20 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { AlertType } from '@prisma/client';
 
 export class ListAlertsQueryDto {
-  @ApiPropertyOptional({ enum: AlertType })
+  /** Accepts either a single type (`type=NEW_LISTING`) or a CSV list
+   *  (`type=NEW_LISTING,PRICE_DROP`) — the Alerts tab needs "everything but
+   *  OPEN_HOUSE" in one server-side query rather than filtering client-side
+   *  against whatever page happens to be loaded. */
+  @ApiPropertyOptional({ enum: AlertType, isArray: true })
   @IsOptional()
-  @IsEnum(AlertType)
-  type?: AlertType;
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.split(',').map((v) => v.trim()) : value,
+  )
+  @IsEnum(AlertType, { each: true })
+  type?: AlertType | AlertType[];
 
   @ApiPropertyOptional({ type: Number, default: 1 })
   @IsOptional()
