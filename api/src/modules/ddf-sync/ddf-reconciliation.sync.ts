@@ -9,7 +9,18 @@ import { DdfAuthService } from './ddf-auth.service'
 export interface ReconciliationResult {
   masterCount: number
   deletedCount: number
+  /** Rows that *would* have been deleted (equals deletedCount unless skipped). */
+  staleCount: number
+  /** Set when the run refused to delete: 'dry-run' | 'empty-master' | 'ceiling'. */
+  skippedReason?: 'dry-run' | 'empty-master' | 'ceiling'
 }
+
+/**
+ * Refuse to delete when more than this share of the local table is considered
+ * stale. Normal daily churn is low single-digit percent; anything approaching
+ * this is far more likely to be a truncated master list than genuine expiry.
+ */
+const MAX_DELETE_RATIO = 0.3
 
 /**
  * DDF replication reconciliation (Task #1).
@@ -49,7 +60,7 @@ export class DdfReconciliationSync {
     // failed or returned nothing — never wipe the whole table on that basis.
     if (masterKeys.size === 0) {
       this.logger.warn('PropertyReplication returned 0 keys — skipping deletion')
-      return { masterCount: 0, deletedCount: 0 }
+      return { masterCount: 0, deletedCount: 0, staleCount: 0, skippedReason: 'empty-master' }
     }
 
     // Diff local keys against the master list in the DB (id + key only).
@@ -60,11 +71,47 @@ export class DdfReconciliationSync {
 
     if (stale.length === 0) {
       this.logger.log(`Reconciliation: ${masterKeys.size} live, 0 stale`)
-      return { masterCount: masterKeys.size, deletedCount: 0 }
+      return { masterCount: masterKeys.size, deletedCount: 0, staleCount: 0 }
+    }
+
+    // CREA-07a. The empty-master guard above only catches *total* failure. A
+    // truncated paging run (a broken @odata.nextLink chain that still parses)
+    // yields a short-but-nonzero master list, and every listing missing from
+    // it looks stale. Refuse implausibly large deletions and ask for a human.
+    const ratio = stale.length / local.length
+    if (ratio > MAX_DELETE_RATIO) {
+      this.logger.error(
+        `Reconciliation would delete ${stale.length}/${local.length} listings ` +
+          `(${Math.round(ratio * 100)}%, ceiling ${Math.round(MAX_DELETE_RATIO * 100)}%) — ` +
+          `aborting. Master list likely truncated; verify PropertyReplication paging.`,
+      )
+      return {
+        masterCount: masterKeys.size,
+        deletedCount: 0,
+        staleCount: stale.length,
+        skippedReason: 'ceiling',
+      }
     }
 
     const staleIds = stale.map((p) => p.id)
     const staleKeys = stale.map((p) => p.ddfListingKey)
+
+    // CREA-07b. Defaults to dry-run: this cron deletes production rows and must
+    // prove itself in logs before it is trusted to act. Set
+    // DDF_RECONCILE_DRY_RUN=false to arm it.
+    if (this.config.get<string>('DDF_RECONCILE_DRY_RUN') !== 'false') {
+      this.logger.warn(
+        `Reconciliation DRY RUN: would delete ${stale.length}/${local.length} ` +
+          `listings (${masterKeys.size} live). Set DDF_RECONCILE_DRY_RUN=false to arm. ` +
+          `Keys: ${staleKeys.slice(0, 20).join(', ')}${stale.length > 20 ? ` …+${stale.length - 20} more` : ''}`,
+      )
+      return {
+        masterCount: masterKeys.size,
+        deletedCount: 0,
+        staleCount: stale.length,
+        skippedReason: 'dry-run',
+      }
+    }
 
     const { count } = await this.prisma.property.deleteMany({
       where: { id: { in: staleIds } },
@@ -79,7 +126,7 @@ export class DdfReconciliationSync {
     this.logger.log(
       `Reconciliation: ${masterKeys.size} live, deleted ${count} stale listings`,
     )
-    return { masterCount: masterKeys.size, deletedCount: count }
+    return { masterCount: masterKeys.size, deletedCount: count, staleCount: stale.length }
   }
 
   /**

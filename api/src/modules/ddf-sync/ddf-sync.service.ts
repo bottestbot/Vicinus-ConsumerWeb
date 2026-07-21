@@ -104,6 +104,14 @@ export class DdfSyncService {
     try {
       const result = await this.reconciliationSync.reconcile()
       deletedCount = result.deletedCount
+      // CREA-07d: a run that refused to delete must not look like a healthy
+      // one — otherwise a permanently-skipping reconciliation is invisible and
+      // we quietly go back to advertising sold listings.
+      if (result.skippedReason) {
+        status = 'skipped'
+        errorMessage = `${result.skippedReason}: ${result.staleCount} stale of ${result.masterCount} live not deleted`
+        this.logger.warn(`Reconciliation skipped (${result.skippedReason})`)
+      }
     } catch (err) {
       status = 'error'
       errorMessage = (err as Error).message
