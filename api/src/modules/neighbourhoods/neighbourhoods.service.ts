@@ -5,6 +5,7 @@ import { RedisService } from '../../common/redis/redis.service'
 import { GoogleMapsProxyService } from './google-maps-proxy.service'
 import { PersonalizationService, PersonalizationResult } from './scoring/personalization.service'
 import { SubScores, WEIGHTS_VERSION } from './scoring/blend'
+import { haversineMeters } from './scoring/geo'
 
 const NEIGHBOURHOOD_TTL = 30 * 60
 // Personalized block is per-user and cheaper to recompute — shorter TTL.
@@ -201,12 +202,12 @@ export class NeighbourhoodsService {
   async getDetail(slug: string, clerkId?: string): Promise<NeighbourhoodDetail> {
     const base = await this.getDetailBase(slug)
 
-    let personalization: PersonalizationResult | null = null
+    let personalization: DetailPersonalization | null = null
     if (clerkId) {
       const pKey = `neighbourhood:${slug}:personalization:${clerkId}`
       const cached = await this.redis.get(pKey)
       if (cached) {
-        personalization = JSON.parse(cached) as PersonalizationResult
+        personalization = JSON.parse(cached) as DetailPersonalization
       } else {
         const sub: SubScores = {
           walkability: base.livability.breakdown.walkability,
@@ -214,7 +215,9 @@ export class NeighbourhoodsService {
           amenities: base.livability.breakdown.amenities,
           transit: base.livability.breakdown.transit,
         }
-        personalization = await this.personalization.personalize(sub, clerkId)
+        const result: PersonalizationResult = await this.personalization.personalize(sub, clerkId)
+        // FE contract types matchPercent as a plain number (0 = no signal).
+        personalization = { ...result, matchPercent: result.matchPercent ?? 0 }
         await this.redis.set(pKey, JSON.stringify(personalization), PERSONALIZATION_TTL)
       }
     }
@@ -257,40 +260,51 @@ export class NeighbourhoodsService {
 
     const centroidLat = row.centroidLat ?? row.lat
     const centroidLng = row.centroidLng ?? row.lng
+    const centroid =
+      centroidLat != null && centroidLng != null ? { lat: centroidLat, lng: centroidLng } : null
 
     const [marketSnapshot, localEssentials, liveListings] = await Promise.all([
       this.getMarketSnapshot(row),
-      this.getLocalEssentials(row.id),
-      this.getListings(slug),
+      this.getLocalEssentials(row.id, centroid),
+      this.getDetailListings(row),
     ])
 
+    const photos = Array.isArray(row.photos) ? (row.photos as string[]) : []
+
+    // Numeric fields are coerced to 0 rather than null: the FE contract
+    // (NeighbourhoodDetailResponse) types them as `number` and treats 0 as
+    // "unknown" (e.g. the livability panel hides "Top X%" when percentile is 0).
+    // `transit` stays nullable — the FE explicitly models a no-GTFS area.
     const base: NeighbourhoodDetailBase = {
-      neighbourhood: toSummary(row),
+      neighbourhood: {
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        city: row.city ?? '',
+        description: row.bio ?? '',
+        heroImageUrl: photos[0] ?? '',
+        flavors: [],
+        centroidLat: centroidLat ?? 0,
+        centroidLng: centroidLng ?? 0,
+      },
       marketSnapshot,
       livability: {
-        score: row.livabilityScore ?? null,
-        percentile: row.livabilityPercentile ?? null,
+        score: row.livabilityScore ?? 0,
+        percentile: row.livabilityPercentile ?? 0,
         breakdown: {
-          walkability: row.walkabilityScore ?? null,
-          schools: row.schoolsScore ?? null,
-          amenities: row.amenitiesScore ?? null,
+          walkability: row.walkabilityScore ?? 0,
+          schools: row.schoolsScore ?? 0,
+          amenities: row.amenitiesScore ?? 0,
           transit: row.transitSubScore ?? null,
         },
         weightsVersion: WEIGHTS_VERSION,
       },
       localEssentials,
       localInfoTiles: {
-        staticMapUrl:
-          centroidLat != null && centroidLng != null
-            ? this.maps.getStaticMapUrl(centroidLat, centroidLng)
-            : null,
-        streetViewUrl:
-          centroidLat != null && centroidLng != null
-            ? this.maps.getStreetViewUrl(centroidLat, centroidLng)
-            : null,
+        staticMapUrl: centroid ? this.maps.getStaticMapUrl(centroid.lat, centroid.lng) : null,
+        streetViewUrl: centroid ? this.maps.getStreetViewUrl(centroid.lat, centroid.lng) : null,
       },
-      // Live listings: top 6 from the shared neighbourhood listings query.
-      liveListings: liveListings.slice(0, 6),
+      liveListings,
     }
 
     await this.redis.set(cacheKey, JSON.stringify(base), NEIGHBOURHOOD_TTL)
@@ -299,8 +313,8 @@ export class NeighbourhoodsService {
 
   // Neighbourhood-scoped market snapshot. Adapts the PropertiesService market
   // cohort pattern (in-JS median over an active sample) but scopes by the
-  // neighbourhood's own city + lat/lng box. `priceChange30d` is null — there is
-  // no price-history table to derive a trend from yet.
+  // neighbourhood's own city + lat/lng box. Unknown values are 0 (not null) to
+  // match the FE contract, which treats 0 as "no data" and hides the metric.
   private async getMarketSnapshot(neighbourhood: {
     city: string | null
     lat: number | null
@@ -308,7 +322,7 @@ export class NeighbourhoodsService {
   }): Promise<MarketSnapshot> {
     const orClauses = buildLocationClauses(neighbourhood)
     if (orClauses.length === 0) {
-      return { medianPrice: null, priceChange30d: null, daysOnMarket: null, activeListings: 0 }
+      return { medianPrice: 0, priceChange30d: 0, daysOnMarket: 0, activeListings: 0 }
     }
 
     const where: Prisma.PropertyWhereInput = {
@@ -328,23 +342,74 @@ export class NeighbourhoodsService {
     ])
 
     const prices = sample.map((p) => p.price).filter((p): p is number => p !== null)
-    const medianPrice = prices.length ? Math.round(median(prices)) : null
+    const medianPrice = prices.length ? Math.round(median(prices)) : 0
 
     const doms = sample
       .filter((p) => p.listedAt !== null)
       .map((p) => Math.floor((Date.now() - (p.listedAt as Date).getTime()) / 86_400_000))
-    const daysOnMarket = doms.length ? Math.round(median(doms)) : null
+    const daysOnMarket = doms.length ? Math.round(median(doms)) : 0
 
     return {
       medianPrice,
       // TODO: needs a price-history table to compute a real 30-day trend.
-      priceChange30d: null,
+      priceChange30d: 0,
       daysOnMarket,
       activeListings,
     }
   }
 
-  private async getLocalEssentials(neighbourhoodId: string): Promise<LocalEssentialsBuckets> {
+  // Live listings for the detail page. Distinct from getListings(): the detail
+  // contract needs sqft + realtorUrl + agent/brokerage/MLS for the REALTOR.ca
+  // badge and the listing cards, so it selects those columns directly.
+  private async getDetailListings(neighbourhood: {
+    city: string | null
+    lat: number | null
+    lng: number | null
+  }): Promise<PropertySummary[]> {
+    const orClauses = buildLocationClauses(neighbourhood)
+    if (orClauses.length === 0) return []
+
+    const properties = await this.prisma.property.findMany({
+      where: { status: 'Active', displayOnInternet: true, OR: orClauses },
+      select: {
+        id: true,
+        ddfListingKey: true,
+        address: true,
+        city: true,
+        price: true,
+        beds: true,
+        baths: true,
+        sqft: true,
+        images: true,
+        realtorUrl: true,
+        agent: { select: { fullName: true } },
+        office: { select: { name: true } },
+      },
+      orderBy: { listedAt: 'desc' },
+      take: 6,
+    })
+
+    return properties.map((p) => ({
+      id: p.id,
+      address: p.address ?? p.city ?? 'Address unavailable',
+      price: p.price ?? 0,
+      beds: p.beds ?? 0,
+      baths: p.baths ?? 0,
+      sqft: p.sqft ?? 0,
+      imageUrl: extractMainPhoto(p.images) ?? '',
+      // The FE routes property links by DDF ListingKey.
+      slug: p.ddfListingKey,
+      realtorUrl: p.realtorUrl,
+      agentName: p.agent?.fullName ?? null,
+      brokerageName: p.office?.name ?? null,
+      mlsNumber: p.ddfListingKey,
+    }))
+  }
+
+  private async getLocalEssentials(
+    neighbourhoodId: string,
+    centroid: { lat: number; lng: number } | null,
+  ): Promise<LocalEssentialsBuckets> {
     // Latest POI snapshot only, grouped into the detail page's four buckets.
     const latest = await this.prisma.neighbourhoodPoi.findFirst({
       where: { neighbourhoodId },
@@ -366,18 +431,33 @@ export class NeighbourhoodsService {
     })
 
     for (const poi of pois) {
-      const p: PoiSummary = {
+      const p: PoiItem = {
         id: poi.id,
-        name: poi.name,
+        name: poi.name ?? 'Unnamed',
         category: poi.category,
         lat: poi.lat,
         lng: poi.lng,
+        // Straight-line metres from the centroid, per the FE contract.
+        distanceM: centroid
+          ? Math.round(haversineMeters(centroid, { lat: poi.lat, lng: poi.lng }))
+          : 0,
       }
       if (poi.category === 'schools') buckets.schools.push(p)
       else if (poi.category === 'healthcare') buckets.healthcare.push(p)
       else if (poi.category === 'parks') buckets.parks.push(p)
       else if (['grocery', 'restaurants', 'coffee', 'errands'].includes(poi.category))
         buckets.shopAndEat.push(p)
+    }
+
+    // Nearest-first within each bucket.
+    const lists: PoiItem[][] = [
+      buckets.schools,
+      buckets.healthcare,
+      buckets.parks,
+      buckets.shopAndEat,
+    ]
+    for (const list of lists) {
+      list.sort((a, b) => a.distanceM - b.distanceM)
     }
     return buckets
   }
@@ -442,38 +522,73 @@ export interface AgentSummary {
 
 // ── NBHD-09 detail aggregate shapes ──────────────────────────────────────────
 
+// These mirror the frontend contract in src/types/neighbourhood-detail.ts
+// (NeighbourhoodDetailResponse) field-for-field — getNeighbourhoodDetail()
+// returns this payload verbatim, so any drift here breaks the detail page.
+
 export interface MarketSnapshot {
-  medianPrice: number | null
-  priceChange30d: number | null
-  daysOnMarket: number | null
+  medianPrice: number
+  /** 30-day price change as a signed percentage. 0 until price history exists. */
+  priceChange30d: number
+  daysOnMarket: number
   activeListings: number
 }
 
 export interface LivabilityBlock {
-  score: number | null
-  percentile: number | null
+  score: number
+  percentile: number
   breakdown: {
-    walkability: number | null
-    schools: number | null
-    amenities: number | null
+    walkability: number
+    schools: number
+    amenities: number
+    /** Null when no agency GTFS coverage exists for the area. */
     transit: number | null
   }
   weightsVersion: string
 }
 
-export interface PoiSummary {
+export interface PoiItem {
   id: string
-  name: string | null
+  name: string
   category: string
   lat: number
   lng: number
+  /** Straight-line distance from the neighbourhood centroid, in metres. */
+  distanceM: number
+}
+
+export interface PropertySummary {
+  id: string
+  address: string
+  price: number
+  beds: number
+  baths: number
+  sqft: number
+  imageUrl: string
+  slug: string
+  realtorUrl?: string | null
+  agentName?: string | null
+  brokerageName?: string | null
+  mlsNumber?: string | null
+}
+
+export interface DetailNeighbourhood {
+  id: string
+  slug: string
+  name: string
+  city: string
+  description: string
+  heroImageUrl: string
+  flavors: string[]
+  centroidLat: number
+  centroidLng: number
 }
 
 export interface LocalEssentialsBuckets {
-  schools: PoiSummary[]
-  healthcare: PoiSummary[]
-  parks: PoiSummary[]
-  shopAndEat: PoiSummary[]
+  schools: PoiItem[]
+  healthcare: PoiItem[]
+  parks: PoiItem[]
+  shopAndEat: PoiItem[]
 }
 
 export interface LocalInfoTiles {
@@ -482,16 +597,20 @@ export interface LocalInfoTiles {
 }
 
 export interface NeighbourhoodDetailBase {
-  neighbourhood: NeighbourhoodSummary
+  neighbourhood: DetailNeighbourhood
   marketSnapshot: MarketSnapshot
   livability: LivabilityBlock
   localEssentials: LocalEssentialsBuckets
   localInfoTiles: LocalInfoTiles
-  liveListings: ListingSummary[]
+  liveListings: PropertySummary[]
+}
+
+export interface DetailPersonalization extends Omit<PersonalizationResult, 'matchPercent'> {
+  matchPercent: number
 }
 
 export interface NeighbourhoodDetail extends NeighbourhoodDetailBase {
-  personalization: PersonalizationResult | null
+  personalization: DetailPersonalization | null
 }
 
 // ── field mappers ────────────────────────────────────────────────────────────
