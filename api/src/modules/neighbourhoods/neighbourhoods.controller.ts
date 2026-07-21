@@ -43,6 +43,18 @@ export class NeighbourhoodsController {
     return this.service.findBySlug(slug)
   }
 
+  // NBHD-08 — per-user match block, fetched client-side once Clerk has a
+  // session. It cannot ride on /detail: that response is server-rendered and
+  // shared-cached, so no token reaches it and a per-user payload there would be
+  // served to every visitor. Returns null when the caller is anonymous.
+  @Get(':slug/personalization')
+  @UseGuards(OptionalClerkAuthGuard)
+  @ApiOperation({ summary: 'Per-user personalization match block for a neighbourhood' })
+  @ApiParam({ name: 'slug', description: 'Neighbourhood slug' })
+  personalization(@Param('slug') slug: string, @CurrentUser() clerkId?: string) {
+    return this.service.getPersonalization(slug, clerkId)
+  }
+
   // NBHD-03 — streams the Google tile image from the server so the API key is
   // never exposed to the client. Cached hard: the underlying image only changes
   // if the neighbourhood centroid moves.

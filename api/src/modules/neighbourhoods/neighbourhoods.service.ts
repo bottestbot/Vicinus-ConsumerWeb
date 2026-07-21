@@ -202,27 +202,49 @@ export class NeighbourhoodsService {
   async getDetail(slug: string, clerkId?: string): Promise<NeighbourhoodDetail> {
     const base = await this.getDetailBase(slug)
 
-    let personalization: DetailPersonalization | null = null
-    if (clerkId) {
-      const pKey = `neighbourhood:${slug}:personalization:${clerkId}`
-      const cached = await this.redis.get(pKey)
-      if (cached) {
-        personalization = JSON.parse(cached) as DetailPersonalization
-      } else {
-        const sub: SubScores = {
-          walkability: base.livability.breakdown.walkability,
-          schools: base.livability.breakdown.schools,
-          amenities: base.livability.breakdown.amenities,
-          transit: base.livability.breakdown.transit,
-        }
-        const result: PersonalizationResult = await this.personalization.personalize(sub, clerkId)
-        // FE contract types matchPercent as a plain number (0 = no signal).
-        personalization = { ...result, matchPercent: result.matchPercent ?? 0 }
-        await this.redis.set(pKey, JSON.stringify(personalization), PERSONALIZATION_TTL)
-      }
-    }
-
+    const personalization = await this.resolvePersonalization(slug, base, clerkId)
     return { ...base, personalization }
+  }
+
+  /**
+   * Per-user personalization on its own.
+   *
+   * The detail page is server-rendered and its response is shared-cached, so it
+   * cannot carry a user's match: no auth header reaches the API, and caching a
+   * per-user block there would serve one user's match to everyone. The client
+   * fetches this endpoint separately once Clerk has a session.
+   */
+  async getPersonalization(slug: string, clerkId?: string): Promise<DetailPersonalization | null> {
+    if (!clerkId) return null
+    const base = await this.getDetailBase(slug)
+    return this.resolvePersonalization(slug, base, clerkId)
+  }
+
+  private async resolvePersonalization(
+    slug: string,
+    base: NeighbourhoodDetailBase,
+    clerkId?: string,
+  ): Promise<DetailPersonalization | null> {
+    if (!clerkId) return null
+
+    const pKey = `neighbourhood:${slug}:personalization:${clerkId}`
+    const cached = await this.redis.get(pKey)
+    if (cached) return JSON.parse(cached) as DetailPersonalization
+
+    const sub: SubScores = {
+      walkability: base.livability.breakdown.walkability,
+      schools: base.livability.breakdown.schools,
+      amenities: base.livability.breakdown.amenities,
+      transit: base.livability.breakdown.transit,
+    }
+    const result: PersonalizationResult = await this.personalization.personalize(sub, clerkId)
+    // FE contract types matchPercent as a plain number (0 = no signal).
+    const personalization: DetailPersonalization = {
+      ...result,
+      matchPercent: result.matchPercent ?? 0,
+    }
+    await this.redis.set(pKey, JSON.stringify(personalization), PERSONALIZATION_TTL)
+    return personalization
   }
 
   /**

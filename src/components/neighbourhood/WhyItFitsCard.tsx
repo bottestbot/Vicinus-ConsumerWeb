@@ -1,30 +1,69 @@
+'use client'
+
 // NBHD-D05 — "Why {name} fits you" AI card. Forest-bordered card with a sparkle
 // icon, match % badge, a personalized sentence, green reason chips + amber caution
 // chips, and an "Edit priorities" control. Falls back to a cold-start variant
 // (derived area strengths, "Set your priorities" CTA) for signed-out / no-data users.
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Sparkles, Check, AlertTriangle } from 'lucide-react'
+import apiClient from '@/lib/api/client'
 import type { NeighbourhoodDetailResponse } from '@/types/neighbourhood-detail'
+
+type Personalization = NeighbourhoodDetailResponse['personalization']
 
 interface Props {
   name: string
-  personalization: NeighbourhoodDetailResponse['personalization']
+  slug: string
+  personalization: Personalization
 }
 
-export default function WhyItFitsCard({ name, personalization }: Props) {
+export default function WhyItFitsCard({ name, slug, personalization: initial }: Props) {
+  // The detail payload is server-rendered and shared-cached, so it never
+  // carries a signed-in user's match. Fetch it client-side once Clerk has a
+  // session, using the interceptor that attaches the bearer token.
+  const { isSignedIn, isLoaded } = useAuth()
+  const [personalization, setPersonalization] = useState<Personalization>(initial)
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return
+    let cancelled = false
+    apiClient
+      .get<Personalization>(`/neighbourhoods/${slug}/personalization`)
+      .then((res) => {
+        if (!cancelled && res.data) setPersonalization(res.data)
+      })
+      .catch(() => {
+        // Leave the cold-start variant in place — never block the card on this.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isLoaded, isSignedIn, slug])
+
   const isPersonalized = personalization?.isPersonalized === true
   const reasonChips = personalization?.reasonChips ?? []
   const cautionChips = personalization?.cautionChips ?? []
   const matchPercent = personalization?.matchPercent ?? 0
 
+  // Three states, not two: anonymous, signed in without priorities, and
+  // personalized. Signed-in users were previously told to "sign in", because
+  // the card only distinguished personalized from everything else.
+  const signedInNoPriorities = isSignedIn === true && !isPersonalized
+
   const heading = isPersonalized ? `Why ${name} fits you` : `What stands out in ${name}`
   const subtitle = isPersonalized
     ? 'From your saved searches and priorities'
-    : 'Sign in for your personalized match'
+    : signedInNoPriorities
+      ? 'Set your priorities for a personalized match'
+      : 'Sign in for your personalized match'
 
   const sentence = isPersonalized
     ? `Based on your saved searches and priorities, ${name} is a ${matchPercent}% match — it scores high on the things you filter for.`
-    : `Here's what makes ${name} stand out. Sign in and set your priorities to see how well it matches what you're looking for.`
+    : signedInNoPriorities
+      ? `Here's what makes ${name} stand out. Tell us what matters to you and we'll show how well it matches.`
+      : `Here's what makes ${name} stand out. Sign in and set your priorities to see how well it matches what you're looking for.`
 
   return (
     <section className="mt-8 rounded-2xl border-2 border-[#1C3829] bg-[#F5F7F0] p-5 sm:p-6">

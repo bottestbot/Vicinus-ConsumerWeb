@@ -72,7 +72,11 @@ export default function NeighbourhoodDetailBody({ slug, province }: Props) {
 
       <NeighbourhoodNarrative neighbourhood={neighbourhood} />
 
-      <WhyItFitsCard name={neighbourhood.name} personalization={personalization} />
+      <WhyItFitsCard
+        name={neighbourhood.name}
+        slug={neighbourhood.slug}
+        personalization={personalization}
+      />
 
       <LocalEssentials localEssentials={localEssentials} neighbourhood={neighbourhood} />
 
