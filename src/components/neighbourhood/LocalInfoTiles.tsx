@@ -34,15 +34,32 @@ export default function LocalInfoTiles({
   const hasCoords =
     Number.isFinite(centroidLat) && Number.isFinite(centroidLng) && (centroidLat !== 0 || centroidLng !== 0)
 
-  // Interactive Google Maps deep links. These must be built from the centroid —
-  // never from localInfoTiles.*, which are Static API *image* endpoints: opening
-  // one shows a flat JPEG rather than an explorable map or pano.
+  // Interactive deep links. Built from the centroid — never from
+  // localInfoTiles.*, which are static *image* endpoints: opening one shows a
+  // flat JPEG rather than an explorable map or pano. These google.com/maps URLs
+  // need no API key of their own.
   const mapHref = hasCoords
     ? `https://www.google.com/maps/@?api=1&map_action=map&center=${centroidLat},${centroidLng}&zoom=15`
     : `/search?neighbourhood=${slug}`
   const streetViewHref = hasCoords
     ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${centroidLat},${centroidLng}`
     : `/search?neighbourhood=${slug}`
+
+  // Thumbnails come from Mapbox (already used for every other map in the app),
+  // so the tiles don't depend on Google's Static Maps / Street View Static APIs.
+  // The token is a public `pk.` token, which Mapbox intends to be client-side —
+  // restrict it by URL in the Mapbox dashboard, not by hiding it.
+  // Mapbox has no street-level photography, so the Street view tile shows a
+  // satellite view of the same point and links out to Google's pano.
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+  const mapboxStatic = (style: string) =>
+    mapboxToken && hasCoords
+      ? `https://api.mapbox.com/styles/v1/mapbox/${style}/static/${centroidLng},${centroidLat},14,0/640x360@2x?access_token=${mapboxToken}&attribution=false&logo=false`
+      : null
+
+  // Fall back to the server-proxied Google image only when Mapbox isn't configured.
+  const mapPreview = mapboxStatic('streets-v12') ?? localInfoTiles.staticMapUrl
+  const streetPreview = mapboxStatic('satellite-streets-v12') ?? localInfoTiles.streetViewUrl
 
   const tiles: Tile[] = [
     {
@@ -51,7 +68,7 @@ export default function LocalInfoTiles({
       sublabel: 'Explore the area',
       href: mapHref,
       external: hasCoords,
-      preview: localInfoTiles.staticMapUrl,
+      preview: mapPreview,
     },
     {
       icon: Footprints,
@@ -59,7 +76,7 @@ export default function LocalInfoTiles({
       sublabel: 'Virtual walk',
       href: streetViewHref,
       external: hasCoords,
-      preview: localInfoTiles.streetViewUrl,
+      preview: streetPreview,
     },
     {
       icon: GraduationCap,
