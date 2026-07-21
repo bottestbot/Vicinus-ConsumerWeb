@@ -1,21 +1,11 @@
 import { CalendarDays, Clock, Video } from 'lucide-react'
 import type { OpenHouseSlot } from '@/lib/api/properties'
+import { formatOpenHouseTime as formatTime } from '@/lib/format'
 import AddToScheduleButton from './AddToScheduleButton'
 
 interface Props {
   slots: OpenHouseSlot[]
   listingId: string
-}
-
-/** "14:00:00.00" → "2:00 PM" */
-function formatTime(time: string | null): string {
-  if (!time) return ''
-  const [h, m] = time.split(':')
-  const hour = Number(h)
-  if (Number.isNaN(hour)) return ''
-  const period = hour >= 12 ? 'PM' : 'AM'
-  const h12 = hour % 12 === 0 ? 12 : hour % 12
-  return `${h12}:${m ?? '00'} ${period}`
 }
 
 /** "2027-06-07" → "Sat, Jun 7, 2027" */

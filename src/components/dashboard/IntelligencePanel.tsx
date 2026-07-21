@@ -41,7 +41,7 @@ function RealtorMessageItem() {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 mb-0.5">
-          <span className="text-xs font-semibold text-[#111111]">Sarah (Realtor)</span>
+          <span className="text-xs font-semibold text-[#111111]">Sarah (REALTOR®)</span>
           <span className="text-[10px] text-[#6B6B6B] shrink-0">2h ago</span>
         </div>
         <p className="text-xs text-[#6B6B6B] line-clamp-2">

@@ -53,7 +53,7 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
               alt={`${address} — hero`}
               fill
               sizes="(max-width: 768px) 100vw, 66vw"
-              className="object-cover group-hover:brightness-95 transition-all duration-300"
+              className="object-cover object-left-top group-hover:brightness-95 transition-all duration-300"
               priority
             />
           )}
@@ -80,7 +80,7 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
                 alt={`${address} — photo ${i + 2}`}
                 fill
                 sizes="16vw"
-                className="object-cover group-hover:brightness-95 transition-all duration-300"
+                className="object-cover object-left-top group-hover:brightness-95 transition-all duration-300"
               />
               {/* "More" overlay on last visible thumb */}
               {i === thumbs.length - 1 && images.length > thumbs.length + 1 && (
@@ -110,7 +110,7 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
               onClick={() => openLightbox(i + 1)}
               className="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden"
             >
-              <Image src={src} alt={`${address} — photo ${i + 2}`} fill sizes="64px" className="object-cover" />
+              <Image src={src} alt={`${address} — photo ${i + 2}`} fill sizes="64px" className="object-cover object-left-top" />
             </button>
           ))}
         </div>
@@ -131,13 +131,13 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
 
           <button
             onClick={(e) => { e.stopPropagation(); prev() }}
-            className="absolute left-5 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+            className="absolute left-5 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-white/10 transition-colors"
           >
             <ChevronLeft size={28} />
           </button>
 
           <div
-            className="relative w-full max-w-4xl aspect-video mx-16"
+            className="relative w-full max-w-4xl mx-0 sm:mx-16 aspect-[4/3] sm:aspect-video max-h-[70vh] sm:max-h-none"
             onClick={(e) => e.stopPropagation()}
           >
             <Image
@@ -151,7 +151,7 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
 
           <button
             onClick={(e) => { e.stopPropagation(); next() }}
-            className="absolute right-5 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+            className="absolute right-5 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-white/10 transition-colors"
           >
             <ChevronRight size={28} />
           </button>
@@ -172,7 +172,7 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
                   i === lightboxIndex ? 'border-white' : 'border-transparent opacity-60 hover:opacity-100',
                 ].join(' ')}
               >
-                <Image src={src} alt="" fill sizes="48px" className="object-cover" />
+                <Image src={src} alt="" fill sizes="48px" className="object-cover object-left-top" />
               </button>
             ))}
           </div>

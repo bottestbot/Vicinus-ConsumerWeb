@@ -7,6 +7,7 @@ import {
   useRemoveOpenHouseVisit,
   useUpdateOpenHouseVisitStatus,
 } from '@/hooks/useOpenHouseVisits'
+import { formatOpenHouseTimeRange } from '@/lib/format'
 import type { DashboardProperty, OpenHouseVisit, OpenHouseVisitStatus } from '@/types/dashboard'
 
 const STATUS_STYLES: Record<OpenHouseVisitStatus, string> = {
@@ -23,7 +24,7 @@ function buildAddress(property: DashboardProperty | null): string {
 
 function formatTime(visit: OpenHouseVisit): string {
   if (!visit.openHouseStartTime) return 'Time TBD'
-  return visit.openHouseEndTime ? `${visit.openHouseStartTime} – ${visit.openHouseEndTime}` : visit.openHouseStartTime
+  return formatOpenHouseTimeRange(visit.openHouseStartTime, visit.openHouseEndTime)
 }
 
 function formatDateHeading(dateKey: string): string {

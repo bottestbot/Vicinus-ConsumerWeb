@@ -160,6 +160,29 @@ function Pill({
   )
 }
 
+// ── Shared filter styles ──────────────────────────────────────────────────────
+//
+// Rendered once by the main component so the keyframes exist regardless of which
+// pill tiers are on screen. `nbr-fade-in` deliberately animates only opacity and
+// transform — animating max-height here would clamp the wrapping city grid and
+// let its extra rows spill over the content below it.
+
+function FilterStyles() {
+  return (
+    <style>{`
+      .nbr-pill-row::-webkit-scrollbar { display: none; }
+      @keyframes nbr-slide-in {
+        from { max-height: 0; opacity: 0; }
+        to { max-height: 40px; opacity: 1; }
+      }
+      @keyframes nbr-fade-in {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: none; }
+      }
+    `}</style>
+  )
+}
+
 // ── Scrollable pill row with fade mask (NBR-08) ───────────────────────────────
 
 function PillRow({ children, animate = false }: { children: React.ReactNode; animate?: boolean }) {
@@ -168,14 +191,10 @@ function PillRow({ children, animate = false }: { children: React.ReactNode; ani
       className="relative overflow-hidden"
       style={animate ? { animation: 'nbr-slide-in 160ms ease-out both' } : undefined}
     >
-      <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        <style>{`
-          .nbr-pill-row::-webkit-scrollbar { display: none; }
-          @keyframes nbr-slide-in {
-            from { max-height: 0; opacity: 0; }
-            to { max-height: 40px; opacity: 1; }
-          }
-        `}</style>
+      <div
+        className="nbr-pill-row flex gap-2 overflow-x-auto pb-0.5"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
         {children}
       </div>
       {/* 24px right-edge fade mask */}
@@ -221,7 +240,12 @@ function CityFilter({
   const visible = expanded ? alpha : collapsed
 
   return (
-    <div className="flex flex-wrap gap-2" style={{ animation: 'nbr-slide-in 160ms ease-out both' }}>
+    <div
+      // Expanded, the full city list runs to five rows — on a narrow viewport that
+      // would fill the sticky bar with the whole screen, so cap it and let it scroll.
+      className={`flex flex-wrap items-center gap-2 ${expanded ? 'max-h-[45vh] overflow-y-auto' : ''}`}
+      style={{ animation: 'nbr-fade-in 160ms ease-out both' }}
+    >
       <Pill
         label={allLabel}
         count={allCount}
@@ -357,6 +381,8 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
 
   return (
     <>
+      <FilterStyles />
+
       {/* Sentinel for sticky detection */}
       <div ref={sentinelRef} />
 
@@ -435,7 +461,7 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
       ) : (
         <>
           {/* Grid */}
-          <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-[#1C3829]">
+          <p className="mt-2 mb-4 text-[11px] font-bold uppercase tracking-widest text-[#1C3829]">
             All Neighbourhoods
             <span className="ml-2 text-[#999] font-normal normal-case tracking-normal">{filtered.length}</span>
           </p>

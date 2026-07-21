@@ -33,7 +33,7 @@ export default function FeaturedProperty({ property }: Props) {
           alt={propertyName}
           fill
           sizes="(max-width: 768px) 100vw, 800px"
-          className="object-cover"
+          className="object-cover object-left-top"
           priority
         />
 
