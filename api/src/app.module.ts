@@ -6,6 +6,7 @@ import { RedisModule } from './common/redis/redis.module'
 import { DdfSyncModule } from './modules/ddf-sync/ddf-sync.module'
 import { PropertiesModule } from './modules/properties/properties.module'
 import { SearchModule } from './modules/search/search.module'
+import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { UsersModule } from './modules/users/users.module'
 import { AlertsModule } from './modules/alerts/alerts.module'
 import { OpenHouseVisitsModule } from './modules/open-house-visits/open-house-visits.module'
@@ -33,6 +34,7 @@ import { HealthModule } from './modules/health/health.module'
     OpenHouseVisitsModule,
     PropertiesModule,
     SearchModule,
+    AnalyticsModule,
     NeighbourhoodsModule,
     AgentsModule,
     EditorialModule,
