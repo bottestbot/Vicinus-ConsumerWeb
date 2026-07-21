@@ -61,6 +61,12 @@ export interface NeighbourhoodDetailResponse {
       /** Null when no agency GTFS coverage exists for the area. */
       transit: number | null
     }
+    /**
+     * The pool the percentile was ranked against (e.g. "BC"). "Top X%" must be
+     * labelled with this, not the city — the backend ranks province-wide, so
+     * "Top 1% in Mission" for a BC-wide rank would be a false claim.
+     */
+    region?: string | null
     weightsVersion: string
   }
   localEssentials: {

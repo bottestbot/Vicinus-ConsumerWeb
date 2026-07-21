@@ -45,7 +45,7 @@ export default function LivabilityPanel({ livability, city }: Props) {
   }, [])
 
   const animate = mounted || reducedMotion
-  const { score, percentile, breakdown } = livability
+  const { score, percentile, breakdown, region } = livability
   const topPercent = Math.max(1, 100 - percentile)
 
   return (
@@ -57,7 +57,7 @@ export default function LivabilityPanel({ livability, city }: Props) {
           <p className="mt-2 text-sm font-medium text-white">Livability</p>
           {percentile > 0 && (
             <p className="text-xs text-white/70">
-              Top {topPercent}%{city ? ` in ${city}` : ''}
+              Top {topPercent}%{region ?? city ? ` in ${region ?? city}` : ''}
             </p>
           )}
         </div>

@@ -373,6 +373,7 @@ function composeDetail(
       // /detail endpoint supplies a true percentile rank across the reference set.
       percentile: 0,
       breakdown: { walkability, schools, amenities, transit },
+      region: null,
       weightsVersion: LIVABILITY_WEIGHTS_VERSION,
     },
     localEssentials: byCategory,

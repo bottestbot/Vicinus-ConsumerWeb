@@ -254,6 +254,7 @@ export class NeighbourhoodsService {
         amenitiesScore: true,
         livabilityScore: true,
         livabilityPercentile: true,
+        referenceRegion: true,
       },
     })
     if (!row) throw new NotFoundException(`Neighbourhood "${slug}" not found`)
@@ -297,6 +298,11 @@ export class NeighbourhoodsService {
           amenities: row.amenitiesScore ?? 0,
           transit: row.transitSubScore ?? null,
         },
+        // The pool the percentile was actually ranked against (province by
+        // default). The FE must label "Top X%" with this, not the city — they
+        // are different, and saying "Top 1% in Mission" for a province-wide
+        // rank is simply a false claim.
+        region: row.referenceRegion,
         weightsVersion: WEIGHTS_VERSION,
       },
       localEssentials,
@@ -544,6 +550,8 @@ export interface LivabilityBlock {
     /** Null when no agency GTFS coverage exists for the area. */
     transit: number | null
   }
+  /** Pool the percentile was ranked against (e.g. "BC"). Label "Top X%" with this. */
+  region: string | null
   weightsVersion: string
 }
 
