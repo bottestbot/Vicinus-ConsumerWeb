@@ -1,10 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query'
+import { useUser } from '@clerk/nextjs'
 import { Loader2, Maximize2, Smartphone } from 'lucide-react'
 import FeedCard from '@/components/feed/FeedCard'
 import { searchProperties, type SearchParams } from '@/lib/api/search'
+import { saveProperty, unsaveProperty } from '@/lib/api/users'
+import { useUserStore } from '@/store/userStore'
 import type { Property } from '@/types/search'
 
 const PAGE_SIZE = 10
@@ -109,8 +113,29 @@ export default function FeedView({ params }: FeedViewProps) {
   const [viewMode, setViewMode] = useState<'full' | 'portrait'>('full')
   const [activeIndex, setActiveIndex] = useState(0)
 
+  const router = useRouter()
+  const { isSignedIn } = useUser()
+  const { savedPropertyIds, toggleSaved } = useUserStore()
+
   const containerRef = useRef<HTMLDivElement>(null)
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  // Mirrors MapListingPopup's save pattern: only flip the store once the
+  // write actually succeeds, and redirect signed-out users instead of
+  // silently no-oping the tap.
+  async function handleSave(id: string) {
+    if (!isSignedIn) {
+      router.push(`/sign-in?redirect=/feed`)
+      return
+    }
+    try {
+      if (savedPropertyIds.has(id)) await unsaveProperty(id)
+      else await saveProperty(id)
+      toggleSaved(id)
+    } catch {
+      // Leave state untouched; the tap silently did nothing on the backend.
+    }
+  }
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
     // Structural key — React Query deep-compares the params object.
@@ -193,6 +218,8 @@ export default function FeedView({ params }: FeedViewProps) {
               property={property}
               isActive={activeIndex === i}
               viewMode={viewMode}
+              isSaved={savedPropertyIds.has(property.id)}
+              onSave={handleSave}
             />
           </div>
         ))}

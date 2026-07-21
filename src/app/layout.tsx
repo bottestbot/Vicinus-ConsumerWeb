@@ -5,6 +5,7 @@ import QueryProvider from '@/components/providers/QueryProvider'
 import LocationProvider from '@/components/providers/LocationProvider'
 import OnboardingGate from '@/components/onboarding/OnboardingGate'
 import OnboardingModal from '@/components/onboarding/OnboardingModal'
+import SavedPropertiesGate from '@/components/providers/SavedPropertiesGate'
 import './globals.css'
 
 const inter = Inter({
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <QueryProvider>
             <LocationProvider />
             <OnboardingGate />
+            <SavedPropertiesGate />
             {children}
             <OnboardingModal />
           </QueryProvider>
