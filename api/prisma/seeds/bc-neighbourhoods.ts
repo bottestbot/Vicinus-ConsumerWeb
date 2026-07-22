@@ -140,19 +140,73 @@ async function main() {
 
   // Remove the legacy duplicate: Vancouver keeps bare-name slugs, so drop any
   // `${name}-vancouver` rows that shadow them (e.g. the stray kitsilano-vancouver).
-  // Non-fatal: rows with related Property/LocalEssential records can't be
-  // deleted here — they're reported so they can be reconciled manually.
+  //
+  // This used to just attempt a delete and warn when related records blocked it,
+  // which is exactly what happened to kitsilano-vancouver: it survived with the
+  // editorial fields and local essentials attached, so BOTH slugs rendered the
+  // neighbourhood. Now the duplicate is merged into the canonical row first —
+  // editorial fields filled in where the canonical is missing them, relations
+  // re-pointed, and the duplicate's POIs dropped (they're re-derivable, and the
+  // FK is ON DELETE RESTRICT).
   let dupRemoved = 0
   const dups = await prisma.neighbourhood.findMany({
     where: { city: 'Vancouver', slug: { endsWith: '-vancouver' } },
-    select: { slug: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      bio: true,
+      medianPrice: true,
+      walkScore: true,
+      transitScore: true,
+      livingGrade: true,
+      videoUrl: true,
+    },
   })
-  for (const { slug } of dups) {
+  for (const dup of dups) {
+    const canonical = await prisma.neighbourhood.findFirst({
+      where: { city: 'Vancouver', name: dup.name, id: { not: dup.id } },
+      select: {
+        id: true,
+        bio: true,
+        medianPrice: true,
+        walkScore: true,
+        transitScore: true,
+        livingGrade: true,
+        videoUrl: true,
+      },
+    })
+    if (!canonical) {
+      // No bare-name twin — this isn't a duplicate, leave it alone.
+      continue
+    }
     try {
-      await prisma.neighbourhood.delete({ where: { slug } })
+      await prisma.$transaction([
+        prisma.neighbourhood.update({
+          where: { id: canonical.id },
+          data: {
+            bio: canonical.bio ?? dup.bio,
+            medianPrice: canonical.medianPrice ?? dup.medianPrice,
+            walkScore: canonical.walkScore ?? dup.walkScore,
+            transitScore: canonical.transitScore ?? dup.transitScore,
+            livingGrade: canonical.livingGrade ?? dup.livingGrade,
+            videoUrl: canonical.videoUrl ?? dup.videoUrl,
+          },
+        }),
+        prisma.localEssential.updateMany({
+          where: { neighbourhoodId: dup.id },
+          data: { neighbourhoodId: canonical.id },
+        }),
+        prisma.property.updateMany({
+          where: { neighbourhoodId: dup.id },
+          data: { neighbourhoodId: canonical.id },
+        }),
+        prisma.neighbourhoodPoi.deleteMany({ where: { neighbourhoodId: dup.id } }),
+        prisma.neighbourhood.delete({ where: { id: dup.id } }),
+      ])
       dupRemoved++
-    } catch {
-      console.warn(`  ! could not remove duplicate "${slug}" (has related records) — reconcile manually`)
+    } catch (err) {
+      console.warn(`  ! could not merge duplicate "${dup.slug}": ${(err as Error).message}`)
     }
   }
 

@@ -237,12 +237,37 @@ export async function getNeighbourhoodAgents(slug: string): Promise<Neighbourhoo
   return apiFetch<NeighbourhoodAgent[]>(`/neighbourhoods/${slug}/agents`, [])
 }
 
+// Launch scope: only these cities are surfaced in listings for now. Their
+// centroids have been re-geocoded and validated, so their livability scores are
+// trustworthy; the rest of the province is still on unverified coordinates and
+// would show collapsed or wrong scores.
+//
+// This is a DISPLAY filter only — the API still serves all neighbourhoods, the
+// data is untouched, and a direct /neighbourhoods/<slug> link still resolves.
+// Widen or delete this list to launch the rest.
+const LAUNCH_CITIES = new Set([
+  'vancouver',
+  'burnaby',
+  'richmond',
+  'surrey',
+  'coquitlam',
+  'port moody',
+  'port coquitlam',
+  'north vancouver',
+  'west vancouver',
+  'new westminster',
+])
+
+export function isLaunchCity(city: string | null | undefined): boolean {
+  return LAUNCH_CITIES.has((city ?? '').trim().toLowerCase())
+}
+
 export async function getNeighbourhoods(): Promise<Neighbourhood[]> {
   const data = await apiFetch<ApiNeighbourhood[]>('/neighbourhoods', [])
   // Return real data only. Previously fell back to MOCK_NEIGHBOURHOODS on an
   // empty response, which leaked 6 fake neighbourhoods into prod (their slugs
   // 404 on click). The client renders a proper empty state for [] instead.
-  return data.map(mapNeighbourhood)
+  return data.map(mapNeighbourhood).filter((n) => isLaunchCity(n.city))
 }
 
 // ─── Aggregate detail endpoint (NBHD-09) ──────────────────────────────────────

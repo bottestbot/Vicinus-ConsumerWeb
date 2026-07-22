@@ -2,6 +2,20 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['10.192.87.98'],
+  async redirects() {
+    return [
+      {
+        // Kitsilano existed as both `kitsilano` and `kitsilano-vancouver`, each
+        // rendering the same page — duplicate content, and the two rows would
+        // have drifted apart. Vancouver's convention is bare-name slugs (23 of
+        // its 24), so the merged row kept `kitsilano`. Permanent redirect so any
+        // existing link or indexed URL resolves instead of 404ing.
+        source: '/neighbourhoods/kitsilano-vancouver',
+        destination: '/neighbourhoods/kitsilano',
+        permanent: true,
+      },
+    ]
+  },
   images: {
     // CREA DDF listing media is hosted on unbounded third-party hosts (agent
     // sites, realtyninja, onikon, youtube thumbnails, etc.) that can't be
