@@ -104,8 +104,13 @@ export class PoiIngestionService {
    */
   async ingestAllNeighbourhoods(
     radius: number = DEFAULT_RADIUS_M,
+    options: { onlyMissing?: boolean } = {},
   ): Promise<{ total: number; failed: string[] }> {
     const neighbourhoods = await this.prisma.neighbourhood.findMany({
+      // Overpass fails often enough that a full run leaves a tail of
+      // neighbourhoods with no POIs. `onlyMissing` retries just those instead
+      // of re-fetching hundreds that already succeeded.
+      where: options.onlyMissing ? { pois: { none: {} } } : {},
       select: { id: true, name: true },
     })
     let total = 0

@@ -15,7 +15,8 @@ import { LivabilityService } from '../modules/neighbourhoods/scoring/livability.
 // only ever reads the precomputed columns this writes.
 //
 //   npm run scores:neighbourhoods              # ingest POIs + score
-//   npm run scores:neighbourhoods -- --skip-ingest   # rescore existing POIs only
+//   npm run scores:neighbourhoods -- --skip-ingest    # rescore existing POIs only
+//   npm run scores:neighbourhoods -- --only-missing   # retry failed ingests only
 //
 // Overpass is a shared free endpoint and the ingest is deliberately paced, so a
 // full run takes roughly a second and a half per neighbourhood.
@@ -32,6 +33,9 @@ class ScoringAppModule {}
 
 async function main() {
   const skipIngest = process.argv.includes('--skip-ingest')
+  // Retry only neighbourhoods that ended up with no POIs (failed Overpass call)
+  // rather than re-fetching the hundreds that already succeeded.
+  const onlyMissing = process.argv.includes('--only-missing')
 
   const app = await NestFactory.createApplicationContext(ScoringAppModule, {
     logger: ['log', 'warn', 'error'],
@@ -61,9 +65,16 @@ async function main() {
   }
 
   if (!skipIngest) {
-    console.log(`Ingesting OSM POIs for ${total} neighbourhoods...`)
-    const { total: poiCount } = await poiIngestion.ingestAllNeighbourhoods()
-    console.log(`Ingested ${poiCount} POIs.`)
+    const missing = await prisma.neighbourhood.count({ where: { pois: { none: {} } } })
+    console.log(
+      onlyMissing
+        ? `Retrying ${missing} neighbourhoods with no POIs...`
+        : `Ingesting OSM POIs for ${total} neighbourhoods...`,
+    )
+    const { total: poiCount, failed } = await poiIngestion.ingestAllNeighbourhoods(undefined, {
+      onlyMissing,
+    })
+    console.log(`Ingested ${poiCount} POIs. ${failed.length} still failing.`)
   } else {
     console.log('Skipping POI ingest (--skip-ingest).')
   }
