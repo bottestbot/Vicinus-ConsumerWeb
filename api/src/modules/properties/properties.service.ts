@@ -186,6 +186,13 @@ export class PropertiesService {
           image,
           // Task #4: deep-link target for the "Powered by REALTOR.ca" badge.
           realtorUrl: (p['realtorUrl'] as string | null) ?? null,
+          // DDF attribution: the homepage displays live listing data, so it
+          // needs the same agent / brokerage / MLS® line every other listing
+          // surface carries. These were missing, leaving the featured cards
+          // unattributed.
+          agentName: (p['agent'] as { fullName?: string } | null)?.fullName ?? null,
+          brokerageName: (p['office'] as { name?: string } | null)?.name ?? null,
+          mlsNumber: (p['ddfListingId'] as string | null) ?? key,
           badge: 'Featured',
           href: `/properties/${key}`,
         }

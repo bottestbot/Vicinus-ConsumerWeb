@@ -9,6 +9,7 @@ import HeroSearchBar from '@/components/landing/HeroSearchBar'
 import Footer from '@/components/layout/Footer'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
 import { getFeaturedProperties, type FeaturedProperty } from '@/lib/api/properties'
+import { ListingAttribution } from '@/components/property/PropertyCell'
 import { formatPrice } from '@/types/search'
 import { geocodeCity, getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
 
@@ -27,8 +28,11 @@ const CITY_FALLBACK_IMAGE =
 
 function PropertyCard({ p }: { p: FeaturedProperty }) {
   return (
-    <Link href={p.href} className="group shrink-0 w-72 sm:w-auto">
-      <article className="bg-white rounded-2xl overflow-hidden border border-[#E8E6E1] hover:shadow-lg transition-shadow">
+    <article className="group shrink-0 w-72 sm:w-auto bg-white rounded-2xl overflow-hidden border border-[#E8E6E1] hover:shadow-lg transition-shadow">
+      {/* The attribution block below carries its own REALTOR.ca <a>, so the
+          card link must not wrap it — nested anchors are invalid HTML and
+          break hydration. */}
+      <Link href={p.href} className="block">
         <div className="relative h-52 overflow-hidden bg-[#F2F0EB]">
           {p.image && (
             <Image
@@ -69,8 +73,18 @@ function PropertyCard({ p }: { p: FeaturedProperty }) {
             </span>
           </div>
         </div>
-      </article>
-    </Link>
+      </Link>
+
+      {/* DDF attribution — required wherever listing data is displayed. */}
+      <ListingAttribution
+        className="px-4 pb-4"
+        agentName={p.agentName}
+        brokerageName={p.brokerageName}
+        mlsNumber={p.mlsNumber}
+        realtorUrl={p.realtorUrl}
+        listingKey={p.id}
+      />
+    </article>
   )
 }
 

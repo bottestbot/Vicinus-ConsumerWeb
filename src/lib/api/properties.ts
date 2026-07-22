@@ -196,6 +196,13 @@ export interface FeaturedProperty {
   image: string | null
   badge: string
   href: string
+  // DDF attribution — the homepage renders live listing data, so each card
+  // must carry the same agent / brokerage / MLS® / REALTOR.ca line as every
+  // other listing surface.
+  realtorUrl?: string | null
+  agentName?: string | null
+  brokerageName?: string | null
+  mlsNumber?: string | null
 }
 
 /** Real curated highlight listings for the landing page. Returns [] on miss. */
