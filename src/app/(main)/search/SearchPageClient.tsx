@@ -69,6 +69,11 @@ function toFrontendProperty(p: ApiProperty): Property {
     agentTitle: 'REALTOR®',
     brokerageName: office?.name ?? '',
     mlsNumber: (p.ddfListingId as string | null) ?? String(p.id),
+    // DDF attribution: without this the "Powered by REALTOR.ca" badge on every
+    // search card falls back to the REALTOR.ca homepage instead of deep-linking
+    // the listing, which does not satisfy the attribution requirement. The API
+    // has always returned this field — the mapper just never carried it.
+    realtorUrl: (p.realtorUrl as string | null) ?? null,
     yearBuilt: (p.yearBuilt as number | null) ?? undefined,
     parking: (p.parkingTotal as number | null) ?? undefined,
     stories: (p.stories as number | null) ?? undefined,

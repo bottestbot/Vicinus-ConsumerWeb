@@ -13,6 +13,7 @@ import {
 import type { Property } from '@/types/search'
 import { formatNumber, formatPrice as formatPriceCA } from '@/lib/format'
 import { ListingAttribution } from '@/components/property/PropertyCell'
+import { STRINGS } from '@/lib/strings'
 
 interface Props {
   property: Property
@@ -370,7 +371,12 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
           </Link>
 
           <p className="text-white text-xl font-bold mb-2 mt-1">
-            {formatPrice(property.price)}
+            {/* Mirror PropertyCell's guard: DDF omits price on some listings and
+                the search mapper coerces null to 0, so calling formatPrice
+                directly rendered a literal "$0" on live listings. */}
+            {property.price > 0
+              ? formatPrice(property.price)
+              : STRINGS.SEARCH_CARD_PRICE_ON_REQUEST}
           </p>
 
           <div className="flex items-center gap-2.5 text-white/90 text-xs font-semibold mb-2.5" aria-hidden="true">
