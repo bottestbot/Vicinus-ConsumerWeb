@@ -45,10 +45,10 @@ export const STRINGS = {
     "Beyond data. The Vicinus standard — intelligent curation of Canada's finest properties.",
 
   // ─── Homepage · Hero ────────────────────────────────────────────────────────
-  // Rendered with "Intelligence" as an accent span between the two fragments.
-  HOMEPAGE_HERO_TITLE_LEAD: 'The Art of',
-  HOMEPAGE_HERO_TITLE_ACCENT: 'Intelligence',
-  HOMEPAGE_HERO_TITLE_TRAIL: 'in Living.',
+  // Rendered with "You" as an accent span between the two fragments.
+  HOMEPAGE_HERO_TITLE_LEAD: 'Bringing',
+  HOMEPAGE_HERO_TITLE_ACCENT: 'You',
+  HOMEPAGE_HERO_TITLE_TRAIL: 'Closer to Home.',
 
   // ─── Homepage · Hero search bar ─────────────────────────────────────────────
   HOMEPAGE_HEROSEARCH_LABEL: 'Find your home',
@@ -69,14 +69,14 @@ export const STRINGS = {
 
   // ─── Homepage · Curated Highlights ──────────────────────────────────────────
   HOMEPAGE_HIGHLIGHTS_EYEBROW: 'Hand-picked',
-  HOMEPAGE_HIGHLIGHTS_TITLE: 'Curated Highlights',
-  HOMEPAGE_HIGHLIGHTS_SUBTITLE: 'Active, intelligently-vetted opportunities.',
+  HOMEPAGE_HIGHLIGHTS_TITLE: 'Swipe. Connect. Own',
+  HOMEPAGE_HIGHLIGHTS_SUBTITLE: 'Real estate, centred around you.',
   HOMEPAGE_HIGHLIGHTS_VIEWALL: 'View all',
 
   // ─── Homepage · Contextual Living (cities) ──────────────────────────────────
-  HOMEPAGE_CITIES_TITLE: 'Contextual Living',
+  HOMEPAGE_CITIES_TITLE: 'Understand the vicinity',
   HOMEPAGE_CITIES_BODY:
-    "Luxury isn't just four walls. It's the street, the air, and the community. Explore our preferred cities.",
+    'A new home means new streets, new neighbours, new cafes — a whole new way of living. Discover yours.',
   HOMEPAGE_CITIES_ALLLINK: 'All Neighbourhoods',
   HOMEPAGE_CITIES_BADGE_SINGULAR: 'Neighbourhood',
   HOMEPAGE_CITIES_BADGE_PLURAL: 'Neighbourhoods',

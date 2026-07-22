@@ -24,6 +24,33 @@ export function formatPriceCompact(n: number): string {
   return `$${Math.round(n)}`
 }
 
+/**
+ * DDF `LeaseAmountFrequency` → the suffix shown after a rental's price
+ * ("Monthly" → "/mo"). Returns null for sales (no frequency) and for values we
+ * don't recognise, so an unmapped code renders a bare price rather than raw
+ * feed text. JUL21FIX-04.
+ */
+export function formatLeaseFrequency(frequency?: string | null): string | null {
+  if (!frequency) return null
+  switch (frequency.trim().toLowerCase()) {
+    case 'monthly':
+    case 'month':
+      return '/mo'
+    case 'yearly':
+    case 'annually':
+    case 'year':
+      return '/yr'
+    case 'weekly':
+    case 'week':
+      return '/wk'
+    case 'daily':
+    case 'day':
+      return '/day'
+    default:
+      return null
+  }
+}
+
 /** Metres → human distance: 320 → "320 m", 1_200 → "1.2 km". */
 export function formatDistance(meters: number): string {
   if (!Number.isFinite(meters) || meters < 0) return '—'

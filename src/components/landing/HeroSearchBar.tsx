@@ -5,8 +5,19 @@ import { useRouter } from 'next/navigation'
 import { Search, MapPin, X } from 'lucide-react'
 import { getAutocomplete } from '@/lib/api/search'
 import type { AutocompleteSuggestion } from '@/types/search'
+import { STRINGS } from '@/lib/strings'
 
-export default function HeroSearchBar() {
+interface Props {
+  /**
+   * Backdrop this bar sits on. The homepage renders it over a darkened hero
+   * photo ('on-dark'); the dashboard renders it on cream, where the white label
+   * was invisible — white on #FAF9F6 is far below the WCAG AA 4.5:1 floor
+   * (JUL21FIX-09). Defaults to the safer light-background treatment.
+   */
+  tone?: 'on-dark' | 'on-light'
+}
+
+export default function HeroSearchBar({ tone = 'on-light' }: Props = {}) {
   const router = useRouter()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
@@ -81,9 +92,11 @@ export default function HeroSearchBar() {
       {/* Explicit label so the search reads as the hero's primary action (DSGN-01) */}
       <p
         id="hero-search-label"
-        className="text-white text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] mb-3"
+        className={`${
+          tone === 'on-dark' ? 'text-white' : 'text-[#1C3829]'
+        } text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] mb-3`}
       >
-        Find your home
+        {STRINGS.HOMEPAGE_HEROSEARCH_LABEL}
       </p>
       <form
         onSubmit={handleSubmit}

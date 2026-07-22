@@ -11,6 +11,7 @@ import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
 import { getFeaturedProperties, type FeaturedProperty } from '@/lib/api/properties'
 import { ListingAttribution } from '@/components/property/PropertyCell'
 import { formatPrice } from '@/types/search'
+import { STRINGS } from '@/lib/strings'
 import { geocodeCity, getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
 
 export const metadata: Metadata = {
@@ -117,7 +118,10 @@ function CityCard({ c }: { c: CityCardData }) {
         {c.neighbourhoodCount > 0 && (
           <div className="absolute top-3 left-3">
             <span className="bg-[#A3E635] text-[#111111] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-              {c.neighbourhoodCount} {c.neighbourhoodCount === 1 ? 'Neighbourhood' : 'Neighbourhoods'}
+              {c.neighbourhoodCount}{' '}
+              {c.neighbourhoodCount === 1
+                ? STRINGS.HOMEPAGE_CITIES_BADGE_SINGULAR
+                : STRINGS.HOMEPAGE_CITIES_BADGE_PLURAL}
             </span>
           </div>
         )}
@@ -173,13 +177,13 @@ export default async function LandingPage() {
         {/* Hero content */}
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pt-24 pb-20 text-center">
           <h1 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight tracking-tight max-w-4xl mx-auto mb-8">
-            The Art of{' '}
-            <span className="text-[#A3E635]">Intelligence</span>
-            {' '}in Living.
+            {STRINGS.HOMEPAGE_HERO_TITLE_LEAD}{' '}
+            <span className="text-[#A3E635]">{STRINGS.HOMEPAGE_HERO_TITLE_ACCENT}</span>
+            {' '}{STRINGS.HOMEPAGE_HERO_TITLE_TRAIL}
           </h1>
 
           {/* Search bar */}
-          <HeroSearchBar />
+          <HeroSearchBar tone="on-dark" />
         </div>
 
         {/* Scroll hint */}
@@ -195,20 +199,20 @@ export default async function LandingPage() {
             <div className="flex items-end justify-between mb-8">
               <div>
                 <p className="text-[11px] font-semibold text-[#1C3829] uppercase tracking-widest mb-2">
-                  Hand-picked
+                  {STRINGS.HOMEPAGE_HIGHLIGHTS_EYEBROW}
                 </p>
                 <h2 className="font-heading text-3xl font-bold text-[#111111]">
-                  Curated Highlights
+                  {STRINGS.HOMEPAGE_HIGHLIGHTS_TITLE}
                 </h2>
                 <p className="text-[#6B6B6B] text-sm mt-1">
-                  Active, intelligently-vetted opportunities.
+                  {STRINGS.HOMEPAGE_HIGHLIGHTS_SUBTITLE}
                 </p>
               </div>
               <Link
                 href="/search"
                 className="hidden sm:flex items-center gap-1 text-sm text-[#6B6B6B] hover:text-[#111111] transition-colors"
               >
-                View all <ChevronRight size={14} />
+                {STRINGS.HOMEPAGE_HIGHLIGHTS_VIEWALL} <ChevronRight size={14} />
               </Link>
             </div>
 
@@ -227,11 +231,10 @@ export default async function LandingPage() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="font-heading text-4xl font-bold text-[#111111] mb-3">
-                Contextual Living
+                {STRINGS.HOMEPAGE_CITIES_TITLE}
               </h2>
               <p className="text-[#6B6B6B] max-w-md mx-auto text-sm leading-relaxed">
-                Luxury isn&apos;t just four walls. It&apos;s the street, the air, and the
-                community. Explore our preferred cities.
+                {STRINGS.HOMEPAGE_CITIES_BODY}
               </p>
             </div>
 
@@ -246,7 +249,7 @@ export default async function LandingPage() {
                 href="/neighbourhoods"
                 className="inline-flex items-center gap-2 text-sm text-[#6B6B6B] hover:text-[#111111] transition-colors"
               >
-                All Neighbourhoods <ChevronRight size={14} />
+                {STRINGS.HOMEPAGE_CITIES_ALLLINK} <ChevronRight size={14} />
               </Link>
             </div>
           </div>

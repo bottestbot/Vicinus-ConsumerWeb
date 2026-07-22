@@ -10,12 +10,14 @@
 // own outer shell / image treatment — only the info cell is standardized.
 import { Fragment, type ComponentType } from 'react'
 import { Bed, Bath, Maximize2 } from 'lucide-react'
-import { formatPrice, formatNumber, realtorHref } from '@/lib/format'
+import { formatPrice, formatNumber, formatLeaseFrequency, realtorHref } from '@/lib/format'
 import { logListingClick } from '@/lib/api/analytics'
 import { STRINGS } from '@/lib/strings'
 
 export interface PropertyCellData {
   price?: number | null
+  /** DDF LeaseAmountFrequency — renders a "/mo" style suffix on rentals. */
+  leaseFrequency?: string | null
   /** Primary street line, e.g. "123 Main St". */
   address: string
   /** Secondary location line, e.g. "Vancouver, BC V6B 1A1". */
@@ -159,10 +161,12 @@ export default function PropertyCell({
   className = '',
 }: PropertyCellProps) {
   const t = TONE[theme]
-  const { price, address, location, beds, baths, sqft, propertyType } = data
+  const { price, address, location, beds, baths, sqft, propertyType, leaseFrequency } = data
 
-  const priceLabel =
-    price != null && price > 0 ? formatPrice(price) : STRINGS.SEARCH_CARD_PRICE_ON_REQUEST
+  const hasPrice = price != null && price > 0
+  const priceLabel = hasPrice ? formatPrice(price) : STRINGS.SEARCH_CARD_PRICE_ON_REQUEST
+  // JUL21FIX-04: a lease amount without its period reads as a sale price.
+  const priceSuffix = hasPrice ? formatLeaseFrequency(leaseFrequency) : null
 
   // Field order is fixed here so every surface renders it identically.
   const stats: { icon?: ComponentType<{ size?: number }>; text: string; sr: string }[] = []
@@ -191,6 +195,9 @@ export default function PropertyCell({
         } mb-0.5`}
       >
         {priceLabel}
+        {priceSuffix && (
+          <span className={`text-sm font-normal ${t.stats}`}>{priceSuffix}</span>
+        )}
       </p>
 
       <p className={`text-sm ${t.address} truncate ${location ? 'mb-0.5' : 'mb-2.5'}`}>{address}</p>

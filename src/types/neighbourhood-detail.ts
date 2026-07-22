@@ -14,9 +14,13 @@ export interface PoiItem {
 }
 
 export interface PropertySummary {
+  /** DDF ListingKey — routes /properties/:id. Never the local Property.id. */
   id: string
   address: string
+  /** ListPrice, falling back to LeaseAmount on rentals. */
   price: number
+  /** DDF LeaseAmountFrequency — present only on leases. */
+  leaseFrequency?: string | null
   beds: number
   baths: number
   sqft: number

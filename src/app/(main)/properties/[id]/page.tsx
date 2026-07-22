@@ -3,7 +3,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
 import { getPropertyDetail, getListingOpenHouses, getNearbyOpenHouses, getPropertyAiSummary, getMarketContext } from '@/lib/api/properties'
@@ -82,6 +81,38 @@ async function MarketContextSection({ id, property }: { id: string; property: Pr
   return <MarketContext property={property} data={data} />
 }
 
+// ─── Listing unavailable ──────────────────────────────────────────────────────
+// Shown instead of the raw Next 404 when a key resolves to no live DDF listing.
+
+function ListingUnavailable() {
+  return (
+    <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-32 font-ui">
+      <div className="mx-auto max-w-2xl px-6 py-24 text-center">
+        <h1 className="font-heading text-3xl font-semibold text-[#111111] mb-3">
+          This listing is no longer available.
+        </h1>
+        <p className="text-sm text-[#6B6B6B] mb-8">
+          It may have sold or been taken off the market. Plenty more where that came from.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/search"
+            className="rounded-xl bg-[#1C3829] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#16301F]"
+          >
+            Browse listings
+          </Link>
+          <Link
+            href="/neighbourhoods"
+            className="rounded-xl border border-[#E8E6E1] bg-white px-5 py-3 text-sm font-semibold text-[#1C3829] transition-colors hover:border-[#1C3829]/40"
+          >
+            Explore neighbourhoods
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function PropertyDetailPage({
@@ -95,7 +126,14 @@ export default async function PropertyDetailPage({
   // Only block the shell on the fast core fetch (~0.5s). Everything slow or
   // non-critical streams in via Suspense below.
   const property = await getPropertyDetail(id)
-  if (!property) notFound()
+  // JUL21FIX-03: a listing can vanish legitimately (sold/delisted between the
+  // sync and this fetch), so this path is expected — but a bare 404 gave the
+  // user nowhere to go and left us blind to bad keys. Log the key, offer a way
+  // back. Genuine routing bugs surface here too, so keep the log.
+  if (!property) {
+    console.warn(`[property-detail] no DDF listing for key "${id}"`)
+    return <ListingUnavailable />
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-32 font-ui">

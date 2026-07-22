@@ -22,7 +22,11 @@ interface Tile {
   external?: boolean
   /** Proxied preview image (API path, key-free). Omitted for non-visual tiles. */
   preview?: string | null
+  /** No data behind this tile yet — render it inert rather than linking nowhere. */
+  disabled?: boolean
 }
+
+const DATA_PENDING = 'Data coming soon'
 
 export default function LocalInfoTiles({
   neighbourhood,
@@ -81,17 +85,23 @@ export default function LocalInfoTiles({
     {
       icon: GraduationCap,
       label: 'Schools',
-      sublabel: `${schoolsCount} nearby`,
+      // JUL21FIX-06: "0 nearby" claims the neighbourhood has no schools, when
+      // it really means we have no POI snapshot for it yet. Say that instead,
+      // and don't present an empty tile as something worth tapping.
+      sublabel: schoolsCount > 0 ? `${schoolsCount} nearby` : DATA_PENDING,
       // /search ignores a `neighbourhood` param, so linking there dropped the
       // user on an unfiltered listing page. The schools are already listed in
       // Local essentials above — jump there instead.
       href: '#local-essentials',
+      disabled: schoolsCount === 0,
     },
     {
       icon: UtensilsCrossed,
       label: 'Shop & eat',
-      sublabel: `${shopCount} ${shopCount === 1 ? 'place' : 'places'}`,
+      sublabel:
+        shopCount > 0 ? `${shopCount} ${shopCount === 1 ? 'place' : 'places'}` : DATA_PENDING,
       href: '#local-essentials',
+      disabled: shopCount === 0,
     },
   ]
 
@@ -128,8 +138,17 @@ export default function LocalInfoTiles({
               <p className="text-xs text-[#6B6B6B]">{tile.sublabel}</p>
             </>
           )
-          const className =
-            'flex flex-col rounded-xl border border-[#E8E6E1] bg-[#F2F0EB] p-4 transition-colors hover:border-[#1C3829]/40 hover:bg-[#EDEBE4]'
+          const base = 'flex flex-col rounded-xl border border-[#E8E6E1] bg-[#F2F0EB] p-4'
+          const className = tile.disabled
+            ? `${base} opacity-60`
+            : `${base} transition-colors hover:border-[#1C3829]/40 hover:bg-[#EDEBE4]`
+          if (tile.disabled) {
+            return (
+              <div key={tile.label} className={className}>
+                {inner}
+              </div>
+            )
+          }
           return tile.external ? (
             <a key={tile.label} href={tile.href} target="_blank" rel="noopener noreferrer" className={className}>
               {inner}

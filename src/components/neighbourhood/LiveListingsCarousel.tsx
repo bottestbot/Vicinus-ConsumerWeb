@@ -22,14 +22,20 @@ const MAX_LISTINGS = 6
 
 function ListingCard({ listing }: { listing: PropertySummary }) {
   const router = useRouter()
-  const goToListing = () => router.push(`/properties/${listing.id}`)
+  // JUL21FIX-01: the detail page resolves listings DDF-live by ListingKey
+  // (GET /search/listing/{key}), NOT by the local Property.id — routing by
+  // `listing.id` 404s every time. The API returns the key in `slug`.
+  const listingKey = listing.slug
+  const goToListing = () => {
+    if (listingKey) router.push(`/properties/${listingKey}`)
+  }
   const isMatch = listing.isMatch === true
 
   return (
     <div
-      role="link"
-      tabIndex={0}
-      className="group w-64 shrink-0 cursor-pointer"
+      role={listingKey ? 'link' : undefined}
+      tabIndex={listingKey ? 0 : undefined}
+      className={`group w-64 shrink-0 ${listingKey ? 'cursor-pointer' : ''}`}
       onClick={goToListing}
       onKeyDown={(e) => e.key === 'Enter' && goToListing()}
     >
@@ -64,6 +70,7 @@ function ListingCard({ listing }: { listing: PropertySummary }) {
           <PropertyCell
             data={{
               price: listing.price,
+              leaseFrequency: listing.leaseFrequency,
               address: listing.address,
               beds: listing.beds,
               baths: listing.baths,
@@ -72,7 +79,9 @@ function ListingCard({ listing }: { listing: PropertySummary }) {
               brokerageName: listing.brokerageName,
               mlsNumber: listing.mlsNumber,
               realtorUrl: listing.realtorUrl,
-              listingKey: listing.id,
+              // Also the DDF key, not the local id — this is what gets reported
+              // to CREA as the Click event (PropertyCell → logListingClick).
+              listingKey,
             }}
           />
         </div>

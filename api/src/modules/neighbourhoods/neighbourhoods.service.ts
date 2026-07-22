@@ -108,6 +108,7 @@ export class NeighbourhoodsService {
         address: true,
         city: true,
         price: true,
+        leaseAmount: true,
         beds: true,
         baths: true,
         images: true,
@@ -117,11 +118,14 @@ export class NeighbourhoodsService {
     })
 
     const result: ListingSummary[] = properties.map((p) => ({
-      id: p.id,
+      // JUL21FIX-01/02: DDF ListingKey, not the local cuid — the FE routes
+      // /properties/:id by this and would 404 on the Prisma id.
+      id: p.ddfListingKey,
       listingKey: p.ddfListingKey,
       address: p.address,
       city: p.city,
-      listPrice: p.price,
+      // JUL21FIX-04: rentals price via LeaseAmount, not ListPrice.
+      listPrice: p.price ?? p.leaseAmount,
       bedrooms: p.beds,
       bathrooms: p.baths,
       mainPhotoUrl: extractMainPhoto(p.images),
@@ -426,6 +430,8 @@ export class NeighbourhoodsService {
         address: true,
         city: true,
         price: true,
+        leaseAmount: true,
+        leaseFrequency: true,
         beds: true,
         baths: true,
         sqft: true,
@@ -439,9 +445,18 @@ export class NeighbourhoodsService {
     })
 
     return properties.map((p) => ({
-      id: p.id,
+      // JUL21FIX-01/02: expose the DDF ListingKey as `id`, never the local cuid.
+      // The FE routes /properties/:id and reports CREA events by ListingKey, so
+      // handing out the Prisma id here guarantees a 404 (and a bogus analytics
+      // event). Same convention as localToDashboardProperty in users.service.
+      id: p.ddfListingKey,
       address: p.address ?? p.city ?? 'Address unavailable',
-      price: p.price ?? 0,
+      // JUL21FIX-04: rentals carry their asking price in LeaseAmount, not
+      // ListPrice — without this fallback every lease card read "Price on
+      // request". Mirrors DdfQueryService's ListPrice ?? LeaseAmount handling.
+      price: p.price ?? p.leaseAmount ?? 0,
+      leaseAmount: p.leaseAmount,
+      leaseFrequency: p.leaseFrequency,
       beds: p.beds ?? 0,
       baths: p.baths ?? 0,
       sqft: p.sqft ?? 0,
@@ -609,9 +624,14 @@ export interface PoiItem {
 }
 
 export interface PropertySummary {
+  /** DDF ListingKey — the FE routes /properties/:id by this, never the local cuid. */
   id: string
   address: string
+  /** ListPrice, falling back to LeaseAmount for rentals. */
   price: number
+  /** Set only for leases, so the FE can render a "/mo" style suffix. */
+  leaseAmount?: number | null
+  leaseFrequency?: string | null
   beds: number
   baths: number
   sqft: number
