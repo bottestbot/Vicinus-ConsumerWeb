@@ -87,6 +87,23 @@ async function mapbox(query: string, params: Record<string, string>): Promise<Fe
   return data.features ?? []
 }
 
+/**
+ * Does a geocoder result actually name the neighbourhood we asked for?
+ * Equality, or one being a prefix of the other ("Lynn Valley" vs "Lynn Valley
+ * Road"). Substring-anywhere is deliberately not allowed — it would let
+ * "Westhill" match "Hill" and reintroduce cross-city mismatches.
+ */
+function namesCorrespond(nameKey: string, text: string): boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
+  const a = norm(nameKey)
+  const b = norm(text)
+  if (!a || !b) return false
+  if (a === b) return true
+  const shorter = a.length <= b.length ? a : b
+  if (shorter.length < 4) return false
+  return a.startsWith(b) || b.startsWith(a)
+}
+
 const toLatLng = (f: Feature): LatLng | null => {
   const c = f.geometry?.coordinates
   return c ? { lat: c[1], lng: c[0] } : null
@@ -195,10 +212,16 @@ async function geocodeNeighbourhood(
     // south in Richmond and passed the looser check.
     if (haversineKm(p, cityCentre) > MAX_KM_FROM_CITY) continue
 
+    // The returned feature must actually be the place we asked for. Without
+    // this, Mapbox's second-choice neighbourhood was accepted on type alone:
+    // Port Moody Centre, Westhill and Inlet Centre all resolved to Moody Park
+    // in New Westminster, 10.2km away and in a different city.
+    if (!namesCorrespond(nameKey, f.text ?? '')) continue
+
     if (types.includes('neighborhood') || types.includes('locality')) {
       candidates.push({ p, tier: 0 })
-    } else if (types.includes('address') && (f.text ?? '').toLowerCase().startsWith(nameKey)) {
-      // Only an address actually named after the neighbourhood.
+    } else if (types.includes('address')) {
+      // A street named after the neighbourhood — a weaker but usable centroid.
       candidates.push({ p, tier: 1 })
     }
   }
