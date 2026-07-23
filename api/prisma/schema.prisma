@@ -23,11 +23,63 @@ model User {
   // arrives from a new session, so it counts login-sessions (not page loads).
   lastSessionId       String?
 
+  // BRIEF-04 — the "since your last visit" boundary for the Vicinus IQ Brief.
+  // Deliberately NOT Alert.readAt: markAllRead hard-deletes alerts, so the brief
+  // must not touch it or the notification list silently empties. Advanced on the
+  // brief's CTA click (BRIEF-12), never on view. Null ⇒ fall back to a 7-day window.
+  lastBriefAt         DateTime?
+
   savedProperties   SavedProperty[]
   visitedProperties VisitedProperty[]
   savedSearches     SavedSearch[]
   alerts            Alert[]
   openHouseVisits   OpenHouseVisit[]
+  preferenceProfile UserPreferenceProfile?
+}
+
+// BRIEF-01 — structured, queryable projection of the onboarding blob.
+// `User.onboardingData` stays the source of truth; this profile is a derived
+// projection (BRIEF-02 re-derives it on every onboarding step save, BRIEF-03
+// backfills it). Enum-ish keys mirror the onboarding wizard's literals exactly.
+model UserPreferenceProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  goal               String? // buy | sell | rent | exploring
+  timeline           String? // 3mo | 3-6mo | 6-12mo | researching
+  homeType           String? // condo | townhouse | detached | presale | any
+  // Parsed from the budget band DISPLAY string (e.g. "$600K–$1M") into ints —
+  // never the display string. Open-ended bands leave the unbounded side null.
+  budgetMin          Int?
+  budgetMax          Int?
+  bedroomsMin        Int? // parsed from "1+"/"2+"/"3+"/"4+"
+  mortgage           String? // approved | in_progress | not_yet | cash
+  workingWithRealtor String? // yes | no | open
+  openToNearby       Boolean?
+  // Ordered subset of schools|commute|transit|parks|dining|walkability|quiet.
+  // Order encodes weight (first = highest priority). `more` is a dead wizard
+  // tile and is never persisted.
+  lifestylePriorities String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user                    User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferredNeighbourhoods UserPreferredNeighbourhood[]
+}
+
+// BRIEF-01 — preferred neighbourhoods as ROWS (not a JSON array) so the ranker
+// can join on them later. Free-text names as typed in the onboarding wizard.
+model UserPreferredNeighbourhood {
+  id        String   @id @default(uuid())
+  profileId String
+  name      String
+  createdAt DateTime @default(now())
+
+  profile UserPreferenceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, name])
+  @@index([profileId])
 }
 
 model Property {
@@ -183,6 +235,18 @@ model Neighbourhood {
   livabilityPercentile    Float?
   livabilityWeightsVersion String?
   livabilityComputedAt    DateTime?
+
+  // VIBE-01 — "neighbourhood vibe" raw inputs from OSM ways (not points, so not
+  // in NeighbourhoodPoi): cycling infra length, green land-use coverage, and
+  // proximity to the major noise sources. Nullable distances mean "none within
+  // the search radius". Data-only for now; the vibe model/UI are downstream.
+  bikeLaneKm            Float?
+  greenCoverPct         Float?
+  nearestMajorRoadM     Float?
+  nearestRailM          Float?
+  nearestAirportM       Float?
+  vibeMetricsVersion    String?
+  vibeMetricsComputedAt DateTime?
 
   properties      Property[]
   localEssentials LocalEssential[]

@@ -19,7 +19,9 @@ import { AuthModule } from './modules/auth/auth.module'
 import { AiModule } from './modules/ai/ai.module'
 import { SellModule } from './modules/sell/sell.module'
 import { WaitlistModule } from './modules/waitlist/waitlist.module'
+import { LeadModule } from './modules/lead/lead.module'
 import { HealthModule } from './modules/health/health.module'
+import { BriefModule } from './modules/brief/brief.module'
 
 @Module({
   imports: [
@@ -49,7 +51,9 @@ import { HealthModule } from './modules/health/health.module'
     AiModule,
     SellModule,
     WaitlistModule,
+    LeadModule,
     HealthModule,
+    BriefModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

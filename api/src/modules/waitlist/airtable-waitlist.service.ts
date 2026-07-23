@@ -44,7 +44,11 @@ export class AirtableWaitlistService {
     const baseId = this.config.get<string>('AIRTABLE_BASE_ID')
     if (!apiKey || !baseId) {
       // Airtable mirroring is opt-in; without credentials there is nothing to do.
-      this.logger.debug('Airtable not configured — skipping waitlist mirror')
+      // Warn, not debug: Nest suppresses debug under NODE_ENV=production, which
+      // made a missing-credentials deploy look identical to a working one.
+      this.logger.warn(
+        `Airtable not configured — skipping waitlist mirror (apiKey=${apiKey ? 'set' : 'missing'}, baseId=${baseId ? 'set' : 'missing'})`,
+      )
       return
     }
 
