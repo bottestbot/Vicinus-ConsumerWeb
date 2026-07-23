@@ -259,6 +259,41 @@ export class DdfQueryService {
     }
   }
 
+  /**
+   * Active DDF health probe for `/health/ddf`. Runs the SAME default filter that
+   * `searchProperties` builds, so a field CREA makes non-filterable (as happened
+   * to StandardStatus in 2026-07) — or a value that goes obsolete and matches
+   * nothing — trips this probe instead of silently emptying the site. Unlike
+   * searchProperties it does NOT swallow the failure: the outcome is the signal.
+   */
+  async probe(): Promise<{
+    ok: boolean;
+    total?: number;
+    status?: number;
+    message?: string;
+  }> {
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
+    const filter = this.buildFilterParts({} as SearchQueryDto).join(' and ');
+    const url = `${baseUrl}/Property?$top=1&$count=true&$filter=${encodeURIComponent(filter)}`;
+    try {
+      const token = await this.auth.getToken();
+      const response = await firstValueFrom(
+        this.http.get(url, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        }),
+      );
+      const total =
+        (response.data['@odata.count'] as number | undefined) ??
+        ((response.data.value as unknown[])?.length ?? 0);
+      // A national feed always has active listings; total 0 means the query is
+      // valid but matches nothing (a subtler regression than a 400), so flag it.
+      return { ok: total > 0, total };
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      return { ok: false, status, message: (err as Error).message };
+    }
+  }
+
   async getMapPins(dto: SearchQueryDto): Promise<MapPin[]> {
     if (!dto.bbox || !this.parseBbox(dto.bbox)) return [];
 
