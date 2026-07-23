@@ -56,11 +56,29 @@ export class LivabilityService {
 
     const pois = await this.loadLatestPois(neighbourhoodId)
 
-    // No POI snapshot means the ingest never succeeded here — scoring it would
-    // write 0s that are indistinguishable from a genuinely amenity-free area
-    // and would drag down every percentile in the region. Leave scores null.
+    // No POI snapshot means the ingest never succeeded here. Scoring it would
+    // write 0s indistinguishable from a genuinely amenity-free area and drag
+    // down every percentile in the region.
+    //
+    // Clear any existing scores rather than just returning: when a centroid
+    // moves, its POIs are deleted and re-fetched, and simply leaving the old
+    // values behind stranded a score computed at the OLD location. Dundarave
+    // showed livability 85.7 while its Local essentials were empty, because the
+    // score predated the move and nothing invalidated it.
     if (pois.length === 0) {
-      this.logger.warn(`Neighbourhood ${neighbourhoodId} has no POIs — leaving scores unset`)
+      this.logger.warn(`Neighbourhood ${neighbourhoodId} has no POIs — clearing scores`)
+      await this.prisma.neighbourhood.update({
+        where: { id: neighbourhoodId },
+        data: {
+          walkabilityScore: null,
+          schoolsScore: null,
+          amenitiesScore: null,
+          transitSubScore: null,
+          livabilityScore: null,
+          livabilityPercentile: null,
+          livabilityComputedAt: null,
+        },
+      })
       return { walkability: null, schools: null, amenities: null, transit: null, livability: null }
     }
 
