@@ -1,49 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { HttpService } from '@nestjs/axios'
 import { ConfigService } from '@nestjs/config'
-import { firstValueFrom } from 'rxjs'
 import { PrismaService } from '../../prisma/prisma.service'
 import { PoiCategory } from './scoring/geo'
+import { fetchOverpass, OverpassElement } from './overpass'
 
 // NBHD-02 — OSM/Overpass POI ingestion. Raw POIs are snapshotted per run so a
 // quarterly refresh replaces a neighbourhood's set atomically. ODbL attribution
 // is required anywhere these are surfaced to users.
 export const ODBL_ATTRIBUTION = '© OpenStreetMap contributors (ODbL)'
 
-// Overpass mirrors, tried in order. The main instance is frequently saturated
-// (504 "server too busy"), so a run of any size needs somewhere else to go.
-const OVERPASS_ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.osm.ch/api/interpreter',
-]
-
-// Overpass rejects requests carrying a generic library User-Agent with
-// 406 Not Acceptable (axios sends "axios/<version>" by default). Their usage
-// policy asks callers to identify themselves, so send something descriptive.
-const USER_AGENT = 'Vicinus/1.0 (+https://vicinus.ca; neighbourhood livability scoring)'
-
 const DEFAULT_RADIUS_M = 1500
 const OVERPASS_TIMEOUT_S = 25
 // Politeness delay between neighbourhoods in the batch — Overpass is a shared
 // free endpoint and rate-limits aggressive callers.
 const BATCH_DELAY_MS = 1500
-// Transient server-side conditions worth retrying rather than dropping the
-// neighbourhood to zero POIs.
-const RETRYABLE_STATUS = new Set([429, 502, 503, 504])
-const MAX_ATTEMPTS_PER_ENDPOINT = 2
 
 const AMENITY_FILTER = 'restaurant|cafe|bar|supermarket|school|hospital|pharmacy|bank|park'
 const LEISURE_FILTER = 'park|playground'
-
-interface OverpassElement {
-  type: 'node' | 'way' | 'relation'
-  id: number
-  lat?: number
-  lon?: number
-  center?: { lat: number; lon: number }
-  tags?: Record<string, string>
-}
 
 @Injectable()
 export class PoiIngestionService {
@@ -146,42 +120,7 @@ export class PoiIngestionService {
   way["leisure"~"${LEISURE_FILTER}"](${around});
 );
 out center tags;`
-
-    // A self-hosted OVERPASS_URL, when configured, takes priority over the mirrors.
-    const configured = this.config.get<string>('OVERPASS_URL')
-    const endpoints = configured ? [configured, ...OVERPASS_ENDPOINTS] : OVERPASS_ENDPOINTS
-
-    let lastError: Error = new Error('No Overpass endpoint attempted')
-    for (const url of endpoints) {
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_ENDPOINT; attempt++) {
-        try {
-          const response = await firstValueFrom(
-            this.http.post<{ elements: OverpassElement[] }>(
-              url,
-              `data=${encodeURIComponent(query)}`,
-              {
-                headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                  'User-Agent': USER_AGENT,
-                },
-                // Overpass can be slow; cap total wait a little above its internal timeout.
-                timeout: (OVERPASS_TIMEOUT_S + 10) * 1000,
-              },
-            ),
-          )
-          return response.data?.elements ?? []
-        } catch (err) {
-          lastError = err as Error
-          const status = (err as { response?: { status?: number } }).response?.status
-          // A non-retryable status (e.g. 400 bad query) won't improve on retry
-          // or on another mirror — surface it immediately.
-          if (status !== undefined && !RETRYABLE_STATUS.has(status)) throw err
-          if (attempt < MAX_ATTEMPTS_PER_ENDPOINT) await delay(attempt * 2000)
-        }
-      }
-      this.logger.debug(`Overpass endpoint ${url} exhausted, trying next mirror`)
-    }
-    throw lastError
+    return fetchOverpass(this.http, this.config, query, OVERPASS_TIMEOUT_S)
   }
 
   private toPoiRow(
