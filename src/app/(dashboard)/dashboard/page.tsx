@@ -5,6 +5,8 @@ import { auth } from '@clerk/nextjs/server'
 import type { DashboardData } from '@/types/dashboard'
 import Navbar from '@/components/layout/Navbar'
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner'
+import DashboardBrief from '@/components/dashboard/DashboardBrief'
+import SearchPanel from '@/components/dashboard/SearchPanel'
 import FeaturedProperty from '@/components/dashboard/FeaturedProperty'
 import NotificationsPanel from '@/components/dashboard/NotificationsPanel'
 import SavedProperties from '@/components/dashboard/SavedProperties'
@@ -65,16 +67,26 @@ export default async function DashboardPage() {
       {/* Dashboard-specific navbar (no main site nav) */}
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
 
-        {/* Welcome banner + recent searches */}
-        <WelcomeBanner data={safeData} />
+        {/* Full-width header: title + honest metric subline (DASH-01/02) */}
+        <div className="mb-8">
+          <WelcomeBanner data={safeData} />
+        </div>
 
-        {/* Left rail (Featured + Saved + Schedule) + full-height Notifications panel,
-            stretched to match the combined height of the left rail rather than just
-            the Featured Property card. */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-          <div className="lg:col-span-2 flex flex-col gap-10">
+        {/* Two-column layout matching the redesign comp: a left content column
+            (Brief → Search → Next open house → Saved → Schedule → Recently viewed)
+            and a full-height Notifications sidebar on the right. */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="lg:col-span-2 flex flex-col gap-8">
+            {/* Vicinus IQ Brief */}
+            <DashboardBrief data={safeData} />
+
+            {/* Search block ("FIND YOUR HOME" + Smart/Classic toggle + recent) */}
+            <SearchPanel />
+
+            {/* Next open house hero — reuses the FeaturedProperty card in this slot
+                (DASH-05 builds the real open-house-sourced hero later). */}
             {featuredProperty ? (
               <FeaturedProperty property={featuredProperty} />
             ) : (
@@ -84,23 +96,24 @@ export default async function DashboardPage() {
             )}
 
             {/* Saved properties carousel */}
-            <div className="border-t border-[#E8E6E1] pt-10">
+            <div className="border-t border-[#E8E6E1] pt-8">
               <SavedProperties saved={safeData.saved} />
             </div>
 
             {/* Open house schedule (FE-821) — client component, own useOpenHouseVisits() fetch */}
-            <div className="border-t border-[#E8E6E1] pt-10">
+            <div className="border-t border-[#E8E6E1] pt-8">
               <OpenHouseSchedule />
             </div>
+
+            {/* Recently viewed properties */}
+            <div className="border-t border-[#E8E6E1] pt-8 pb-4">
+              <VisitedProperties visited={safeData.visited} />
+            </div>
           </div>
+
           <div className="lg:col-span-1">
             <NotificationsPanel />
           </div>
-        </div>
-
-        {/* Recently viewed properties */}
-        <div className="border-t border-[#E8E6E1] pt-10 pb-16">
-          <VisitedProperties visited={safeData.visited} />
         </div>
 
       </div>

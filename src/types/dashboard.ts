@@ -99,3 +99,31 @@ export interface OpenHouseVisitGroup {
   date: string
   visits: OpenHouseVisit[]
 }
+
+// ─── Vicinus IQ Brief (BRIEF-09…12) ─────────────────────────────────────────
+
+export type BriefHighlightKind = 'price_drop' | 'new_listing' | 'status_change' | 'open_house'
+
+export interface BriefHighlight {
+  id: string
+  kind: BriefHighlightKind
+  /** Short deterministic label, e.g. "$40,000 price drop". Never model-authored. */
+  label: string
+  /** Secondary line, e.g. an address. Nullable. */
+  subLabel: string | null
+  /** Real in-app route, already ListingKey-routed by the backend (BRIEF-08). */
+  href: string
+  listingKey: string | null
+}
+
+export interface Brief {
+  headline: string
+  body: string
+  highlights: BriefHighlight[]
+  /** ISO timestamp the brief copy was generated. */
+  generatedAt: string
+  /** Gemini failed → templated copy from the same facts object (BRIEF-07). */
+  isFallback: boolean
+  /** No alerts in the trailing 7 days → forward-looking variant (BRIEF-11). */
+  isEmpty: boolean
+}

@@ -267,11 +267,18 @@ export const STRINGS = {
   // ─── Dashboard · Welcome banner ─────────────────────────────────────────────
   DASHBOARD_WELCOME_TITLE: 'Welcome back, {firstName}.',
   DASHBOARD_WELCOME_FALLBACK_NAME: 'there',
-  DASHBOARD_WELCOME_BODY_PREFIX: 'Your curated portfolio has',
-  DASHBOARD_WELCOME_BODY_UPDATES: '{count} new updates',
-  DASHBOARD_WELCOME_BODY_SUFFIX:
-    'since your last visit. Explore matches in Chelsea and Aspen.',
+  // Honest fallback line, shown only when the IQ Brief is unavailable (fetch
+  // failed). Never asserts a fabricated "new updates" count (closes JUL21FIX-11).
+  DASHBOARD_WELCOME_FALLBACK_SAVED: 'Your curated portfolio holds {count} {noun}. Explore more in {cities}.',
+  DASHBOARD_WELCOME_FALLBACK_EMPTY: 'Start your portfolio — explore homes in {cities}.',
+  DASHBOARD_WELCOME_PROPERTY_ONE: 'property',
+  DASHBOARD_WELCOME_PROPERTY_MANY: 'properties',
   DASHBOARD_NOFEATURED: 'No featured property yet — save a listing to get started.',
+
+  // ─── Dashboard · Vicinus IQ Brief (BRIEF-09…12) ─────────────────────────────
+  DASHBOARD_BRIEF_EYEBROW: 'Vicinus IQ Brief',
+  DASHBOARD_BRIEF_REGION_LABEL: 'Vicinus IQ Brief',
+  DASHBOARD_BRIEF_LOADING_ARIA: 'Preparing your brief',
 
   // ─── Dashboard · Recent searches ────────────────────────────────────────────
   DASHBOARD_RECENTSEARCHES_HEADING: 'Recent Searches',

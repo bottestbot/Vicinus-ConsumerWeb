@@ -1,64 +1,40 @@
 import type { DashboardData } from '@/types/dashboard'
-import RecentSearches from './RecentSearches'
-import HeroSearchBar from '@/components/landing/HeroSearchBar'
+import { STRINGS } from '@/lib/strings'
 
 interface Props {
   data: DashboardData
 }
 
 /**
- * The two cities named in the welcome line. Derived from what the user has
- * actually saved (JUL21FIX-10) — the previous copy hardcoded "Chelsea and
- * Aspen", neither of which we carry listings for, so the invitation led to
- * guaranteed empty results.
+ * Dashboard header — the full-width title + a summary metric subline, sitting
+ * above the two-column content grid (DASH-01).
+ *
+ * The subline reports ONLY counts we can compute honestly from the dashboard
+ * payload (saved / recently-viewed). The comp also shows "open houses this week"
+ * and "new matches today"; those are alert-derived and not on this payload, so
+ * they're deliberately omitted here rather than fabricated — see DASH-02 /
+ * JUL21FIX-11 for why a made-up count is a trust + DDF problem.
  */
-function topCities(data: DashboardData): string[] {
-  const counts = new Map<string, number>()
-  for (const s of data.saved) {
-    const city = s.property.city?.trim()
-    if (city) counts.set(city, (counts.get(city) ?? 0) + 1)
-  }
-  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([city]) => city)
-  // No saves yet (or none carrying a city) → real BC markets we do serve.
-  return ranked.length > 0 ? ranked.slice(0, 2) : FALLBACK_CITIES
-}
-
-const FALLBACK_CITIES = ['Vancouver', 'Kelowna']
-
 export default function WelcomeBanner({ data }: Props) {
-  const firstName = data.user.fullName?.split(' ')[0] ?? 'there'
+  const firstName =
+    data.user.fullName?.split(' ')[0] ?? STRINGS.DASHBOARD_WELCOME_FALLBACK_NAME
+
   const savedCount = data.saved.length
-  const cities = topCities(data)
-  const citiesLabel = cities.length > 1 ? `${cities[0]} and ${cities[1]}` : cities[0]
+  const visitedCount = data.visited.length
+
+  const metrics: string[] = [
+    `${savedCount} saved ${savedCount === 1 ? 'property' : 'properties'}`,
+  ]
+  if (visitedCount > 0) {
+    metrics.push(`${visitedCount} recently viewed`)
+  }
 
   return (
-    <div className="mb-8">
-      <h1 className="font-heading text-4xl sm:text-5xl font-semibold text-[#111111] mb-3">
-        Welcome back, {firstName}.
+    <div>
+      <h1 className="font-heading text-4xl sm:text-5xl font-semibold text-[#111111] mb-2">
+        {STRINGS.DASHBOARD_WELCOME_TITLE.replace('{firstName}', firstName)}
       </h1>
-      {/* JUL21FIX-11: the old line asserted "{n} new updates since your last
-          visit" from a number that counted nothing — a user with zero saves was
-          still told they had 2. Say only what we can actually back. */}
-      <p className="text-sm text-[#6B6B6B] max-w-xl">
-        {savedCount > 0 ? (
-          <>
-            Your curated portfolio holds{' '}
-            <span className="font-semibold text-[#111111]">
-              {savedCount} {savedCount === 1 ? 'property' : 'properties'}
-            </span>
-            . Explore more in {citiesLabel}.
-          </>
-        ) : (
-          <>Start your portfolio — explore homes in {citiesLabel}.</>
-        )}
-      </p>
-
-      {/* Search bar */}
-      <div className="mt-6 mb-2">
-        <HeroSearchBar tone="on-light" />
-      </div>
-
-      <RecentSearches />
+      <p className="text-sm text-[#6B6B6B]">{metrics.join(' · ')}</p>
     </div>
   )
 }

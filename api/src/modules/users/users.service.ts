@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service'
 import { EditorialService } from '../editorial/editorial.service'
 import { DdfQueryService } from '../ddf-sync/ddf-query.service'
 import { CreateSavedSearchDto } from '../search/dto/create-saved-search.dto'
+import { parseOnboardingBlob } from '../brief/preference-profile.util'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -343,13 +344,75 @@ export class UsersService {
     const user = await this.getMe(clerkId)
     const existing = (user.onboardingData as Record<string, unknown>) ?? {}
     const merged = data.stepData ? { ...existing, ...data.stepData } : existing
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: user.id },
       data: {
         onboardingData: merged as Prisma.InputJsonValue,
         ...(data.completed ? { onboardingCompleted: true } : {}),
       },
     })
+
+    // BRIEF-02: dual-write the derived preference profile. `onboardingData`
+    // stays the source of truth; the profile is a projection re-derived from the
+    // (accumulated) merged blob, so a partial step-save can never null out a
+    // previously-parsed field. Deliberately non-blocking — onboarding saves are
+    // fire-and-forget on the client, so a parse failure must not break the wizard.
+    await this.syncPreferenceProfile(user.id, merged)
+
+    return updated
+  }
+
+  /**
+   * BRIEF-02/03: (re-)derive `UserPreferenceProfile` + `UserPreferredNeighbourhood`
+   * rows from an onboarding blob. Idempotent and re-runnable — safe to call on
+   * every step save and from the backfill script. Never throws.
+   */
+  async syncPreferenceProfile(userId: string, blob: Record<string, unknown> | null | undefined) {
+    try {
+      const parsed = parseOnboardingBlob(blob)
+      const profileData = {
+        goal: parsed.goal,
+        timeline: parsed.timeline,
+        homeType: parsed.homeType,
+        budgetMin: parsed.budgetMin,
+        budgetMax: parsed.budgetMax,
+        bedroomsMin: parsed.bedroomsMin,
+        mortgage: parsed.mortgage,
+        workingWithRealtor: parsed.workingWithRealtor,
+        openToNearby: parsed.openToNearby,
+        lifestylePriorities: parsed.lifestylePriorities,
+      }
+
+      const profile = await this.prisma.userPreferenceProfile.upsert({
+        where: { userId },
+        create: { userId, ...profileData },
+        update: profileData,
+      })
+
+      // Preferred neighbourhoods are rows. Only reconcile them when the blob
+      // actually carried a `neighbourhoods` key — the accumulated blob always
+      // does once step 2 is saved, but guarding avoids wiping rows on an early
+      // partial save that predates that step.
+      const hasHoodsKey = !!blob && Object.prototype.hasOwnProperty.call(blob, 'neighbourhoods')
+      if (hasHoodsKey) {
+        await this.prisma.$transaction([
+          this.prisma.userPreferredNeighbourhood.deleteMany({ where: { profileId: profile.id } }),
+          ...(parsed.neighbourhoods.length > 0
+            ? [
+                this.prisma.userPreferredNeighbourhood.createMany({
+                  data: parsed.neighbourhoods.map((name) => ({ profileId: profile.id, name })),
+                  skipDuplicates: true,
+                }),
+              ]
+            : []),
+        ])
+      }
+
+      return profile
+    } catch (err) {
+      this.logger.warn(`syncPreferenceProfile failed for user ${userId}: ${(err as Error).message}`)
+      return null
+    }
   }
 
   // ─── Dashboard (BE-604) ──────────────────────────────────────────────────
