@@ -6,6 +6,23 @@ import { TransitService } from './transit.service'
 import { SchoolsAmenitiesService } from './schools-amenities.service'
 import { blendLivability, DEFAULT_WEIGHTS, SubScores, WEIGHTS_VERSION } from './blend'
 
+// NBHD-19 launch scope: transit is scored only for these Metro Vancouver
+// cities, which TransLink's GTFS feed covers. Mirrors the UI's LAUNCH_CITIES
+// (src/lib/api/neighbourhoods.ts) — keep the two in sync when the launch set
+// widens. Lowercased for case-insensitive matching.
+const TRANSIT_SCOPE_CITIES = new Set([
+  'vancouver',
+  'burnaby',
+  'richmond',
+  'surrey',
+  'coquitlam',
+  'port moody',
+  'port coquitlam',
+  'north vancouver',
+  'west vancouver',
+  'new westminster',
+])
+
 // NBHD-07 — orchestrates the sub-scorers, blends them into the livability
 // composite, ranks it against the reference pool, and persists the versioned
 // result. Batch/offline job — never called in the request path (NBHD-09 reads
@@ -84,7 +101,16 @@ export class LivabilityService {
 
     const walk = this.walkability.score(pois, centroid)
     const { schoolsScore, amenitiesScore } = this.schoolsAmenities.score(pois, centroid)
-    const transitResult = await this.transit.score(centroid)
+
+    // NBHD-19: transit is scored only for the launch set (Metro Vancouver), the
+    // area TransLink's GTFS feed actually covers. Gating by city — rather than
+    // relying on the coverage radius alone — also suppresses spurious scores on
+    // rows whose centroid is mis-geocoded into Metro Van (e.g. a Kamloops row
+    // that landed near a Vancouver stop). Everything else stays transit: null,
+    // and the blend redistributes its weight.
+    const transitResult = TRANSIT_SCOPE_CITIES.has((neighbourhood.city ?? '').toLowerCase())
+      ? await this.transit.score(centroid)
+      : { score: null, source: 'unavailable' as const }
 
     const sub: SubScores = {
       walkability: walk.score,
