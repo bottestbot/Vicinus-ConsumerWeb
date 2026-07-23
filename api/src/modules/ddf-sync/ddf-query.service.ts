@@ -102,9 +102,14 @@ export class DdfQueryService {
    */
   private buildFilterParts(dto: SearchQueryDto): string[] {
     const filterParts: string[] = ['InternetEntireListingDisplayYN eq true'];
-    filterParts.push(
-      `StandardStatus eq '${this.sanitize(dto.status ?? 'Active')}'`,
-    );
+    // CREA removed StandardStatus from the DDF $filter-able fields (2026-07):
+    // `StandardStatus eq 'Active'` now returns HTTP 400 "invalid query", and our
+    // catch turned that into an empty result across the whole site (search, map,
+    // featured). The live DDF Property feed is active-only — sold/expired
+    // listings drop out of the feed, verified against a spread sample — so status
+    // is guaranteed Active without a filter clause. The field is still returned
+    // (see mapProperty) if we ever need to read it; dto.status is intentionally
+    // not applied for the same reason.
 
     // Sale vs lease: rentals carry a LeaseAmount, sales do not.
     if (dto.listingType === 'For Rent') {
@@ -885,7 +890,8 @@ export class DdfQueryService {
         const east = lng + delta;
         const filter =
           `InternetEntireListingDisplayYN eq true` +
-          ` and StandardStatus eq 'Active'` +
+          // StandardStatus is no longer $filter-able (CREA 2026-07); the DDF feed
+          // is active-only, so dropping it keeps this query valid. See buildFilterParts.
           ` and Latitude ge ${south} and Latitude le ${north}` +
           ` and Longitude ge ${west} and Longitude le ${east}` +
           ` and ListingKey ne '${subjectKey}'`;
