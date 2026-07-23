@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
-import { getPropertyDetail, getListingOpenHouses, getNearbyOpenHouses, getPropertyAiSummary, getMarketContext } from '@/lib/api/properties'
+import { getPropertyDetail, getListingOpenHouses, getNearbyOpenHouses, getMarketContext } from '@/lib/api/properties'
 import { realtorHref } from '@/lib/format'
 import OpenHouseSchedule from '@/components/property/OpenHouseSchedule'
 import PropertyGallery from '@/components/property/PropertyGallery'
@@ -22,7 +22,7 @@ import ActionBar from '@/components/property/ActionBar'
 import AgentCard from '@/components/property/AgentCard'
 import TrackVisited from '@/components/property/TrackVisited'
 import ListingViewTracker from '@/components/property/ListingViewTracker'
-import PropertySummary from '@/components/property/PropertySummary'
+// import PropertySummary from '@/components/property/PropertySummary' // temporarily hidden from UI
 import VirtualTour from '@/components/property/VirtualTour'
 import PropertyLocationLinks from '@/components/property/PropertyLocationLinks'
 
@@ -64,11 +64,12 @@ async function OpenHouseSection({ id }: { id: string }) {
   return <OpenHouseSchedule slots={slots} listingId={id} />
 }
 
-async function AiSummarySection({ id }: { id: string }) {
-  const summary = await getPropertyAiSummary(id)
-  if (!summary) return null
-  return <PropertySummary summary={summary} />
-}
+// Temporarily hidden from UI — restore alongside the <AiSummarySection> mount below.
+// async function AiSummarySection({ id }: { id: string }) {
+//   const summary = await getPropertyAiSummary(id)
+//   if (!summary) return null
+//   return <PropertySummary summary={summary} />
+// }
 
 async function NearbyOpenHousesSection({ id }: { id: string }) {
   const nearby = await getNearbyOpenHouses(id)
@@ -194,10 +195,11 @@ export default async function PropertyDetailPage({
           <OpenHouseSection id={id} />
         </Suspense>
 
-        {/* ── AI Property Summary (streams in — cold gen can take ~8s) ───── */}
+        {/* ── AI Property Summary — temporarily hidden from UI ──────────────
         <Suspense fallback={<SectionSkeleton className="h-56" />}>
           <AiSummarySection id={id} />
         </Suspense>
+        */}
 
         {/* ── Divider ───────────────────────────────────────────────────── */}
         <div className="border-t border-[#E8E6E1]" />
