@@ -1,16 +1,20 @@
 'use client'
 
 // Agent contact card — appears in the right sidebar of the detail page
+import { useState } from 'react'
 import { Phone, Mail, ExternalLink } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
 import { realtorHref } from '@/lib/format'
 import { logEmailRealtor, logListingClick } from '@/lib/api/analytics'
+import ContactAgentModal from './ContactAgentModal'
 
 interface AgentCardProps {
   property: PropertyDetail
 }
 
 export default function AgentCard({ property }: AgentCardProps) {
+  const [contactOpen, setContactOpen] = useState(false)
+
   // DDF sometimes omits the agent name but supplies the brokerage. Fall back to
   // the brokerage for the primary line + avatar so the card is never blank.
   const primaryName = property.agentName || property.brokerageName || 'Listing Brokerage'
@@ -23,8 +27,13 @@ export default function AgentCard({ property }: AgentCardProps) {
       .slice(0, 2) || 'RE'
 
   // CREA-05: contacting the listing REALTOR(R) is the `email_realtor` event the
-  // REAW tier requires us to report. Both CTAs below are leads, so both fire it.
+  // REAW tier requires us to report. The phone CTA reports on tap; the Send
+  // Message CTA reports on inquiry submit (inside ContactAgentModal).
   const reportLead = () => logEmailRealtor(property.id)
+
+  const fullAddress = [property.address, property.city, property.province]
+    .filter(Boolean)
+    .join(', ')
 
   return (
     <div className="bg-white rounded-2xl border border-[#E8E6E1] shadow-sm p-6 sticky top-20">
@@ -60,7 +69,7 @@ export default function AgentCard({ property }: AgentCardProps) {
           </a>
         )}
         <button
-          onClick={reportLead}
+          onClick={() => setContactOpen(true)}
           className="flex items-center justify-center gap-2 w-full border border-[#E8E6E1] text-[#111111] text-sm font-medium py-2.5 rounded-xl hover:border-[#1C3829] transition-colors">
           <Mail size={14} />
           Send Message
@@ -76,6 +85,15 @@ export default function AgentCard({ property }: AgentCardProps) {
           View on REALTOR.ca
         </a>
       </div>
+
+      {contactOpen && (
+        <ContactAgentModal
+          listingKey={property.id}
+          propertyAddress={fullAddress}
+          agentName={primaryName}
+          onClose={() => setContactOpen(false)}
+        />
+      )}
     </div>
   )
 }

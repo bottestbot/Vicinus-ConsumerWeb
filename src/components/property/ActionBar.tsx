@@ -7,6 +7,7 @@ import { Heart, Share2, Phone, Check, X } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
 import { useUserStore } from '@/store/userStore'
 import { saveProperty, unsaveProperty } from '@/lib/api/users'
+import { logEmailRealtor } from '@/lib/api/analytics'
 
 interface ActionBarProps {
   propertyId: string
@@ -216,9 +217,12 @@ export default function ActionBar({
             <span>Share</span>
           </button>
 
-          {/* Contact Agent — primary CTA */}
+          {/* Contact Agent — primary CTA. Fires the CREA `email_realtor` lead
+              event, matching the AgentCard CTA so leads from this (more
+              prominent) bottom-bar button are reported too. */}
           <a
             href={agentPhone ? `tel:${agentPhone}` : '#'}
+            onClick={() => logEmailRealtor(propertyId)}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm bg-white text-[#1C3829] hover:bg-white/95 transition-all"
           >
             <Phone size={15} />
