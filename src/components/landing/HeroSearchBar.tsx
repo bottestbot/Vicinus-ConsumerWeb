@@ -15,9 +15,17 @@ interface Props {
    * (JUL21FIX-09). Defaults to the safer light-background treatment.
    */
   tone?: 'on-dark' | 'on-light'
+  /** Optional control rendered on the label row's right (e.g. the Smart/Classic toggle). */
+  rightSlot?: React.ReactNode
+  /** Fill the container instead of the centred max-w-3xl hero width. */
+  fullWidth?: boolean
 }
 
-export default function HeroSearchBar({ tone = 'on-light' }: Props = {}) {
+export default function HeroSearchBar({
+  tone = 'on-light',
+  rightSlot,
+  fullWidth = false,
+}: Props = {}) {
   const router = useRouter()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
@@ -88,16 +96,19 @@ export default function HeroSearchBar({ tone = 'on-light' }: Props = {}) {
   }, [])
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className={fullWidth ? 'w-full' : 'w-full max-w-3xl mx-auto'}>
       {/* Explicit label so the search reads as the hero's primary action (DSGN-01) */}
-      <p
-        id="hero-search-label"
-        className={`${
-          tone === 'on-dark' ? 'text-white' : 'text-[#1C3829]'
-        } text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] mb-3`}
-      >
-        {STRINGS.HOMEPAGE_HEROSEARCH_LABEL}
-      </p>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p
+          id="hero-search-label"
+          className={`${
+            tone === 'on-dark' ? 'text-white' : 'text-[#1C3829]'
+          } text-xs sm:text-sm font-semibold uppercase tracking-[0.2em]`}
+        >
+          {STRINGS.HOMEPAGE_HEROSEARCH_LABEL}
+        </p>
+        {rightSlot}
+      </div>
       <form
         onSubmit={handleSubmit}
         aria-labelledby="hero-search-label"
