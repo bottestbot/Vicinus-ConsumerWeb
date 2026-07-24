@@ -257,13 +257,21 @@ export default async function PropertyDetailPage({
                 MLS® {property.mlsNumber} · Data provided by CREA and may not reflect all available listings. Information is deemed reliable but not guaranteed.
               </p>
             </div>
+            {/* CREA DDF rule: "Powered by REALTOR.ca" badge linked back to the
+                listing on REALTOR.ca. The SVG already reads "Powered by
+                REALTOR.ca", so no separate caption is needed. */}
             <a
               href={realtorHref(property.realtorUrl)}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-[#6B6B6B] hover:text-[#1C3829] transition-colors shrink-0"
+              className="shrink-0"
             >
-              Powered by <span className="font-semibold">REALTOR.ca</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                width={125}
+                src="https://www.realtor.ca/images/en-ca/powered_by_realtor.svg"
+                alt="Powered by: REALTOR.ca"
+              />
             </a>
           </div>
         </footer>

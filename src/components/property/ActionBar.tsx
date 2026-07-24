@@ -217,9 +217,8 @@ export default function ActionBar({
             <span>Share</span>
           </button>
 
-          {/* Contact Agent — primary CTA. Fires the CREA `email_realtor` lead
-              event, matching the AgentCard CTA so leads from this (more
-              prominent) bottom-bar button are reported too. */}
+          {/* Contact Agent — hidden for now (per request). Fires the CREA
+              `email_realtor` lead event; restore when the CTA is re-enabled.
           <a
             href={agentPhone ? `tel:${agentPhone}` : '#'}
             onClick={() => logEmailRealtor(propertyId)}
@@ -228,6 +227,7 @@ export default function ActionBar({
             <Phone size={15} />
             <span>Contact Agent</span>
           </a>
+          */}
         </div>
       </div>
     </>

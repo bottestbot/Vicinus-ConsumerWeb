@@ -95,11 +95,11 @@ function daysSince(iso: string | null | undefined): number {
   return Math.max(0, Math.floor((Date.now() - t) / 86_400_000))
 }
 
-/** DDF remarks sometimes end with an internal id like "(id:66285)" — strip it
- *  before showing customer-facing description text. */
+/** DDF remarks sometimes end with an internal id like "(id:66285)". REALTOR.ca's
+ *  shared listing display keeps this id in the description, so we preserve it. */
 function cleanDescription(desc: string | null | undefined): string | undefined {
   if (!desc) return undefined
-  return desc.replace(/\s*\(id:\d+\)\s*$/i, '').trim() || undefined
+  return desc.trim() || undefined
 }
 
 function toPropertyDetail(l: ApiListing): PropertyDetail {
