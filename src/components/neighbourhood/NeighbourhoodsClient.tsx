@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
 import { useSearchStore } from '@/store/searchStore'
 import type { Neighbourhood } from '@/types/neighbourhood'
 import { formatPrice } from '@/types/search'
@@ -287,6 +288,10 @@ function CityFilter({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) {
+  const searchParams = useSearchParams()
+  // A `?city=` param (e.g. from the homepage "Understand the vicinity" cards)
+  // takes precedence over the ambient search-store context for pre-selection.
+  const cityParam = searchParams.get('city')
   const query = useSearchStore((s) => s.query)
   const userCity = useSearchStore((s) => s.userCity)
 
@@ -313,9 +318,10 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
   const [isSticky, setIsSticky] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
-  // NBR-03: context-aware pre-selection on mount
+  // NBR-03: context-aware pre-selection on mount. An explicit `?city=` param
+  // wins over the ambient search-store query/userCity.
   useEffect(() => {
-    const ctx = contextMatch(data, query, userCity)
+    const ctx = contextMatch(data, cityParam || query, userCity)
     if (ctx) {
       setSelectedProvince(ctx.province)
       setSelectedCity(ctx.city)

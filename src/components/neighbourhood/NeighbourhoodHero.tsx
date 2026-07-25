@@ -4,6 +4,7 @@
 // reel card. Panels stack on mobile.
 import Image from 'next/image'
 import MarketSnapshot from './MarketSnapshot'
+import { getNeighbourhoodHeroMapUrl } from '@/lib/neighbourhood-images'
 import type { NeighbourhoodDetailResponse } from '@/types/neighbourhood-detail'
 
 interface Props {
@@ -21,17 +22,32 @@ export default function NeighbourhoodHero({
   transitScore,
   province,
 }: Props) {
-  const { name, city, heroImageUrl } = neighbourhood
+  const { name, city, heroImageUrl, centroidLat, centroidLng, boundary } = neighbourhood
   const locationLabel = [city, province].filter(Boolean).join(' · ')
+  const heroMapUrl = getNeighbourhoodHeroMapUrl(centroidLat, centroidLng, boundary)
+  // When we have the boundary polygon, show the map with the area drawn on it —
+  // that's the point of the hero here. Otherwise prefer an editorial photo, then
+  // a plain centred map, and only fall back to the flat green panel with neither.
+  const photoUrl = boundary && heroMapUrl ? null : heroImageUrl
+  const mapUrl = photoUrl ? null : heroMapUrl
 
   return (
     <section className="grid overflow-hidden rounded-2xl border border-[#E8E6E1] bg-white md:grid-cols-2">
-      {/* Left — photo panel */}
+      {/* Left — photo / map panel */}
       <div className="relative min-h-[280px] md:min-h-[360px]">
-        {heroImageUrl ? (
+        {photoUrl ? (
           <Image
-            src={heroImageUrl}
+            src={photoUrl}
             alt={`${name}, ${city}`}
+            fill
+            priority
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
+          />
+        ) : mapUrl ? (
+          <Image
+            src={mapUrl}
+            alt={`Map of ${name}, ${city}`}
             fill
             priority
             sizes="(max-width: 768px) 100vw, 50vw"
@@ -40,7 +56,13 @@ export default function NeighbourhoodHero({
         ) : (
           <div className="absolute inset-0 bg-[#1C3829]" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0F231A] via-[#1C3829]/40 to-transparent" />
+        {/* Scrim only needs to darken the lower area for the title; keep it light
+            over a map so the streets/boundary stay legible. */}
+        <div
+          className={`absolute inset-0 bg-gradient-to-t ${
+            mapUrl ? 'from-[#0F231A]/85 via-[#0F231A]/10 to-transparent' : 'from-[#0F231A] via-[#1C3829]/40 to-transparent'
+          }`}
+        />
         {locationLabel && (
           <span className="absolute left-5 top-5 inline-flex items-center rounded-md bg-[#A3E635] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#1C3829]">
             {locationLabel}

@@ -52,6 +52,25 @@ export class AlertsService {
 
   // ─── Read/mutate (BE-808/809/810) ────────────────────────────────────────
 
+  /** Matches OPEN_HOUSE alerts whose event day is before today (UTC). Used
+   *  under a `NOT` so past open houses are excluded from both the list and the
+   *  unread count. `payload.openHouseDate` is stored as an ISO string, so a
+   *  lexicographic `lt` against today's UTC-midnight ISO is a chronological
+   *  comparison. Alerts with no `openHouseDate` are kept (can't prove stale). */
+  private pastOpenHouseFilter(): Prisma.AlertWhereInput {
+    const now = new Date();
+    const startOfTodayUtc = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    return {
+      type: AlertType.OPEN_HOUSE,
+      payload: {
+        path: ['openHouseDate'],
+        lt: startOfTodayUtc.toISOString(),
+      },
+    };
+  }
+
   async listForUser(
     clerkId: string,
     opts: { type?: AlertType | AlertType[]; page?: number; limit?: number },
@@ -69,6 +88,11 @@ export class AlertsService {
     const where: Prisma.AlertWhereInput = {
       userId: user.id,
       ...typeFilter,
+      // Drop open houses that have already happened — a past open house is
+      // dead weight in the feed and shouldn't count toward the unread badge
+      // either. `openHouseDate` in the payload is an ISO string (UTC midnight
+      // of the event day), which compares chronologically as text.
+      NOT: this.pastOpenHouseFilter(),
     };
 
     const [rows, total, unreadCount] = await Promise.all([
@@ -80,7 +104,13 @@ export class AlertsService {
         take: limit,
       }),
       this.prisma.alert.count({ where }),
-      this.prisma.alert.count({ where: { userId: user.id, readAt: null } }),
+      this.prisma.alert.count({
+        where: {
+          userId: user.id,
+          readAt: null,
+          NOT: this.pastOpenHouseFilter(),
+        },
+      }),
     ]);
 
     const alerts = rows.map((r) => ({

@@ -27,6 +27,13 @@ export default function HeroSearchBar({
   fullWidth = false,
 }: Props = {}) {
   const router = useRouter()
+  // On the dashboard's white card the hero's heavy shadow + translucent blur
+  // makes each control look like a detached floating pill; use a flat bordered
+  // surface there instead. The homepage keeps the over-photo shadow treatment.
+  const isLight = tone === 'on-light'
+  const fieldSurface = isLight
+    ? 'bg-white border border-[#E8E6E1]'
+    : 'bg-white/95 backdrop-blur-sm shadow-lg'
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -115,7 +122,7 @@ export default function HeroSearchBar({
         className="flex flex-col sm:flex-row gap-2 w-full"
       >
       <div ref={containerRef} className="relative flex-1">
-        <div className="flex items-center gap-2.5 bg-white/95 backdrop-blur-sm rounded-xl px-5 py-4 shadow-lg">
+        <div className={`flex items-center gap-2.5 rounded-xl px-5 py-4 ${fieldSurface}`}>
           <MapPin size={18} className="text-[#9B9B9B] shrink-0" />
           <input
             ref={inputRef}
@@ -161,8 +168,11 @@ export default function HeroSearchBar({
         value={priceRange}
         onChange={(e) => setPriceRange(e.target.value)}
         aria-label="Price range"
-        className="sm:w-40 px-4 py-4 bg-white/95 backdrop-blur-sm rounded-xl text-sm text-[#6B6B6B] focus:outline-none cursor-pointer shadow-lg"
+        className={`sm:w-40 px-4 py-4 rounded-xl text-sm focus:outline-none cursor-pointer ${fieldSurface} ${
+          priceRange ? 'text-[#111111]' : 'text-[#6B6B6B]'
+        }`}
       >
+        {/* Empty value doubles as the "clear price" option. */}
         <option value="">Price Range</option>
         <option value="0-1000000">Under $1M</option>
         <option value="1000000-2000000">$1M – $2M</option>
@@ -172,7 +182,9 @@ export default function HeroSearchBar({
 
       <button
         type="submit"
-        className="flex items-center justify-center gap-2 px-7 py-4 bg-[#1C3829] text-white text-base font-semibold rounded-xl hover:bg-[#2D5A3D] transition-colors shrink-0 shadow-lg"
+        className={`flex items-center justify-center gap-2 px-7 py-4 bg-[#1C3829] text-white text-base font-semibold rounded-xl hover:bg-[#2D5A3D] transition-colors shrink-0 ${
+          isLight ? '' : 'shadow-lg'
+        }`}
       >
         <Search size={18} />
         Search

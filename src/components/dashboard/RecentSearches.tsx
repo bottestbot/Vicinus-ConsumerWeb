@@ -35,6 +35,34 @@ function searchLabel(s: SavedSearch): string {
   return parts.join(' · ') || 'Unnamed Search'
 }
 
+// Partial/typo queries (e.g. "kel" for Kelowna) get saved and clutter the strip;
+// require a few real characters before a chip is worth showing.
+const MIN_LABEL_LEN = 4
+const MAX_CHIPS = 6
+
+/** Title-case for consistent chips ("vancouver" → "Vancouver"), but leave
+ *  anything containing digits alone (postal codes, "$1M") untouched. */
+function normalizeLabel(raw: string): string {
+  const v = raw.trim()
+  return /\d/.test(v) ? v : v.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/** Trim + drop trivial/partial queries + de-dupe case-insensitively + cap. */
+function cleanSearches(list: SavedSearch[]): { search: SavedSearch; label: string }[] {
+  const seen = new Set<string>()
+  const out: { search: SavedSearch; label: string }[] = []
+  for (const search of list) {
+    const raw = searchLabel(search).trim()
+    if (raw.replace(/\s+/g, '').length < MIN_LABEL_LEN) continue
+    const key = raw.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ search, label: normalizeLabel(raw) })
+    if (out.length >= MAX_CHIPS) break
+  }
+  return out
+}
+
 export default function RecentSearches() {
   const router = useRouter()
   const [searches, setSearches] = useState<SavedSearch[]>([])
@@ -44,11 +72,14 @@ export default function RecentSearches() {
     getSavedSearches()
       .then((res) => {
         const data = Array.isArray(res.data) ? res.data : []
-        setSearches(data.slice(0, 6))
+        // Keep a wider slice; cleanSearches() de-dupes and caps for display.
+        setSearches(data.slice(0, 20))
       })
       .catch(() => setSearches([]))
       .finally(() => setLoading(false))
   }, [])
+
+  const visible = cleanSearches(searches)
 
   if (loading) {
     return (
@@ -65,7 +96,7 @@ export default function RecentSearches() {
     )
   }
 
-  if (searches.length === 0) {
+  if (visible.length === 0) {
     return (
       <div className="mt-5">
         <p className="text-[11px] font-semibold text-[#6B6B6B] uppercase tracking-widest mb-3">
@@ -91,14 +122,14 @@ export default function RecentSearches() {
         Recent Searches
       </p>
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {searches.map((s) => (
+        {visible.map(({ search, label }) => (
           <button
-            key={s.id}
-            onClick={() => router.push(buildSearchUrl(s.filters))}
+            key={search.id}
+            onClick={() => router.push(buildSearchUrl(search.filters))}
             className="shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-full border border-[#E8E6E1] bg-white text-sm text-[#111111] hover:border-[#1C3829]/40 hover:bg-[#F2F0EB] transition-colors whitespace-nowrap"
           >
             <Search size={12} className="text-[#6B6B6B]" />
-            <span className="font-medium text-[13px]">{searchLabel(s)}</span>
+            <span className="font-medium text-[13px]">{label}</span>
           </button>
         ))}
       </div>

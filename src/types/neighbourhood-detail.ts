@@ -3,6 +3,12 @@
 // shape via `getNeighbourhoodDetail` (src/lib/api/neighbourhoods.ts), which
 // falls back to composing today's live endpoints until `/detail` ships.
 
+/** GeoJSON geometry stored for a neighbourhood boundary (map overlay). */
+export interface BoundaryGeometry {
+  type: 'Polygon' | 'MultiPolygon'
+  coordinates: number[][][] | number[][][][]
+}
+
 export interface PoiItem {
   id: string
   name: string
@@ -47,6 +53,9 @@ export interface NeighbourhoodDetailResponse {
     flavors: string[]
     centroidLat: number
     centroidLng: number
+    /** GeoJSON Polygon/MultiPolygon for the hero map overlay; null when the
+     *  neighbourhood has no ingested boundary. */
+    boundary?: BoundaryGeometry | null
   }
   marketSnapshot: {
     medianPrice: number

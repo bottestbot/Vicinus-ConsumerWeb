@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarPlus, Calendar, ArrowDown, RefreshCw, Home } from 'lucide-react'
+import { CalendarPlus, Calendar, ArrowDown, RefreshCw, Home, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAlerts, useDeleteAlert, useMarkAllAlertsRead, ALERTS_PAGE_SIZE } from '@/hooks/useAlerts'
 import { useOpenHouseVisits } from '@/hooks/useOpenHouseVisits'
 import { formatOpenHouseTime, formatOpenHouseTimeRange } from '@/lib/format'
@@ -227,7 +227,17 @@ function formatScheduleTime(visit: OpenHouseVisit): string {
  *  paginated window (that window can be dominated by OPEN_HOUSE rows). */
 const NON_OPEN_HOUSE_TYPES: AlertType[] = ['NEW_LISTING', 'PRICE_DROP', 'STATUS_CHANGE']
 
-/** Numbered page controls — 1, 2, 3, 4… rather than "Load more". */
+/** How many numbered page buttons are visible at once. Kept small so the whole
+ *  control (chevrons + ellipses + numbers) fits the narrow notifications column
+ *  without overflowing; the sliding window still keeps the current page in
+ *  context, and the chevrons + first/last jumps cover the rest. */
+const PAGE_WINDOW = 5
+
+/** Numbered page controls with a sliding window — only up to PAGE_WINDOW pages
+ *  are shown at a time, centered on the current page and clamped at both ends,
+ *  so a feed with dozens of pages never overflows into a horizontal scroll.
+ *  When the window doesn't reach an end, the first/last page is shown with an
+ *  ellipsis so those are always one click away. */
 function Pagination({
   page,
   totalPages,
@@ -238,20 +248,44 @@ function Pagination({
   onChange: (page: number) => void
 }) {
   if (totalPages <= 1) return null
+
+  const half = Math.floor(PAGE_WINDOW / 2)
+  const start = Math.max(1, Math.min(page - half, totalPages - PAGE_WINDOW + 1))
+  const end = Math.min(totalPages, start + PAGE_WINDOW - 1)
+  const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i)
+
+  const arrowClass =
+    'w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-[#6B6B6B] transition-colors hover:bg-[#F2F0EB] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed'
+  const numClass = (active: boolean) =>
+    `w-6 h-6 shrink-0 rounded-full text-[11px] font-semibold transition-colors ${
+      active ? 'bg-[#1C3829] text-white' : 'text-[#6B6B6B] hover:bg-[#F2F0EB]'
+    }`
+
   return (
-    <div className="flex items-center justify-center gap-1 pt-3">
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-        <button
-          key={p}
-          onClick={() => onChange(p)}
-          aria-current={p === page ? 'page' : undefined}
-          className={`w-7 h-7 shrink-0 rounded-full text-[11px] font-semibold transition-colors ${
-            p === page ? 'bg-[#1C3829] text-white' : 'text-[#6B6B6B] hover:bg-[#F2F0EB]'
-          }`}
-        >
+    <div className="flex items-center justify-center gap-0.5 pt-3">
+      <button onClick={() => onChange(page - 1)} disabled={page === 1} aria-label="Previous page" className={arrowClass}>
+        <ChevronLeft size={14} />
+      </button>
+      {start > 1 && (
+        <>
+          <button onClick={() => onChange(1)} className={numClass(false)}>1</button>
+          {start > 2 && <span className="px-0.5 text-[11px] text-[#6B6B6B] select-none">…</span>}
+        </>
+      )}
+      {pages.map((p) => (
+        <button key={p} onClick={() => onChange(p)} aria-current={p === page ? 'page' : undefined} className={numClass(p === page)}>
           {p}
         </button>
       ))}
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span className="px-0.5 text-[11px] text-[#6B6B6B] select-none">…</span>}
+          <button onClick={() => onChange(totalPages)} className={numClass(false)}>{totalPages}</button>
+        </>
+      )}
+      <button onClick={() => onChange(page + 1)} disabled={page === totalPages} aria-label="Next page" className={arrowClass}>
+        <ChevronRight size={14} />
+      </button>
     </div>
   )
 }
@@ -338,6 +372,16 @@ export default function NotificationsPanel() {
   // every tab's response) — "All" is as good a source as any.
   const unreadCount = all.data?.unreadCount ?? 0
   const scheduleVisits = (scheduleGroups ?? []).flatMap((g) => g.visits)
+
+  // Guard against landing on a page that no longer exists — e.g. the total
+  // shrinks after alerts are read/deleted or past open houses drop off — which
+  // would otherwise leave the panel stuck on an empty (blank-rows) page.
+  useEffect(() => {
+    if (allTotalPages > 0 && allPage > allTotalPages) setAllPage(allTotalPages)
+  }, [allTotalPages, allPage])
+  useEffect(() => {
+    if (alertsTotalPages > 0 && alertsPage > alertsTotalPages) setAlertsPage(alertsTotalPages)
+  }, [alertsTotalPages, alertsPage])
 
   const openAlert = (alert: Alert) => {
     const propertyId = alert.property?.id ?? alert.propertyId

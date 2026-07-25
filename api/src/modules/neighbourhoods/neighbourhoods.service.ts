@@ -291,6 +291,7 @@ export class NeighbourhoodsService {
         lng: true,
         centroidLat: true,
         centroidLng: true,
+        boundary: true,
         walkabilityScore: true,
         transitSubScore: true,
         schoolsScore: true,
@@ -330,6 +331,7 @@ export class NeighbourhoodsService {
         flavors: [],
         centroidLat: centroidLat ?? 0,
         centroidLng: centroidLng ?? 0,
+        boundary: (row.boundary as BoundaryGeometry | null) ?? null,
       },
       marketSnapshot,
       livability: {
@@ -643,6 +645,13 @@ export interface PropertySummary {
   mlsNumber?: string | null
 }
 
+/** GeoJSON Polygon/MultiPolygon as stored in `Neighbourhood.boundary`. Only a
+ *  subset of neighbourhoods have this ingested (see ingest-boundaries.ts). */
+export interface BoundaryGeometry {
+  type: 'Polygon' | 'MultiPolygon'
+  coordinates: number[][][] | number[][][][]
+}
+
 export interface DetailNeighbourhood {
   id: string
   slug: string
@@ -653,6 +662,8 @@ export interface DetailNeighbourhood {
   flavors: string[]
   centroidLat: number
   centroidLng: number
+  /** GeoJSON boundary for map overlay; null when not ingested. */
+  boundary: BoundaryGeometry | null
 }
 
 export interface LocalEssentialsBuckets {

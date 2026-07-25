@@ -4,9 +4,11 @@ import type { Brief } from '@/types/dashboard'
 
 export const BRIEF_KEY = ['brief'] as const
 
-// Session cache key. Bump the suffix if the Brief contract changes so a stale
-// shape from a previous deploy can't be replayed within an open tab.
-const SESSION_KEY = 'vicinus:iq-brief:v1'
+// Session cache key. Bump the suffix if the Brief contract OR its copy changes
+// so a stale version from a previous deploy can't be replayed within an open
+// tab. v2: brief is now deterministic (no LLM), leads with the counts breakdown
+// + "your saved searches and properties", and tidies DDF ALL-CAPS addresses.
+const SESSION_KEY = 'vicinus:iq-brief:v2'
 
 /**
  * Fetch the brief at most ONCE per browser session. The brief is backed by a

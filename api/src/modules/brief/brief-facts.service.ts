@@ -45,24 +45,51 @@ function formatOpenHouseDate(value: unknown): string | null {
   })
 }
 
-/** `456 W 11TH AVENUE, Vancouver` from a resolved card, falling back to payload. */
+// Compass directionals stay upper-cased ("W", "NW") rather than being
+// title-cased into "W"/"Nw".
+const DIRECTIONALS = new Set(['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW'])
+
+/** Tidy DDF's ALL-CAPS street text for display: "456 W 11TH AVENUE, Vancouver"
+ *  → "456 W 11th Avenue, Vancouver"; "2986 ALBION" → "2986 Albion". Only
+ *  re-cases fully-upper-case words (so ordinals like "63RD" → "63rd" and
+ *  "ROBINSON" → "Robinson"), leaves already-mixed-case text ("Vancouver") alone,
+ *  and preserves compass directionals. */
+function tidyAddress(value: string): string {
+  return value
+    .split(/\s+/)
+    .map((word) => {
+      const upper = word.toUpperCase()
+      if (DIRECTIONALS.has(upper)) return upper
+      if (word === upper && /[A-Z]/.test(word)) {
+        return word.charAt(0) + word.slice(1).toLowerCase()
+      }
+      return word
+    })
+    .join(' ')
+}
+
+/** `456 W 11th Avenue, Vancouver` from a resolved card, falling back to payload. */
 function subLabelFor(
   property: DashboardProperty | null,
   payloadAddress: unknown,
   payloadCity?: unknown,
 ): string | null {
+  let result: string | null = null
   if (property) {
     const street = [property.streetNumber, property.streetName]
       .filter(Boolean)
       .join(' ')
       .trim()
     const parts = [street || null, property.city].filter(Boolean)
-    if (parts.length > 0) return parts.join(', ')
+    if (parts.length > 0) result = parts.join(', ')
   }
-  const addr = typeof payloadAddress === 'string' ? payloadAddress.trim() : ''
-  const city = typeof payloadCity === 'string' ? payloadCity.trim() : ''
-  const parts = [addr || null, city && !addr.includes(city) ? city : null].filter(Boolean)
-  return parts.length > 0 ? parts.join(', ') : null
+  if (!result) {
+    const addr = typeof payloadAddress === 'string' ? payloadAddress.trim() : ''
+    const city = typeof payloadCity === 'string' ? payloadCity.trim() : ''
+    const parts = [addr || null, city && !addr.includes(city) ? city : null].filter(Boolean)
+    if (parts.length > 0) result = parts.join(', ')
+  }
+  return result ? tidyAddress(result) : null
 }
 
 @Injectable()

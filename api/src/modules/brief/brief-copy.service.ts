@@ -2,9 +2,16 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { GoogleGenerativeAI, Schema, SchemaType } from '@google/generative-ai'
 import { RedisService } from '../../common/redis/redis.service'
-import type { BriefFacts, BriefHighlight } from './brief.types'
+import type { BriefFacts, BriefHighlight, BriefHighlightKind } from './brief.types'
 
 const COPY_TTL = 6 * 60 * 60 // ~6 hours
+
+// COMPLIANCE (CREA DDF): the weekly brief must NOT send DDF listing data
+// (addresses, list prices) to a third-party LLM. The copy is therefore generated
+// deterministically from the facts object via `template()` — no external call,
+// no data egress. The Gemini path below is retained but disabled; only re-enable
+// it with a prompt that carries NO DDF-derived fields (see buildPrompt).
+const LLM_ENABLED: boolean = false
 
 const COPY_SCHEMA: Schema = {
   type: SchemaType.OBJECT,
@@ -48,6 +55,12 @@ export class BriefCopyService {
   }
 
   async generate(facts: BriefFacts): Promise<BriefCopy> {
+    // Default path: deterministic, no LLM, no DDF data leaves the system. This
+    // is the intended output (not a degraded fallback), so isFallback is false.
+    if (!LLM_ENABLED) {
+      return { ...this.template(facts), isFallback: false }
+    }
+
     // Cache key includes the latest alert id so copy regenerates only when
     // something actually moved — not on a timer. The forward-looking variant
     // has no alert id, so key off its highlight set (+ TTL handles refresh).
@@ -168,20 +181,53 @@ Tone: editorial, direct, premium — like a sharp analyst briefing a client. Do 
     const n = facts.alertCount
     const headline =
       n === 1 ? '1 update this week' : `${n} updates this week`
-    const body =
-      facts.highlights.length > 0
-        ? `In the last 7 days, ${describeHighlights(facts.highlights)}. Tap a card to see the details.`
-        : `You have ${n} update${n === 1 ? '' : 's'} in the last 7 days.`
-    return { headline, body }
+
+    // Lead with the deterministic breakdown ("761 new listings, 419 open
+    // houses, and 48 price drops") and say where it's from — every alert is
+    // driven by the user's own saved searches / saved properties — then point
+    // at the standout listings.
+    const breakdown = formatCounts(facts.counts)
+    const count = n.toLocaleString('en-CA')
+    const parts: string[] = []
+    parts.push(
+      breakdown
+        ? `In the last 7 days, your saved searches and properties saw ${count} update${n === 1 ? '' : 's'} — ${breakdown}.`
+        : `You have ${count} update${n === 1 ? '' : 's'} across your saved searches and properties.`,
+    )
+    if (facts.highlights.length > 0) {
+      parts.push(`Recent highlights include ${describeHighlights(facts.highlights)}. Tap a card to see the details.`)
+    }
+    return { headline, body: parts.join(' ') }
   }
 }
 
-// ─── Deterministic phrasing helpers (fallback only) ─────────────────────────
+// ─── Deterministic phrasing helpers ─────────────────────────────────────────
+
+/** Fixed order so the breakdown reads naturally regardless of counts-object
+ *  key order — "761 new listings, 419 open houses, and 48 price drops". */
+const COUNT_ORDER: { key: BriefHighlightKind; noun: string }[] = [
+  { key: 'new_listing', noun: 'new listing' },
+  { key: 'open_house', noun: 'open house' },
+  { key: 'price_drop', noun: 'price drop' },
+  { key: 'status_change', noun: 'status change' },
+]
+
+/** "761 new listings, 419 open houses, and 48 price drops" — omits zero counts,
+ *  pluralises, and thousands-separates. Empty string when nothing moved. */
+function formatCounts(counts: Record<BriefHighlightKind, number>): string {
+  const parts = COUNT_ORDER.filter(({ key }) => (counts[key] ?? 0) > 0).map(({ key, noun }) => {
+    const c = counts[key]
+    return `${c.toLocaleString('en-CA')} ${noun}${c === 1 ? '' : 's'}`
+  })
+  return joinNames(parts)
+}
 
 function describeHighlights(highlights: BriefHighlight[]): string {
+  // Keep the label/address as-is (matching the CTA chips) rather than
+  // lower-casing — "451 63RD, Vancouver", not "451 63rd, vancouver".
   const parts = highlights.map((h) => {
     const where = h.subLabel ? ` on ${h.subLabel}` : ''
-    return `${h.label.toLowerCase()}${where}`
+    return `${h.label}${where}`
   })
   return joinNames(parts)
 }

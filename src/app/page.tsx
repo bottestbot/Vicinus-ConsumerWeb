@@ -141,7 +141,7 @@ export default async function LandingPage() {
   // from a representative neighbourhood in each city when available, else a safe
   // fallback; each card links to a city-scoped search.
   // TODO: replace with a proper curated selection later.
-  const FEATURED_CITIES = ['Vancouver', 'Kelowna', 'West Vancouver', 'Whistler']
+  const FEATURED_CITIES = ['Vancouver', 'Burnaby', 'West Vancouver', 'North Vancouver']
   const cities = await Promise.all(
     FEATURED_CITIES.map(async (name) => {
       const inCity = neighbourhoods.filter((n) => n.city?.toLowerCase() === name.toLowerCase())
@@ -151,7 +151,7 @@ export default async function LandingPage() {
         name,
         province: match?.province ?? 'British Columbia',
         imageUrl: coords ? getNeighbourhoodMapImageUrl(coords.lat, coords.lng) : CITY_FALLBACK_IMAGE,
-        href: `/search?q=${encodeURIComponent(name)}`,
+        href: `/neighbourhoods?city=${encodeURIComponent(name)}`,
         neighbourhoodCount: inCity.length,
       }
     }),
