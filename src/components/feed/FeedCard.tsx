@@ -9,6 +9,7 @@ import {
   Volume2,
   VolumeX,
   Pause,
+  ChevronUp,
 } from 'lucide-react'
 import type { Property } from '@/types/search'
 import { formatNumber, formatPrice as formatPriceCA, realtorHref } from '@/lib/format'
@@ -85,6 +86,9 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
   // Playback position of whichever video is on screen (native or YouTube).
   // Drives the scrubbable seekbar under the bottom info stack.
   const [videoTime, setVideoTime] = useState({ current: 0, duration: 0 })
+  // Bottom info stack starts collapsed to just the address; tapping it reveals
+  // price, stats, attribution and the full-listing link.
+  const [infoExpanded, setInfoExpanded] = useState(false)
 
   const images = property.images?.length ? property.images : property.imageUrl ? [property.imageUrl] : []
   const youtubeUrl = property.youtubeUrl ?? null
@@ -97,12 +101,11 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
   const streetLine = property.address || cityProvince
   const fullAddress = [property.address, cityProvince].filter(Boolean).join(', ')
 
-  // "3 bd · 4 ba · 1,592 sqft · Single Family" stats row.
+  // "3 bd · 4 ba · 1,592 sqft" stats row.
   const statsParts = [
     property.beds > 0 ? `${property.beds} bd` : null,
     property.baths > 0 ? `${property.baths} ba` : null,
     property.sqft > 0 ? `${formatNumber(property.sqft)} sqft` : null,
-    property.propertyType || null,
   ].filter((p): p is string => !!p)
 
   // "Oakwyn Realty Ltd. · MLS® R3134003" attribution line.
@@ -223,8 +226,14 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
     else { v.pause(); if (!isActive) { v.currentTime = 0 } }
   }, [isActive, paused])
 
-  // Reset the manual pause whenever this card scrolls out of view.
-  useEffect(() => { if (!isActive) setPaused(false) }, [isActive])
+  // Reset the manual pause + collapse the info stack whenever this card
+  // scrolls out of view, so every card re-enters in its default state.
+  useEffect(() => {
+    if (!isActive) {
+      setPaused(false)
+      setInfoExpanded(false)
+    }
+  }, [isActive])
 
   const prevImg = useCallback(() => setImgIndex((i) => {
     const prev = i - 1
@@ -369,11 +378,13 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
           </>
         )}
 
-        {/* Mute button — at card level (z-40) so it sits above the iframe */}
+        {/* Mute button — at card level (z-40) so it sits above the iframe.
+            Top-left, below the floating search bar (mirrors the Phone view
+            toggle's top-20 offset on the right, which the search bar clears). */}
         {(hasVideo || isOnYoutube) && (
           <button
             onClick={isOnYoutube ? toggleYoutubeMute : () => setMuted((m) => !m)}
-            className="absolute top-4 right-4 z-40 p-2 rounded-full bg-black/50 backdrop-blur-sm text-white"
+            className="absolute top-20 left-3 sm:left-4 z-40 p-2 rounded-full bg-black/50 backdrop-blur-sm text-white"
             aria-label={muted ? 'Unmute' : 'Mute'}
           >
             {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
@@ -443,52 +454,78 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             otherwise win hit-testing and swallow Save/Share taps. Only the
             actual interactive children opt back in. */}
         <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-5 pr-16 pointer-events-none">
-          <p className="text-white text-3xl font-bold leading-tight mb-1">
-            {/* Mirror PropertyCell's guard: DDF omits price on some listings and
-                the search mapper coerces null to 0, so calling formatPrice
-                directly rendered a literal "$0" on live listings. */}
-            {property.price > 0
-              ? formatPriceCA(property.price)
-              : STRINGS.SEARCH_CARD_PRICE_ON_REQUEST}
-          </p>
+          {/* Price — revealed on expand */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ${
+              infoExpanded ? 'max-h-10 opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <p className="text-white text-2xl font-bold leading-tight mb-1">
+              {/* Mirror PropertyCell's guard: DDF omits price on some listings and
+                  the search mapper coerces null to 0, so calling formatPrice
+                  directly rendered a literal "$0" on live listings. */}
+              {property.price > 0
+                ? formatPriceCA(property.price)
+                : STRINGS.SEARCH_CARD_PRICE_ON_REQUEST}
+            </p>
+          </div>
 
-          <Link href={`/properties/${property.id}`} className="pointer-events-auto block group mb-1">
-            <h2 className="text-white text-base font-medium leading-snug group-hover:underline line-clamp-1">
+          {/* Address row — the collapsed state. Tapping it (or the chevron)
+              expands/collapses the rest of the info stack. */}
+          <button
+            onClick={() => setInfoExpanded((e) => !e)}
+            aria-expanded={infoExpanded}
+            aria-label={infoExpanded ? 'Hide listing details' : 'Show listing details'}
+            className="pointer-events-auto flex w-full items-center gap-1.5 text-left"
+          >
+            <h2 className="text-white text-sm font-medium leading-snug line-clamp-1">
               {fullAddress}
             </h2>
-          </Link>
+            <ChevronUp
+              size={14}
+              className={`shrink-0 text-white/70 transition-transform duration-300 ${
+                infoExpanded ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
 
-          <div className="flex flex-wrap items-center gap-x-1.5 text-white/85 text-sm mb-1" aria-hidden="true">
-            {statsParts.map((part, i) => (
-              <span key={i} className="flex items-center gap-x-1.5 whitespace-nowrap">
-                {i > 0 && <span className="text-white/45">·</span>}
-                {part}
-              </span>
-            ))}
-          </div>
-          {/* Screen-reader equivalent with expanded, non-abbreviated units */}
-          <span className="sr-only">
-            {[
-              property.beds > 0 ? `${property.beds} bedrooms` : null,
-              property.baths > 0 ? `${property.baths} bathrooms` : null,
-              property.sqft > 0 ? `${formatNumber(property.sqft)} square feet` : null,
-              property.propertyType || null,
-            ].filter(Boolean).join(', ')}
-          </span>
+          {/* Details — revealed on expand */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ${
+              infoExpanded ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className="flex flex-wrap items-center gap-x-1.5 text-white/85 text-sm mb-1" aria-hidden="true">
+              {statsParts.map((part, i) => (
+                <span key={i} className="flex items-center gap-x-1.5 whitespace-nowrap">
+                  {i > 0 && <span className="text-white/45">·</span>}
+                  {part}
+                </span>
+              ))}
+            </div>
+            {/* Screen-reader equivalent with expanded, non-abbreviated units */}
+            <span className="sr-only">
+              {[
+                property.beds > 0 ? `${property.beds} bedrooms` : null,
+                property.baths > 0 ? `${property.baths} bathrooms` : null,
+                property.sqft > 0 ? `${formatNumber(property.sqft)} square feet` : null,
+              ].filter(Boolean).join(', ')}
+            </span>
 
-          {/* Brokerage + MLS® attribution (Task #4/#5/#8) */}
-          {attributionLine && (
-            <p className="text-white/55 text-xs leading-snug truncate">{attributionLine}</p>
-          )}
+            {/* Brokerage + MLS® attribution (Task #4/#5/#8) */}
+            {attributionLine && (
+              <p className="text-white/55 text-xs leading-snug truncate">{attributionLine}</p>
+            )}
 
-          {/* Route back to full listing */}
-          <div className="mt-3 pointer-events-auto">
-            <Link
-              href={`/properties/${property.id}`}
-              className="text-white/80 text-xs font-semibold underline underline-offset-2 hover:text-white"
-            >
-              See full listing
-            </Link>
+            {/* Route back to full listing */}
+            <div className="mt-3 pointer-events-auto">
+              <Link
+                href={`/properties/${property.id}`}
+                className="text-white/80 text-xs font-semibold underline underline-offset-2 hover:text-white"
+              >
+                See full listing
+              </Link>
+            </div>
           </div>
 
           {/* Seekbar — video slides only (photos rely on the top slide dots).
