@@ -71,6 +71,23 @@ export class AlertsService {
     };
   }
 
+  /** Notifications older than this are dropped from the panel — the daily
+   *  brief summarizes older activity, so the notification centre only surfaces
+   *  the last 7 days. */
+  private static readonly RECENT_WINDOW_DAYS = 7;
+
+  /** Keeps an alert only while it's recent. OPEN_HOUSE is exempt from the
+   *  created-at window — it stays visible until the event itself has passed
+   *  (see pastOpenHouseFilter), even when announced more than 7 days out. */
+  private recentWindowFilter(): Prisma.AlertWhereInput {
+    const cutoff = new Date(
+      Date.now() - AlertsService.RECENT_WINDOW_DAYS * 86_400_000,
+    );
+    return {
+      OR: [{ type: AlertType.OPEN_HOUSE }, { createdAt: { gte: cutoff } }],
+    };
+  }
+
   async listForUser(
     clerkId: string,
     opts: { type?: AlertType | AlertType[]; page?: number; limit?: number },
@@ -88,6 +105,9 @@ export class AlertsService {
     const where: Prisma.AlertWhereInput = {
       userId: user.id,
       ...typeFilter,
+      // Only surface the last RECENT_WINDOW_DAYS of notifications — older
+      // activity is summarized by the daily brief instead.
+      AND: [this.recentWindowFilter()],
       // Drop open houses that have already happened — a past open house is
       // dead weight in the feed and shouldn't count toward the unread badge
       // either. `openHouseDate` in the payload is an ISO string (UTC midnight
@@ -108,6 +128,7 @@ export class AlertsService {
         where: {
           userId: user.id,
           readAt: null,
+          AND: [this.recentWindowFilter()],
           NOT: this.pastOpenHouseFilter(),
         },
       }),
