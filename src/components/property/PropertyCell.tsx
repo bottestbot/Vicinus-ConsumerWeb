@@ -10,8 +10,7 @@
 // own outer shell / image treatment — only the info cell is standardized.
 import { Fragment, type ComponentType } from 'react'
 import { Bed, Bath, Maximize2 } from 'lucide-react'
-import { formatPrice, formatNumber, formatLeaseFrequency, realtorHref } from '@/lib/format'
-import { logListingClick } from '@/lib/api/analytics'
+import { formatPrice, formatNumber, formatLeaseFrequency } from '@/lib/format'
 import { STRINGS } from '@/lib/strings'
 
 export interface PropertyCellData {
@@ -99,8 +98,6 @@ export function ListingAttribution({
   agentName,
   brokerageName,
   mlsNumber,
-  realtorUrl,
-  listingKey,
   theme = 'light',
   showCrea = true,
   bordered = true,
@@ -109,32 +106,14 @@ export function ListingAttribution({
   const t = TONE[theme]
   return (
     <div className={`${bordered ? `pt-2 border-t ${t.divider}` : ''} ${className}`.trim()}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          {agentName && (
-            <p className={`text-[9px] font-semibold leading-tight ${t.strong} truncate`}>{agentName}</p>
-          )}
-          {brokerageName && (
-            <p className={`text-[9px] leading-tight ${t.muted} truncate`}>{brokerageName}</p>
-          )}
-          {mlsNumber && <p className={`text-[9px] leading-tight ${t.muted}`}>MLS® {mlsNumber}</p>}
-        </div>
-        <a
-          href={realtorHref(realtorUrl)}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => {
-            e.stopPropagation()
-            // CREA-05: click-through to the listing on REALTOR.ca is the
-            // `Click` event the REAW tier requires us to report.
-            if (listingKey) logListingClick(listingKey)
-          }}
-          className={`text-[9px] ${t.link} transition-colors text-right shrink-0 leading-tight`}
-        >
-          {STRINGS.SEARCH_CARD_POWERED_BY}
-          <br />
-          <span className="font-semibold">{STRINGS.SEARCH_CARD_REALTOR_CA}</span>
-        </a>
+      <div className="min-w-0">
+        {agentName && (
+          <p className={`text-[9px] font-semibold leading-tight ${t.strong} truncate`}>{agentName}</p>
+        )}
+        {brokerageName && (
+          <p className={`text-[9px] leading-tight ${t.muted} truncate`}>{brokerageName}</p>
+        )}
+        {mlsNumber && <p className={`text-[9px] leading-tight ${t.muted}`}>MLS® {mlsNumber}</p>}
       </div>
       {showCrea && (
         <p className={`text-[9px] leading-tight ${t.muted} mt-0.5`}>{STRINGS.SEARCH_CARD_DATA_CREA}</p>
