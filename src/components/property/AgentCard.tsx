@@ -1,19 +1,18 @@
 'use client'
 
 // Agent contact card — appears in the right sidebar of the detail page
-import { useState } from 'react'
 import { Phone, Mail, ExternalLink } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
 import { realtorHref } from '@/lib/format'
 import { logEmailRealtor, logListingClick } from '@/lib/api/analytics'
-import ContactAgentModal from './ContactAgentModal'
+import { useLeadInquiry } from '@/components/providers/LeadInquiryProvider'
 
 interface AgentCardProps {
   property: PropertyDetail
 }
 
 export default function AgentCard({ property }: AgentCardProps) {
-  const [contactOpen, setContactOpen] = useState(false)
+  const { openInquiry } = useLeadInquiry()
 
   // DDF sometimes omits the agent name but supplies the brokerage. Fall back to
   // the brokerage for the primary line + avatar so the card is never blank.
@@ -69,7 +68,13 @@ export default function AgentCard({ property }: AgentCardProps) {
           </a>
         )}
         <button
-          onClick={() => setContactOpen(true)}
+          onClick={() =>
+            openInquiry({
+              listingKey: property.id,
+              propertyAddress: fullAddress,
+              agentName: primaryName,
+            })
+          }
           className="flex items-center justify-center gap-2 w-full border border-[#E8E6E1] text-[#111111] text-sm font-medium py-2.5 rounded-xl hover:border-[#1C3829] transition-colors">
           <Mail size={14} />
           Send Message
@@ -85,15 +90,6 @@ export default function AgentCard({ property }: AgentCardProps) {
           View on REALTOR.ca
         </a>
       </div>
-
-      {contactOpen && (
-        <ContactAgentModal
-          listingKey={property.id}
-          propertyAddress={fullAddress}
-          agentName={primaryName}
-          onClose={() => setContactOpen(false)}
-        />
-      )}
     </div>
   )
 }

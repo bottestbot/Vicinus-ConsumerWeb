@@ -3,6 +3,7 @@ import { Inter, Playfair_Display, Space_Grotesk } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import QueryProvider from '@/components/providers/QueryProvider'
 import LocationProvider from '@/components/providers/LocationProvider'
+import LeadInquiryProvider from '@/components/providers/LeadInquiryProvider'
 import OnboardingGate from '@/components/onboarding/OnboardingGate'
 import OnboardingModal from '@/components/onboarding/OnboardingModal'
 import SavedPropertiesGate from '@/components/providers/SavedPropertiesGate'
@@ -50,11 +51,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="en" className={`${inter.variable} ${playfair.variable} ${spaceGrotesk.variable}`}>
         <body className="font-sans">
           <QueryProvider>
-            <LocationProvider />
-            <OnboardingGate />
-            <SavedPropertiesGate />
-            {children}
-            <OnboardingModal />
+            <LeadInquiryProvider>
+              <LocationProvider />
+              <OnboardingGate />
+              <SavedPropertiesGate />
+              {children}
+              <OnboardingModal />
+            </LeadInquiryProvider>
           </QueryProvider>
         </body>
       </html>
