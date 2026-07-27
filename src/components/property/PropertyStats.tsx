@@ -29,6 +29,13 @@ export default function PropertyStats({ property }: PropertyStatsProps) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
+              {/* RENT-02: rentals are badged so a monthly price is never mistaken
+                  for a sale price. Order is fixed: Rental first, then New. */}
+              {property.listingType === 'For Rent' && (
+                <span className="bg-[#A3E635] text-[#1C3829] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                  Rental
+                </span>
+              )}
               {property.daysOnMarket <= 7 && (
                 <span className="bg-white text-[#1C3829] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">
                   New
