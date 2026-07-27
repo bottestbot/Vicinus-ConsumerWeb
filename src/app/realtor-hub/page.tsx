@@ -7,9 +7,9 @@ import FoundingMemberBand from '@/components/realtor-hub/FoundingMemberBand'
 import WaitlistForm from '@/components/realtor-hub/WaitlistForm'
 
 export const metadata: Metadata = {
-  title: 'Realtor Hub | Coming Soon',
+  title: 'REALTOR® Hub | Coming Soon',
   description:
-    'Vicinus is coming for real estate professionals — the new intelligence layer for modern Realtors. Join the waitlist for founding-member early access.',
+    'Vicinus is coming for real estate professionals — the new intelligence layer for modern REALTORS®. Join the waitlist for founding-member early access.',
 }
 
 export default function RealtorHubPage() {

@@ -7,7 +7,7 @@ const EXPLORE_LINKS = [
   { label: 'Buy', href: '/search?listingType=For+Sale' },
   { label: 'Sell', href: '/sell' },
   { label: 'Neighbourhoods', href: '/neighbourhoods' },
-  { label: 'Realtor Hub', href: '/realtor-hub' },
+  { label: 'REALTOR® Hub', href: '/realtor-hub' },
 ]
 
 export default function Footer() {

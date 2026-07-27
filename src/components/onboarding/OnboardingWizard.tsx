@@ -675,7 +675,7 @@ function Step4({
                 <span className="w-8 h-8 rounded-full bg-[#1C3829]/10 flex items-center justify-center">
                   <UserCheck size={16} className="text-[#1C3829]" />
                 </span>
-                <p className="font-semibold text-[#111111]">Are you currently working with a Realtor?</p>
+                <p className="font-semibold text-[#111111]">Are you currently working with a REALTOR®?</p>
               </div>
               <div className="space-y-2">
                 {REALTOR_OPTIONS.map((o) => (

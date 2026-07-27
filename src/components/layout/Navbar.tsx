@@ -35,7 +35,7 @@ const CENTER_LINKS: NavLink[] = [
   { label: 'Sell', href: '/sell', match: '/sell' },
   { label: 'Neighbourhoods', href: '/neighbourhoods', match: '/neighbourhoods' },
   // B2B destination — grouped apart from the consumer links below (DSGN-04).
-  { label: 'Realtor Hub', href: '/realtor-hub', match: '/realtor-hub', hideWhenSignedIn: true, deEmphasize: true },
+  { label: 'REALTOR® Hub', href: '/realtor-hub', match: '/realtor-hub', hideWhenSignedIn: true, deEmphasize: true },
 ]
 
 export default function Navbar({ overHero = false }: { overHero?: boolean }) {
