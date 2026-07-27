@@ -1,6 +1,7 @@
 // FE-403: PropertyStats — dark summary card (address/price/icon stats) + description
 import { Bed, Bath, Maximize2, Car, CalendarDays, type LucideIcon } from 'lucide-react'
 import { formatFullPrice } from '@/types/search'
+import { formatLeaseFrequency } from '@/lib/format'
 import type { PropertyDetail } from '@/types/property'
 
 interface PropertyStatsProps {
@@ -48,6 +49,12 @@ export default function PropertyStats({ property }: PropertyStatsProps) {
             <p className="font-heading text-2xl sm:text-3xl font-semibold whitespace-nowrap">
               {/* DDF sometimes omits ListPrice — show a label instead of "$0". */}
               {property.price > 0 ? formatFullPrice(property.price) : 'Price on request'}
+              {/* JUL21FIX-04: a rent without its period reads as a sale price. */}
+              {property.price > 0 && formatLeaseFrequency(property.leaseFrequency) && (
+                <span className="text-base font-normal text-white/70">
+                  {formatLeaseFrequency(property.leaseFrequency)}
+                </span>
+              )}
             </p>
             {property.propertyType && <p className="text-xs text-white/50 mt-0.5">{property.propertyType}</p>}
           </div>

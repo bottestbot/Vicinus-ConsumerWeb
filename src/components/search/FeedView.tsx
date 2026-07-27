@@ -37,6 +37,7 @@ interface RawListing {
   virtualTourUrl?: string | null
   youtubeUrl?: string | null
   leaseAmount?: number | null
+  leaseFrequency?: string | null
 }
 
 function mapListing(l: RawListing): Property {
@@ -61,7 +62,8 @@ function mapListing(l: RawListing): Property {
     city: l.city ?? '',
     province: l.province ?? '',
     postalCode: l.postalCode ?? '',
-    price: l.price ?? 0,
+    // Rentals carry leaseAmount instead of price — fall back so rent shows.
+    price: l.price ?? l.leaseAmount ?? 0,
     beds: l.beds ?? 0,
     baths: l.baths ?? 0,
     sqft: l.sqft ?? 0,
@@ -69,6 +71,7 @@ function mapListing(l: RawListing): Property {
     status,
     daysOnMarket: 0,
     listingType: l.leaseAmount != null ? 'For Rent' : 'For Sale',
+    leaseFrequency: l.leaseAmount != null ? (l.leaseFrequency ?? 'Monthly') : null,
     latitude: l.lat ?? 0,
     longitude: l.lng ?? 0,
     imageUrl: images[0] ?? '',

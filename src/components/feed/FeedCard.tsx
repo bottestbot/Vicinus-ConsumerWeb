@@ -12,7 +12,7 @@ import {
   ChevronUp,
 } from 'lucide-react'
 import type { Property } from '@/types/search'
-import { formatNumber, formatPrice as formatPriceCA, realtorHref } from '@/lib/format'
+import { formatNumber, formatPrice as formatPriceCA, formatLeaseFrequency, realtorHref } from '@/lib/format'
 import { logListingClick } from '@/lib/api/analytics'
 import { useLeadInquiry } from '@/components/providers/LeadInquiryProvider'
 import { STRINGS } from '@/lib/strings'
@@ -467,6 +467,12 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
               {property.price > 0
                 ? formatPriceCA(property.price)
                 : STRINGS.SEARCH_CARD_PRICE_ON_REQUEST}
+              {/* JUL21FIX-04: a rent without its period reads as a sale price. */}
+              {property.price > 0 && formatLeaseFrequency(property.leaseFrequency) && (
+                <span className="text-base font-normal text-white/80">
+                  {formatLeaseFrequency(property.leaseFrequency)}
+                </span>
+              )}
             </p>
           </div>
 

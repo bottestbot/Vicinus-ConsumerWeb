@@ -111,11 +111,15 @@ export class DdfQueryService {
     // (see mapProperty) if we ever need to read it; dto.status is intentionally
     // not applied for the same reason.
 
-    // Sale vs lease: rentals carry a LeaseAmount, sales do not.
+    // Sale vs lease: rentals carry their asking rent in TotalActualRent
+    // (residential, ~18k listings) or LeaseAmount (commercial, ~3k listings) —
+    // the two populations are disjoint (verified live 2026-07-27). Sales have
+    // neither. Checking LeaseAmount alone leaked residential rentals into the
+    // For Sale feed as "Price on request".
     if (dto.listingType === 'For Rent') {
-      filterParts.push('LeaseAmount ne null');
+      filterParts.push('(LeaseAmount ne null or TotalActualRent ne null)');
     } else if (dto.listingType === 'For Sale') {
-      filterParts.push('LeaseAmount eq null');
+      filterParts.push('LeaseAmount eq null and TotalActualRent eq null');
     }
 
     if (dto.city) {
@@ -132,13 +136,24 @@ export class DdfQueryService {
       );
     }
 
-    // For rentals, LeaseAmount holds the asking price; for sales it's ListPrice.
-    const priceField =
-      dto.listingType === 'For Rent' ? 'LeaseAmount' : 'ListPrice';
-    if (dto.minPrice !== undefined)
-      filterParts.push(`${priceField} ge ${dto.minPrice}`);
-    if (dto.maxPrice !== undefined)
-      filterParts.push(`${priceField} le ${dto.maxPrice}`);
+    // For rentals the asking rent is in LeaseAmount OR TotalActualRent (see
+    // above); for sales it's ListPrice. OData null comparisons are false, so
+    // the OR only matches on whichever rent field is populated.
+    if (dto.listingType === 'For Rent') {
+      if (dto.minPrice !== undefined)
+        filterParts.push(
+          `(LeaseAmount ge ${dto.minPrice} or TotalActualRent ge ${dto.minPrice})`,
+        );
+      if (dto.maxPrice !== undefined)
+        filterParts.push(
+          `(LeaseAmount le ${dto.maxPrice} or TotalActualRent le ${dto.maxPrice})`,
+        );
+    } else {
+      if (dto.minPrice !== undefined)
+        filterParts.push(`ListPrice ge ${dto.minPrice}`);
+      if (dto.maxPrice !== undefined)
+        filterParts.push(`ListPrice le ${dto.maxPrice}`);
+    }
     // Beds/baths are a minimum ("N+") by default, or an exact match when the
     // FE sends exactBedsBaths=true (the "Use exact match" toggle).
     const bedBathOp = dto.exactBedsBaths ? 'eq' : 'ge';
@@ -319,7 +334,7 @@ export class DdfQueryService {
           `?$top=${PAGE}` +
           `&$skip=${skip}` +
           `&$filter=${encodeURIComponent(filter)}` +
-          `&$select=ListingKey,Latitude,Longitude,ListPrice,LeaseAmount`;
+          `&$select=ListingKey,Latitude,Longitude,ListPrice,LeaseAmount,TotalActualRent`;
         try {
           const response = await firstValueFrom(
             this.http.get(url, {
@@ -346,6 +361,7 @@ export class DdfQueryService {
             price:
               (p['ListPrice'] as number | null) ??
               (p['LeaseAmount'] as number | null) ??
+              (p['TotalActualRent'] as number | null) ??
               null,
           });
         }
@@ -513,7 +529,11 @@ export class DdfQueryService {
       realtorUrl: p['ListingURL'] ?? '',
       status: p['StandardStatus'] ?? 'Active',
       price: p['ListPrice'] ?? null,
-      leaseAmount: p['LeaseAmount'] ?? null,
+      // Residential rentals store rent in TotalActualRent, commercial leases in
+      // LeaseAmount (disjoint populations) — collapse both into leaseAmount so
+      // every consumer's `price ?? leaseAmount` fallback and For Rent labelling
+      // keep working.
+      leaseAmount: p['LeaseAmount'] ?? p['TotalActualRent'] ?? null,
       leaseFrequency: p['LeaseAmountFrequency'] ?? null,
       propertySubType: p['PropertySubType'] ?? null,
       // StructureType (collection) is the real dwelling-form field — surfaced on

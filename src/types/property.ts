@@ -134,6 +134,9 @@ export interface PropertyDetail {
   status: 'Active' | 'Sold' | 'Coming Soon' | 'Open House'
   daysOnMarket: number
   listingType: 'For Sale' | 'For Rent'
+  /** DDF LeaseAmountFrequency (Monthly/Yearly…) — set on rentals so the price
+   *  renders with its period instead of reading as a sale price. */
+  leaseFrequency?: string | null
   latitude: number
   longitude: number
   images: string[]

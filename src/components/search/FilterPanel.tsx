@@ -8,6 +8,7 @@ import { HOME_TYPES } from '@/types/search'
 import { searchProperties, type SearchParams } from '@/lib/api/search'
 import { formatNumber } from '@/lib/format'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
+import ListingTypeToggle from './ListingTypeToggle'
 import PriceFilterPopover from './PriceFilterPopover'
 import ResponsivePopover from './ResponsivePopover'
 import SaveSearch from './SaveSearch'
@@ -372,6 +373,9 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
       <div className="flex-1 min-w-0">
         <SearchBar theme={theme} placeholder="Search city, address…" className="h-9 text-xs" />
       </div>
+
+      {/* Buy / Rent — top-level listing-type toggle (RENT-02) */}
+      <ListingTypeToggle theme={theme} />
 
       {/* Price — its own pill + popover */}
       <PriceFilterPopover theme={theme} />

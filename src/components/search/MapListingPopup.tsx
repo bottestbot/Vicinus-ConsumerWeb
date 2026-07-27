@@ -153,6 +153,7 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
               compact
               data={{
                 price: data.price,
+                leaseFrequency: data.leaseFrequency,
                 address: data.address,
                 location: data.city,
                 beds: data.beds,

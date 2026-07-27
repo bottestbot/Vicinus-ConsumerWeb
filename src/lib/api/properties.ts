@@ -48,6 +48,7 @@ interface ApiListing {
   status?: string | null
   price?: number | null
   leaseAmount?: number | null
+  leaseFrequency?: string | null
   propertySubType?: string | null
   beds?: number | null
   baths?: number | null
@@ -125,6 +126,7 @@ function toPropertyDetail(l: ApiListing): PropertyDetail {
     status,
     daysOnMarket: daysSince(l.listedAt),
     listingType: l.leaseAmount != null ? 'For Rent' : 'For Sale',
+    leaseFrequency: l.leaseAmount != null ? (l.leaseFrequency ?? 'Monthly') : null,
     latitude: l.lat ?? 0,
     longitude: l.lng ?? 0,
     images: mapImages(l.images),

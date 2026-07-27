@@ -61,6 +61,8 @@ function toFrontendProperty(p: ApiProperty): Property {
     status: ((p.status as string | null) ?? 'Active') as Property['status'],
     daysOnMarket,
     listingType: p.leaseAmount != null ? 'For Rent' : 'For Sale',
+    leaseFrequency:
+      p.leaseAmount != null ? ((p.leaseFrequency as string | null) ?? 'Monthly') : null,
     latitude: (p.lat as number | null) ?? 0,
     longitude: (p.lng as number | null) ?? 0,
     imageUrl: mediaArr[0]?.url ?? '',

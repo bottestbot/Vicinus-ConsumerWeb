@@ -78,6 +78,7 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
           <PropertyCell
             data={{
               price: property.price,
+              leaseFrequency: property.leaseFrequency,
               address: property.address,
               location: [`${property.city}, ${property.province}`, property.postalCode]
                 .filter(Boolean)

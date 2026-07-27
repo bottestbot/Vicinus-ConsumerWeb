@@ -36,8 +36,11 @@ export async function generateMetadata({
   const { id } = await params
   const property = await getPropertyDetail(id)
   if (!property) return { title: 'Property not found' }
+  // Rentals price in the $1000s/mo — the millions formatter rendered "$0.00M".
   const price = property.price
-    ? `$${(property.price / 1_000_000).toFixed(2)}M`
+    ? property.listingType === 'For Rent'
+      ? `$${property.price.toLocaleString('en-CA')}/mo`
+      : `$${(property.price / 1_000_000).toFixed(2)}M`
     : null
   const title = price
     ? `${property.address} — ${price}`
@@ -207,8 +210,9 @@ export default async function PropertyDetailPage({
         {/* ── Neighbourhood Context Score ───────────────────────────────── */}
         <NeighbourhoodContextScore property={property} />
 
-        {/* ── Mortgage Analysis (dark green) ────────────────────────────── */}
-        <MortgageAnalysis price={property.price} />
+        {/* ── Mortgage Analysis (dark green) — sales only: running a mortgage
+            calculator over a monthly rent produced a nonsense "$13/mo" (RENT-02) */}
+        {property.listingType !== 'For Rent' && <MortgageAnalysis price={property.price} />}
 
         {/* ── Nearby Open Houses (live DDF, falls back to mock for demo) ── */}
         <Suspense fallback={null}>

@@ -13,13 +13,21 @@ import ResponsivePopover from './ResponsivePopover'
 import { formatNumber } from '@/lib/format'
 
 const ABSOLUTE_MIN = 0
-const ABSOLUTE_MAX = 10_000_000
-const STEP = 25_000
+// Sale and rent prices live on different scales — a $0–10M / $25K-step slider
+// is unusable for a $2,650/mo rental band (RENT-02).
+const SALE_MAX = 10_000_000
+const SALE_STEP = 25_000
+const RENT_MAX = 10_000
+const RENT_STEP = 100
 
 export default function PriceFilterPopover({ theme }: { theme: GlassTheme }) {
   const { filters, setFilter } = useSearchStore()
   const [open, setOpen] = useState(false)
   const t = glass(theme)
+
+  const isRent = filters.listingType === 'For Rent'
+  const ABSOLUTE_MAX = isRent ? RENT_MAX : SALE_MAX
+  const STEP = isRent ? RENT_STEP : SALE_STEP
 
   const [draftMin, setDraftMin] = useState(filters.minPrice ?? ABSOLUTE_MIN)
   const [draftMax, setDraftMax] = useState(filters.maxPrice ?? ABSOLUTE_MAX)
@@ -60,7 +68,9 @@ export default function PriceFilterPopover({ theme }: { theme: GlassTheme }) {
 
       <ResponsivePopover open={open} onClose={() => setOpen(false)} theme={theme} desktopClassName="w-[340px]">
         <div className="p-4 space-y-5">
-          <p className={`text-xs font-semibold ${t.textFaint} uppercase tracking-widest`}>Price range</p>
+          <p className={`text-xs font-semibold ${t.textFaint} uppercase tracking-widest`}>
+            {isRent ? 'Monthly rent' : 'Price range'}
+          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
