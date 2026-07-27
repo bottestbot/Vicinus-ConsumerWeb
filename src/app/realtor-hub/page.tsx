@@ -3,7 +3,6 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import RealtorHubHero from '@/components/realtor-hub/RealtorHubHero'
 import RealtorHubFeatures from '@/components/realtor-hub/RealtorHubFeatures'
-import FoundingMemberBand from '@/components/realtor-hub/FoundingMemberBand'
 import WaitlistForm from '@/components/realtor-hub/WaitlistForm'
 
 export const metadata: Metadata = {
@@ -19,7 +18,6 @@ export default function RealtorHubPage() {
 
       <RealtorHubHero />
       <RealtorHubFeatures />
-      <FoundingMemberBand />
 
       {/* ── Join the Waitlist ─────────────────────────────────────────────── */}
       <section id="waitlist" className="scroll-mt-24 bg-[#FAF9F6] px-6 pb-24">

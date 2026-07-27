@@ -2,22 +2,22 @@ import Image from 'next/image'
 
 const FEATURES = [
   {
-    title: 'Augmented Neighbourhood Data',
-    body: 'See more than the listing. Get enriched, hyperlocal data on every neighbourhood you work — the context your clients are already asking for.',
+    title: 'Hyperlocal Market Insights',
+    body: 'Go beyond basic property stats. Access enriched neighbourhood data and real-time local context on every pocket you serve—giving clients the deep expertise that wins listings.',
     image:
       'https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?w=800&q=80',
     alt: 'Data visualization dashboard',
   },
   {
-    title: 'Neighbourhood Bidding',
-    body: 'Know where demand is building before it shows up in the numbers. Access aggregate buyer intent by area, so you can prioritize where to spend your time.',
+    title: 'Real-Time Demand Signals',
+    body: 'Spot buyer interest before it shows up in MLS averages. Track aggregate buyer intent by area so you know where to focus your marketing and close faster.',
     image:
       'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
     alt: 'Analytics and buyer intent chart',
   },
   {
-    title: 'Short-Form Listing Content',
-    body: 'Bring your listings to life. Add short-form video and content directly to your listings on Vicinus — no extra platform, no extra login.',
+    title: 'Rich Property Showcases',
+    body: 'Make your properties stand out on Vicinus. Easily publish short-form video, lifestyle media, and rich highlights directly on your Vicinus listing pages to convert interest into offers.',
     image:
       'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?w=800&q=80',
     alt: 'Person recording short-form video on a phone',
@@ -30,11 +30,11 @@ export default function RealtorHubFeatures() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-12 max-w-2xl">
           <h2 className="font-heading text-3xl font-bold leading-tight text-[#111111] sm:text-4xl">
-            Designed for those who curate the market.
+            Designed for agents who drive the market.
           </h2>
           <p className="mt-3 text-base leading-relaxed text-[#6B6B6B]">
-            Stop relying on public tools. Use the intelligence engine built for the professional
-            workflow.
+            Power your workflow with deep market intelligence and rich showcase tools built for
+            deal velocity.
           </p>
         </div>
 

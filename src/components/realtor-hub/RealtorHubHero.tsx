@@ -83,15 +83,14 @@ export default function RealtorHubHero() {
         {/* Left copy */}
         <div>
           <span className="inline-block rounded-full border border-[#A3E635]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-[#A3E635]">
-            Coming Soon · Early Access
+            COMING SOON · EARLY ACCESS
           </span>
-          <h1 className="mt-6 font-heading text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Vicinus is coming for real estate professionals.
+          <h1 className="mt-6 font-heading text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
+            Built for top real estate professionals. Engineered for faster closes.
           </h1>
           <p className="mt-6 max-w-md text-base leading-relaxed text-white/70">
-            Consumer portals haven&apos;t evolved in a decade. Vicinus is the new intelligence
-            layer built to give modern Realtors a distinct edge — before your competitors get
-            there first.
+            Vicinus brings actionable market intelligence directly to agents&mdash;giving you
+            the ultimate edge to convert leads quicker and drive higher revenue.
           </p>
           <a
             href="#waitlist"
