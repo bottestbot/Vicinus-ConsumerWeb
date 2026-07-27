@@ -5,7 +5,8 @@ import Logo from '@/components/brand/Logo'
 // About / Contact pages don't exist yet and are intentionally omitted.
 const EXPLORE_LINKS = [
   { label: 'Buy', href: '/search?listingType=For+Sale' },
-  { label: 'Sell', href: '/sell' },
+  // Sell is hidden for this launch — restore alongside the Navbar entry.
+  // { label: 'Sell', href: '/sell' },
   { label: 'Neighbourhoods', href: '/neighbourhoods' },
   { label: 'REALTOR® Hub', href: '/realtor-hub' },
 ]

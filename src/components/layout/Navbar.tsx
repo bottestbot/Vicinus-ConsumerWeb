@@ -32,7 +32,8 @@ interface NavLink {
 const CENTER_LINKS: NavLink[] = [
   { label: 'Home', href: '/', match: '/' },
   { label: 'Buy', href: '/search?listingType=For+Sale', match: '/search' },
-  { label: 'Sell', href: '/sell', match: '/sell' },
+  // Sell is hidden for this launch — restore this entry when the flow ships.
+  // { label: 'Sell', href: '/sell', match: '/sell' },
   { label: 'Neighbourhoods', href: '/neighbourhoods', match: '/neighbourhoods' },
   // B2B destination — grouped apart from the consumer links below (DSGN-04).
   { label: 'REALTOR® Hub', href: '/realtor-hub', match: '/realtor-hub', hideWhenSignedIn: true, deEmphasize: true },
