@@ -162,7 +162,16 @@ export default async function PropertyDetailPage({
       <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-10">
 
         {/* ── Gallery ───────────────────────────────────────────────────── */}
-        <PropertyGallery images={property.images} address={property.address} />
+        <PropertyGallery
+          propertyId={id}
+          images={property.images}
+          address={property.address}
+          price={property.price}
+          listingType={property.listingType}
+          beds={property.beds}
+          baths={property.baths}
+          sqft={property.sqft}
+        />
 
         {/* ── Street View / map deep-links ──────────────────────────────── */}
         <PropertyLocationLinks

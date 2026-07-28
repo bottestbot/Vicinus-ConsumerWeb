@@ -1,22 +1,65 @@
 'use client'
 
 // FE-402: PropertyGallery — hero image + thumbnail strip
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
-import { X, ChevronLeft, ChevronRight, Grid2x2 } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Grid2x2, Heart, Share2 } from 'lucide-react'
+import { formatPrice } from '@/lib/format'
+import { useSaveListing } from '@/lib/hooks/useSaveListing'
+import { useLightboxStore } from '@/store/lightboxStore'
+import ShareModal from './ShareModal'
 
 interface PropertyGalleryProps {
+  propertyId: string
   images: string[]
   address: string
+  price?: number
+  listingType?: 'For Sale' | 'For Rent'
+  beds?: number
+  baths?: number
+  sqft?: number
 }
 
-export default function PropertyGallery({ images, address }: PropertyGalleryProps) {
+export default function PropertyGallery({ propertyId, images, address, price, listingType, beds, baths, sqft }: PropertyGalleryProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [shareOpen, setShareOpen] = useState(false)
+  const { isSaved, saving, handleSave } = useSaveListing(propertyId)
+  const setLightboxStoreOpen = useLightboxStore((s) => s.setOpen)
 
   const hero = images[0] ?? ''
   const thumbs = images.slice(1, 5) // Show at most 4 thumbnails, in a 2x2 grid (sm and up)
   const mobileThumbs = images.slice(1) // Mobile gets a scroll strip of every remaining photo
+
+  // The page's own bottom ActionBar is also `position: fixed` — on some
+  // browsers a scrollable/backgrounded page behind a fixed overlay lets the
+  // page's other fixed elements peek through (the green Save/Share bar
+  // bleeding through under the lightbox). Telling ActionBar to unmount itself
+  // via a shared store is the only fully reliable fix — CSS layering can't
+  // guarantee it across browsers. We also freeze body scroll at its exact
+  // position (rather than just `overflow: hidden`) so the page can't shift
+  // under the fixed overlay while it's open.
+  useEffect(() => {
+    setLightboxStoreOpen(lightboxOpen)
+    if (!lightboxOpen) return
+    const scrollY = window.scrollY
+    const body = document.body
+    const prev = { position: body.style.position, top: body.style.top, left: body.style.left, right: body.style.right, width: body.style.width }
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.left = '0'
+    body.style.right = '0'
+    body.style.width = '100%'
+    return () => {
+      body.style.position = prev.position
+      body.style.top = prev.top
+      body.style.left = prev.left
+      body.style.right = prev.right
+      body.style.width = prev.width
+      window.scrollTo(0, scrollY)
+    }
+  }, [lightboxOpen, setLightboxStoreOpen])
 
   function openLightbox(idx: number) {
     setLightboxIndex(idx)
@@ -34,6 +77,8 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
   function next() {
     setLightboxIndex((i) => (i + 1) % images.length)
   }
+
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
 
   return (
     <>
@@ -117,66 +162,120 @@ export default function PropertyGallery({ images, address }: PropertyGalleryProp
       )}
 
       {/* ── Lightbox ────────────────────────────────────────────────────── */}
-      {lightboxOpen && (
-        <div
-          className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center"
-          onClick={closeLightbox}
-        >
-          <button
-            onClick={closeLightbox}
-            className="absolute top-5 right-5 text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
-          >
-            <X size={22} />
-          </button>
+      {/* Portaled to document.body — a plain `fixed inset-0` can still end up
+          behind other fixed page chrome depending on DOM position/stacking
+          context, so this renders as the very last node in <body> and uses
+          the highest z-index in the app to guarantee it sits above everything. */}
+      {lightboxOpen && createPortal(
+        <div className="fixed inset-0 h-dvh z-[9999] bg-black flex flex-col overscroll-none">
+          {shareOpen && <ShareModal url={shareUrl} onClose={() => setShareOpen(false)} />}
 
-          <button
-            onClick={(e) => { e.stopPropagation(); prev() }}
-            className="absolute left-5 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-white/10 transition-colors"
-          >
-            <ChevronLeft size={28} />
-          </button>
-
-          <div
-            className="relative w-full max-w-4xl mx-0 sm:mx-16 aspect-[4/3] sm:aspect-video max-h-[70vh] sm:max-h-none"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Image
-              src={images[lightboxIndex] ?? ''}
-              alt={`${address} — photo ${lightboxIndex + 1}`}
-              fill
-              sizes="100vw"
-              className="object-contain"
-            />
+          {/* Top bar — back / counter / save / share / close, Zillow-style */}
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
+            <button
+              onClick={closeLightbox}
+              className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition-colors"
+            >
+              <ChevronLeft size={18} />
+              <span className="hidden sm:inline">Back to listing</span>
+            </button>
+            <div className="text-white/60 text-sm">
+              {lightboxIndex + 1} / {images.length}
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                aria-label={isSaved ? 'Unsave listing' : 'Save listing'}
+                className={[
+                  'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
+                  isSaved ? 'text-white' : 'text-white/80 hover:text-white',
+                  saving ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white/10',
+                ].join(' ')}
+              >
+                <Heart size={18} className={isSaved ? 'fill-white text-white' : ''} />
+                <span className="hidden sm:inline">{isSaved ? 'Saved' : 'Save'}</span>
+              </button>
+              <button
+                onClick={() => setShareOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <Share2 size={18} />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+              <button
+                onClick={closeLightbox}
+                className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+              >
+                <X size={22} />
+              </button>
+            </div>
           </div>
 
-          <button
-            onClick={(e) => { e.stopPropagation(); next() }}
-            className="absolute right-5 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-white/10 transition-colors"
-          >
-            <ChevronRight size={28} />
-          </button>
+          {/* Main image area */}
+          <div className="relative flex-1 min-h-0 flex items-center justify-center px-2 sm:px-16">
+            <button
+              onClick={prev}
+              className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-white/10 transition-colors z-10"
+            >
+              <ChevronLeft size={28} />
+            </button>
 
-          {/* Counter */}
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/60 text-sm">
-            {lightboxIndex + 1} / {images.length}
+            <div className="relative w-full h-full">
+              <Image
+                src={images[lightboxIndex] ?? ''}
+                alt={`${address} — photo ${lightboxIndex + 1}`}
+                fill
+                sizes="100vw"
+                className="object-contain"
+                priority
+              />
+            </div>
+
+            <button
+              onClick={next}
+              className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-white/10 transition-colors z-10"
+            >
+              <ChevronRight size={28} />
+            </button>
           </div>
 
           {/* Thumbnails strip */}
-          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto px-4 py-2.5 sm:py-3 shrink-0">
             {images.map((src, i) => (
               <button
                 key={i}
-                onClick={(e) => { e.stopPropagation(); setLightboxIndex(i) }}
+                onClick={() => setLightboxIndex(i)}
                 className={[
-                  'relative w-12 h-9 rounded overflow-hidden border-2 transition-all',
+                  'relative shrink-0 w-14 h-10 sm:w-16 sm:h-12 rounded overflow-hidden border-2 transition-all',
                   i === lightboxIndex ? 'border-white' : 'border-transparent opacity-60 hover:opacity-100',
                 ].join(' ')}
               >
-                <Image src={src} alt="" fill sizes="48px" className="object-cover object-left-top" />
+                <Image src={src} alt="" fill sizes="64px" className="object-cover object-left-top" />
               </button>
             ))}
           </div>
-        </div>
+
+          {/* Bottom description bar — address / price / beds & baths, Zillow-style */}
+          <div className="border-t border-white/10 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
+            <p className="text-white text-sm sm:text-base font-medium truncate">{address}</p>
+            <p className="text-white/60 text-xs sm:text-sm mt-0.5">
+              {price != null && (
+                <>
+                  {listingType === 'For Sale' ? 'For sale: ' : listingType === 'For Rent' ? 'For rent: ' : ''}
+                  {formatPrice(price)}
+                  {listingType === 'For Rent' ? '/mo' : ''}
+                  {(beds != null || baths != null || sqft != null) && '  ·  '}
+                </>
+              )}
+              {beds != null && `${beds} bd`}
+              {beds != null && baths != null && ', '}
+              {baths != null && `${baths} ba`}
+              {sqft != null && `, ${sqft.toLocaleString()} sqft`}
+            </p>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   )
