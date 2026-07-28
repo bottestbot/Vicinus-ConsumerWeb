@@ -208,7 +208,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
         <div
           className={[
             'absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 z-30 pointer-events-none',
-            viewMode === 'both' ? 'md:right-[calc(42%+1rem)]' : '',
+            viewMode === 'both' ? 'md:right-[calc(min(42%,480px)+1rem)]' : '',
           ].join(' ')}
         >
           <div className="pointer-events-auto">
@@ -225,16 +225,19 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
           </div>
         ) : (
           <>
-            {/* Map pane — full-width on mobile, 58% on desktop */}
-            <div className="relative overflow-hidden h-full w-full md:w-[58%]">
+            {/* Map pane — full-width on mobile; on desktop it fills whatever
+                space the (width-capped) list pane doesn't use */}
+            <div className="relative overflow-hidden h-full w-full md:flex-1">
               {/* Only signal a fit once the data for this query is fresh — while
                   `keepPreviousData` shows the prior city's listings, suppress the
                   signal so the map doesn't fly to the wrong (stale) results. */}
               <MapView properties={properties} pins={pins} fitSignal={isPlaceholderData ? '' : query} />
             </div>
 
-            {/* List pane — hidden on mobile (map + filter bar only) */}
-            <div className="hidden md:block md:w-[42%] overflow-hidden border-l border-[#E8E6E1]">
+            {/* List pane — hidden on mobile (map + filter bar only). Capped at
+                480px so cards stay a sane width on large screens (cf. Zillow) —
+                the map pane (flex-1) absorbs any extra space instead. */}
+            <div className="hidden md:block md:w-[42%] md:max-w-[480px] md:shrink-0 overflow-hidden border-l border-[#E8E6E1]">
               <ResultsList
                 properties={properties}
                 totalCount={totalCount}
