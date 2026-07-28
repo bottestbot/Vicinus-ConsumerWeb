@@ -68,7 +68,6 @@ export const STRINGS = {
   HOMEPAGE_PROPERTYCARD_SQFT: 'sqft',
 
   // ─── Homepage · Curated Highlights ──────────────────────────────────────────
-  HOMEPAGE_HIGHLIGHTS_EYEBROW: 'Hand-picked',
   HOMEPAGE_HIGHLIGHTS_TITLE: 'Swipe. Connect. Own',
   HOMEPAGE_HIGHLIGHTS_SUBTITLE: 'Real estate, centred around you.',
   HOMEPAGE_HIGHLIGHTS_VIEWALL: 'View all',

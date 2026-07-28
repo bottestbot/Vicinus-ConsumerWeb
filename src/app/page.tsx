@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ChevronRight, Bed, Bath, Square } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import HeroSearchBar from '@/components/landing/HeroSearchBar'
+import GetInTouchButton from '@/components/landing/GetInTouchButton'
 import Footer from '@/components/layout/Footer'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
 import { getFeaturedProperties, type FeaturedProperty } from '@/lib/api/properties'
@@ -198,9 +199,6 @@ export default async function LandingPage() {
           <div className="max-w-6xl mx-auto">
             <div className="flex items-end justify-between mb-8">
               <div>
-                <p className="text-[11px] font-semibold text-[#1C3829] uppercase tracking-widest mb-2">
-                  {STRINGS.HOMEPAGE_HIGHLIGHTS_EYEBROW}
-                </p>
                 <h2 className="font-heading text-3xl font-bold text-[#111111]">
                   {STRINGS.HOMEPAGE_HIGHLIGHTS_TITLE}
                 </h2>
@@ -260,18 +258,13 @@ export default async function LandingPage() {
       <section className="py-24 px-6 bg-[#1C2C1A]">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="font-heading text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight">
-            Expertise for the Discerning Buyer.
+            Real estate guidance from people who actually know the neighborhood.
           </h2>
           <p className="text-white/55 text-base leading-relaxed mb-10 max-w-lg mx-auto">
-            Our agents aren&apos;t just salespeople. They are local curators and investment
-            analysts who understand the nuances of architectural value.
+            No sales pitches or complicated jargon. Just honest advice, a deep knowledge of local
+            homes, and someone in your corner from day one.
           </p>
-          <Link
-            href="/sign-up"
-            className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#A3E635] text-[#111111] text-sm font-bold rounded-xl hover:bg-[#95D62F] transition-colors"
-          >
-            Contact a Vicinus Advisor
-          </Link>
+          <GetInTouchButton />
         </div>
       </section>
 

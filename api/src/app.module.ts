@@ -20,6 +20,7 @@ import { AiModule } from './modules/ai/ai.module'
 import { SellModule } from './modules/sell/sell.module'
 import { WaitlistModule } from './modules/waitlist/waitlist.module'
 import { LeadModule } from './modules/lead/lead.module'
+import { ContactModule } from './modules/contact/contact.module'
 import { HealthModule } from './modules/health/health.module'
 import { BriefModule } from './modules/brief/brief.module'
 
@@ -52,6 +53,7 @@ import { BriefModule } from './modules/brief/brief.module'
     SellModule,
     WaitlistModule,
     LeadModule,
+    ContactModule,
     HealthModule,
     BriefModule,
   ],
