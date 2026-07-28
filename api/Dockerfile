@@ -1,4 +1,7 @@
-FROM node:22-alpine
+# slim (Debian/glibc), not alpine: musl's resolver can't look up Railway's
+# IPv6-only *.railway.internal private-network hosts from the runtime, which
+# made every Prisma query fail with ENOTFOUND while the site stayed "healthy".
+FROM node:22-slim
 
 WORKDIR /app
 
