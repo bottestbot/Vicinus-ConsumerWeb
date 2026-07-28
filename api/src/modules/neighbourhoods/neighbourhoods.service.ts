@@ -46,6 +46,22 @@ export class NeighbourhoodsService {
     })
 
     const result: NeighbourhoodSummary[] = rows.map(toSummary)
+
+    // Most neighbourhood rows have no hand-curated `medianPrice` (only a small
+    // seed set does) — backfill the rest from active DDF listings so the card
+    // grid isn't mostly blank. Bulk in-memory computation, not N per-neighbourhood
+    // DB queries: `Property.city`/`lat`/`lng` are unindexed, so 100+ scoped
+    // queries per cache refresh would be 100+ full table scans.
+    const missing = result.filter((n) => n.medianPrice == null)
+    if (missing.length > 0) {
+      const livePrices = await this.computeBulkMedianPrices(missing)
+      for (const n of result) {
+        if (n.medianPrice == null) {
+          n.medianPrice = livePrices.get(n.slug) ?? null
+        }
+      }
+    }
+
     await this.redis.set(cacheKey, JSON.stringify(result), NEIGHBOURHOOD_TTL)
     return result
   }
@@ -364,6 +380,49 @@ export class NeighbourhoodsService {
 
     await this.redis.set(cacheKey, JSON.stringify(base), NEIGHBOURHOOD_TTL)
     return base
+  }
+
+  // Bulk version of getMarketSnapshot's price half — one query for every
+  // neighbourhood instead of one query per neighbourhood. Buckets active
+  // listings by lowercased city (the dominant match in buildLocationClauses)
+  // and takes each neighbourhood's median from its bucket. Below a minimum
+  // sample size a "median" is more noise than signal, so it's left unset
+  // rather than showing a price derived from 1-2 listings.
+  private async computeBulkMedianPrices(
+    neighbourhoods: Array<{ slug: string; city: string | null }>,
+  ): Promise<Map<string, number>> {
+    const MIN_SAMPLE = 3
+    const cities = [...new Set(neighbourhoods.map((n) => n.city).filter((c): c is string => !!c))]
+    if (cities.length === 0) return new Map()
+
+    const properties = await this.prisma.property.findMany({
+      where: {
+        status: 'Active',
+        displayOnInternet: true,
+        price: { gt: 0 },
+        city: { in: cities, mode: 'insensitive' },
+      },
+      select: { price: true, city: true },
+    })
+
+    const pricesByCity = new Map<string, number[]>()
+    for (const p of properties) {
+      if (!p.city || p.price == null) continue
+      const key = p.city.toLowerCase()
+      const bucket = pricesByCity.get(key)
+      if (bucket) bucket.push(p.price)
+      else pricesByCity.set(key, [p.price])
+    }
+
+    const result = new Map<string, number>()
+    for (const n of neighbourhoods) {
+      if (!n.city) continue
+      const bucket = pricesByCity.get(n.city.toLowerCase())
+      if (bucket && bucket.length >= MIN_SAMPLE) {
+        result.set(n.slug, Math.round(median(bucket)))
+      }
+    }
+    return result
   }
 
   // Neighbourhood-scoped market snapshot. Adapts the PropertiesService market

@@ -17,13 +17,13 @@ export default async function NeighbourhoodsPage() {
         {/* Header */}
         <div className="mb-8">
           <p className="text-[11px] font-semibold text-[#1C3829] uppercase tracking-widest mb-2">
-            Curated by Vicinus
+            Explore Local Living
           </p>
           <h1 className="font-heading text-4xl lg:text-5xl font-bold text-[#111111]">
             Neighbourhoods.
           </h1>
           <p className="mt-3 text-[#6B6B6B] max-w-xl">
-            Canada's most prestigious enclaves — hand-selected for discerning buyers who expect more.
+            From vibrant urban hubs to quiet coastal retreats — explore Canada&apos;s finest places to call home.
           </p>
         </div>
 
