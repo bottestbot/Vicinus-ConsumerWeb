@@ -245,10 +245,14 @@ export default async function PropertyDetailPage({
           <NearbyOpenHousesSection id={id} />
         </Suspense>
 
-        {/* ── Market Context ────────────────────────────────────────────── */}
-        <Suspense fallback={<SectionSkeleton className="h-64" />}>
-          <MarketContextSection id={id} property={property} />
-        </Suspense>
+        {/* ── Market Context — sales only: every figure (price/sqft, price
+            position, buyer competition) is benchmarked against sale medians,
+            so a rent lands next to a "$19,930,000 area median" (RENT-02) */}
+        {property.listingType !== 'For Rent' && (
+          <Suspense fallback={<SectionSkeleton className="h-64" />}>
+            <MarketContextSection id={id} property={property} />
+          </Suspense>
+        )}
 
         {/* ── Assessment History ────────────────────────────────────────── */}
         {property.assessmentHistory && property.assessmentHistory.length > 0 && (

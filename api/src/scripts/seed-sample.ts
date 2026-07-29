@@ -133,7 +133,9 @@ async function main() {
         status: (prop['StandardStatus'] as string) || 'Active',
         displayOnInternet: (prop['InternetEntireListingDisplayYN'] as boolean) ?? true,
         price: prop['ListPrice'] as number | null,
-        leaseAmount: prop['LeaseAmount'] as number | null,
+        // RENT-03: residential rentals put rent in TotalActualRent, commercial
+        // leases in LeaseAmount. Same collapse the sync mapper does.
+        leaseAmount: (prop['LeaseAmount'] ?? prop['TotalActualRent']) as number | null,
         leaseFrequency: prop['LeaseAmountFrequency'] as string | null,
         propertySubType: prop['PropertySubType'] as string | null,
         beds: prop['BedroomsTotal'] as number | null,

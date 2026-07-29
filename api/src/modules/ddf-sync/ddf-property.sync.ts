@@ -113,7 +113,14 @@ export class DdfPropertySync {
       status: (p['StandardStatus'] as string) || 'Active',
       displayOnInternet: (p['InternetEntireListingDisplayYN'] as boolean) ?? true,
       price: p['ListPrice'] as number | null,
-      leaseAmount: p['LeaseAmount'] as number | null,
+      // RENT-03: residential rentals carry their rent in `TotalActualRent`;
+      // only commercial leases use `LeaseAmount`. The two populations are
+      // disjoint, so collapse both into `leaseAmount` — same contract the live
+      // mapper settled on in RENT-01 (ddf-query.service.ts), which every
+      // consumer's `price ?? leaseAmount` fallback already relies on. Mapping
+      // `LeaseAmount` alone left every synced residential rental with a null
+      // amount, which the DB-backed surfaces render as "Price on request".
+      leaseAmount: (p['LeaseAmount'] ?? p['TotalActualRent']) as number | null,
       leaseFrequency: p['LeaseAmountFrequency'] as string | null,
       propertySubType: p['PropertySubType'] as string | null,
       beds: p['BedroomsTotal'] as number | null,
