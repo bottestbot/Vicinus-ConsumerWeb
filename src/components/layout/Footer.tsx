@@ -22,8 +22,7 @@ export default function Footer() {
           <div className="flex flex-col gap-3">
             <Logo variant="light" className="text-sm" />
             <p className="text-white/50 leading-relaxed max-w-xs">
-              Beyond data. The Vicinus standard — intelligent curation of
-              Canada&apos;s finest properties.
+              Bringing you closer to home.
             </p>
           </div>
 

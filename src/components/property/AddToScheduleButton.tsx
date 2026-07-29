@@ -37,7 +37,7 @@ export default function AddToScheduleButton({ openHouseKey, currentListingId, cl
     <button
       onClick={handleClick}
       disabled={addVisit.isPending || isScheduled}
-      className={`flex items-center gap-1.5 font-bold uppercase tracking-wide rounded-lg transition-colors disabled:cursor-default ${
+      className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap font-bold uppercase tracking-wide rounded-lg transition-colors disabled:cursor-default ${
         isScheduled
           ? 'bg-[#1C3829]/10 text-[#1C3829]'
           : 'bg-[#1C3829] text-white hover:bg-[#2D5A3D] disabled:opacity-60'

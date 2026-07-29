@@ -262,8 +262,11 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
           height: '100%',
         }}
       >
-        {/* Blurred cover backdrop — soft-fills any letterbox gap instead of
-            flat black on wide viewports. Sits behind all media (z-0). */}
+        {/* Blurred cover backdrop — soft-fills the letterbox gap left by the
+            `object-contain` media below, instead of flat black. DDF photos are
+            4:3 landscape, so on a portrait feed a cover-crop would show only
+            ~39% of the frame's width (and always the same edge). Sits behind
+            all media (z-0). */}
         {backdropSrc && (
           <img
             src={backdropSrc}
@@ -281,7 +284,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             <video
               ref={videoRef}
               src={property.virtualTourUrl!}
-              className="absolute inset-0 w-full h-full object-cover object-left-top"
+              className="absolute inset-0 w-full h-full object-contain"
               loop muted={muted} playsInline autoPlay={isActive}
               onError={() => setVideoFailed(true)}
               onTimeUpdate={(e) => {
@@ -328,7 +331,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
                 key={src}
                 src={src}
                 alt=""
-                className={`absolute inset-0 w-full h-full object-cover object-left-top transition-opacity duration-700 ${
+                className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-700 ${
                   !isOnYoutube && i === imageSlideIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
                 }`}
                 draggable={false}
@@ -371,7 +374,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
               <img
                 src={FALLBACK_IMAGE}
                 alt=""
-                className="absolute inset-0 w-full h-full object-cover object-left-top z-0"
+                className="absolute inset-0 w-full h-full object-contain z-0"
                 draggable={false}
               />
             )}
@@ -380,11 +383,12 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
 
         {/* Mute button — at card level (z-40) so it sits above the iframe.
             Top-left, below the floating search bar (mirrors the Phone view
-            toggle's top-20 offset on the right, which the search bar clears). */}
+            toggle's offset on the right, which the search bar clears — the
+            bar stacks to ~98px below md, hence top-32 there). */}
         {(hasVideo || isOnYoutube) && (
           <button
             onClick={isOnYoutube ? toggleYoutubeMute : () => setMuted((m) => !m)}
-            className="absolute top-20 left-3 sm:left-4 z-40 p-2 rounded-full bg-black/50 backdrop-blur-sm text-white"
+            className="absolute top-32 md:top-20 left-3 sm:left-4 z-40 p-2 rounded-full bg-black/50 backdrop-blur-sm text-white"
             aria-label={muted ? 'Unmute' : 'Mute'}
           >
             {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}

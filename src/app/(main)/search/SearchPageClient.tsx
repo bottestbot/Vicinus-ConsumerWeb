@@ -211,7 +211,10 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
             viewMode === 'both' ? 'md:right-[calc(min(42%,480px)+1rem)]' : '',
           ].join(' ')}
         >
-          <div className="pointer-events-auto">
+          {/* @container: the bar switches to its single-row layout on its own
+              width, not the viewport's — in Map view it's confined to the map
+              pane and is far narrower than the screen. */}
+          <div className="pointer-events-auto @container">
             {/* Adaptive glass: light frosted bar on the Map (light map + white
                 list), dark bar on the Feed (dark photo/video media). */}
             <FilterPanel theme={viewMode === 'both' ? 'light' : 'dark'} />

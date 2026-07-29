@@ -194,12 +194,14 @@ export default function FeedView({ params }: FeedViewProps) {
   return (
     <div className="relative h-full">
       {/* View toggle — labelled by the mode you'll switch *to*, so it reads as
-          an action rather than an ambiguous status. */}
+          an action rather than an ambiguous status.
+          top-32 until md: below that the search bar stacks its input onto its
+          own row and grows to ~98px, so top-20 would sit underneath it. */}
       <button
         onClick={() => setViewMode((m) => (m === 'full' ? 'portrait' : 'full'))}
         aria-label={viewMode === 'full' ? 'Switch to phone view' : 'Switch to full screen'}
         title={viewMode === 'full' ? 'Switch to phone view' : 'Switch to full screen'}
-        className="absolute top-20 right-3 sm:right-4 z-40 flex items-center gap-1.5 h-9 px-3 rounded-full border border-[#E8E6E1] bg-white/90 backdrop-blur text-[#6B6B6B] hover:border-[#1C3829] hover:text-[#1C3829] focus-visible:ring-2 focus-visible:ring-[#1C3829] transition-colors text-xs font-medium shadow-sm"
+        className="absolute top-32 md:top-20 right-3 sm:right-4 z-40 flex items-center gap-1.5 h-9 px-3 rounded-full border border-[#E8E6E1] bg-white/90 backdrop-blur text-[#6B6B6B] hover:border-[#1C3829] hover:text-[#1C3829] focus-visible:ring-2 focus-visible:ring-[#1C3829] transition-colors text-xs font-medium shadow-sm"
       >
         {viewMode === 'full' ? <Smartphone size={14} /> : <Maximize2 size={14} />}
         <span className="hidden sm:inline">{viewMode === 'full' ? 'Phone view' : 'Full screen'}</span>

@@ -104,19 +104,22 @@ export default function NearbyOpenHouses({ openHouses }: NearbyOpenHousesProps) 
               />
 
               {/* Open house time */}
-              <div className="bg-[#F7F5F0] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+              {/* flex-wrap + nowrap: the CTA drops to its own row rather than
+                  crushing the date/time into one word per line (e.g. when a
+                  browser min-font-size setting inflates the button label). */}
+              <div className="bg-[#F7F5F0] rounded-lg px-3 py-2 flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-[11px] font-semibold text-[#1C3829]">
+                  <p className="text-[11px] font-semibold text-[#1C3829] whitespace-nowrap">
                     {formatDate(oh.openHouseDate)}
                   </p>
-                  <p className="text-[11px] text-[#6B6B6B]">
+                  <p className="text-[11px] text-[#6B6B6B] whitespace-nowrap">
                     {formatOpenHouseTimeRange(oh.openHouseStartTime, oh.openHouseEndTime)}
                   </p>
                 </div>
                 <AddToScheduleButton
                   openHouseKey={oh.openHouseKey}
                   currentListingId={oh.id}
-                  className="shrink-0 text-[9px] px-2 py-1"
+                  className="grow justify-center text-[10px] px-2.5 py-1.5"
                 />
               </div>
 

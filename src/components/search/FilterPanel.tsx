@@ -368,55 +368,65 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
   }, [open])
 
   return (
-    <div className={`flex items-center gap-2 sm:gap-3 px-2.5 py-2 rounded-full ${t.bar}`}>
-      {/* Search — flexes to fill available width */}
-      <div className="flex-1 min-w-0">
+    <div
+      className={`flex flex-col gap-2 px-2.5 py-2 rounded-3xl @min-[700px]:flex-row @min-[700px]:items-center @min-[700px]:gap-3 @min-[700px]:rounded-full ${t.bar}`}
+    >
+      {/* Search — its own row until the bar is wide enough for the full control
+          set on one line (~700px). Sharing a row below that left it ~18px wide
+          at 412px, so the input overflowed under the pills with nowhere to
+          type. The min-width floor stops it collapsing again. */}
+      <div className="w-full @min-[700px]:flex-1 @min-[700px]:min-w-[7rem]">
         <SearchBar theme={theme} placeholder="Search city, address…" className="h-9 text-xs" />
       </div>
 
-      {/* Buy / Rent — top-level listing-type toggle (RENT-02) */}
-      <ListingTypeToggle theme={theme} />
+      {/* Controls — a wrapping row on phones/tablets; `contents` from md up so
+          they become direct children of the bar again and the desktop layout
+          is unchanged. */}
+      <div className="flex flex-wrap items-center gap-2 @min-[700px]:contents">
+        {/* Buy / Rent — top-level listing-type toggle (RENT-02) */}
+        <ListingTypeToggle theme={theme} />
 
-      {/* Price — its own pill + popover */}
-      <PriceFilterPopover theme={theme} />
+        {/* Price — its own pill + popover */}
+        <PriceFilterPopover theme={theme} />
 
-      {/* Filter button + combined dropdown */}
-      <div ref={wrapRef} className="relative shrink-0">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          className={[
-            'inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap',
-            hasAnyFilter ? PILL_ACTIVE : t.chipIdle,
-          ].join(' ')}
-        >
-          <SlidersHorizontal size={13} />
-          <span className="hidden sm:inline">Filter</span>
-          {hasAnyFilter ? (
-            <span className="ml-0.5 bg-white/25 text-white rounded-full min-w-[16px] px-1 text-[10px] leading-4 text-center">
-              {activeCount}
-            </span>
-          ) : (
-            <ChevronDown size={12} className="hidden sm:inline" />
-          )}
-        </button>
+        {/* Filter button + combined dropdown */}
+        <div ref={wrapRef} className="relative shrink-0">
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            className={[
+              'inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap',
+              hasAnyFilter ? PILL_ACTIVE : t.chipIdle,
+            ].join(' ')}
+          >
+            <SlidersHorizontal size={13} />
+            <span className="hidden sm:inline">Filter</span>
+            {hasAnyFilter ? (
+              <span className="ml-0.5 bg-white/25 text-white rounded-full min-w-[16px] px-1 text-[10px] leading-4 text-center">
+                {activeCount}
+              </span>
+            ) : (
+              <ChevronDown size={12} className="hidden sm:inline" />
+            )}
+          </button>
 
-        <ResponsivePopover open={open} onClose={() => setOpen(false)} theme={theme}>
-          <FiltersDropdown theme={theme} onClose={() => setOpen(false)} />
-        </ResponsivePopover>
-      </div>
+          <ResponsivePopover open={open} onClose={() => setOpen(false)} theme={theme}>
+            <FiltersDropdown theme={theme} onClose={() => setOpen(false)} />
+          </ResponsivePopover>
+        </div>
 
-      {/* Save search — hidden on the narrowest screens to keep the bar compact */}
-      <div className="hidden sm:block shrink-0">
-        <SaveSearch theme={theme} />
-      </div>
+        {/* Save search — hidden on the narrowest screens to keep the bar compact */}
+        <div className="hidden sm:block shrink-0">
+          <SaveSearch theme={theme} />
+        </div>
 
-      {/* Divider */}
-      <div className={`w-px h-5 shrink-0 hidden sm:block ${t.divider}`} />
+        {/* Divider */}
+        <div className={`w-px h-5 shrink-0 hidden sm:block ${t.divider}`} />
 
-      {/* View toggle — Feed / Map */}
-      <div className="shrink-0">
-        <ViewToggle theme={theme} />
+        {/* View toggle — Feed / Map. Pushed to the trailing edge on phones. */}
+        <div className="shrink-0 ml-auto @min-[700px]:ml-0">
+          <ViewToggle theme={theme} />
+        </div>
       </div>
     </div>
   )

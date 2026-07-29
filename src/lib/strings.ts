@@ -26,8 +26,7 @@ export const STRINGS = {
   NAV_MENU_TOGGLE_ARIA: 'Toggle menu',
 
   // ─── Global · Footer ────────────────────────────────────────────────────────
-  FOOTER_TAGLINE:
-    "Beyond data. The Vicinus standard — intelligent curation of Canada's finest properties.",
+  FOOTER_TAGLINE: 'Bringing you closer to home.',
   FOOTER_EXPLORE_HEADING: 'Explore',
   FOOTER_EXPLORE_BUY: 'Buy',
   FOOTER_EXPLORE_SELL: 'Sell',
