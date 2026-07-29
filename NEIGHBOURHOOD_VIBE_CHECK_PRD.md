@@ -80,21 +80,23 @@ Design note: keep copy playful and visual (icon cards, confident personality-qui
 
 ## 7. Archetype & Copy System
 
-9 named "vibe archetypes," one per dimension/lifestyle signature, derived from which answers dominate the user's quiz. Each gets its own accent colour (no two archetypes share a hue) so the result card, the "which archetype are you" teaser, and any future archetype-browse page read as a coherent, colourful system rather than a single-tone product.
+9 named "vibe archetypes," one per dimension/lifestyle signature, derived from which answers dominate the user's quiz.
 
-| Archetype | Tagline | Dominant signature | Colour | Icon |
-|---|---|---|---|---|
-| The Café-Hopping Urbanite | "You want life happening outside your front door — coffee, dinner, culture, all within stumbling distance." | Amenities +++, Walkability +++ | Coral | coffee |
-| The Transit Maximalist | "Car-free and proud of it — you want a bus or train close enough that the schedule barely matters." | Transit +++ | Blue | bus |
-| The Trailhead Local | "Your happy place has more trees than traffic. Quiet mornings and trail access beat a nightlife scene every time." | Green +++, Quiet ++ | Green | trees |
-| The Heritage Homebody | "Character over new construction, always. You want creaky floors, mature trees, and a street that feels lived-in." | housingEra = older, Quiet ++ | Amber | building-arch |
-| The Family Basecamp | "You're planting roots for the long haul — good schools, parks, and a community that knows your kids' names." | Schools +++, Amenities + | Teal | users |
-| The New-Build Minimalist | "Clean lines, modern amenities, low maintenance — you want a neighbourhood as fresh as your finishes." | housingEra = new, Amenities ++, Walkability + | Gray | cube |
-| The Everything-in-Reach Local | "Why leave? Groceries, gym, dinner, drinks — it's all inside your own 15-minute world." | Walkability +++, Amenities +++ | Pink | shopping-bag |
-| The Quiet Introvert | "Peace and privacy over foot traffic. You want a street where the loudest thing is the wind." | Quiet +++ (low Amenities/Transit); absorbs the WFH signal from Q11 as a chip variant ("home-office-friendly quiet") | Purple | moon |
-| The Downtown Commuter | "You need to get downtown fast and back home even faster — proximity to the core is non-negotiable." | Transit +++, Walkability + | Red | briefcase |
+| Archetype | Tagline | Dominant signature | Icon |
+|---|---|---|---|
+| The Café-Hopping Urbanite | "You want life happening outside your front door — coffee, dinner, culture, all within stumbling distance." | Amenities +++, Walkability +++ | coffee |
+| The Transit Maximalist | "Car-free and proud of it — you want a bus or train close enough that the schedule barely matters." | Transit +++ | bus |
+| The Trailhead Local | "Your happy place has more trees than traffic. Quiet mornings and trail access beat a nightlife scene every time." | Green +++, Quiet ++ | trees |
+| The Heritage Homebody | "Character over new construction, always. You want creaky floors, mature trees, and a street that feels lived-in." | housingEra = older, Quiet ++ | building-arch |
+| The Family Basecamp | "You're planting roots for the long haul — good schools, parks, and a community that knows your kids' names." | Schools +++, Amenities + | users |
+| The New-Build Minimalist | "Clean lines, modern amenities, low maintenance — you want a neighbourhood as fresh as your finishes." | housingEra = new, Amenities ++, Walkability + | cube |
+| The Everything-in-Reach Local | "Why leave? Groceries, gym, dinner, drinks — it's all inside your own 15-minute world." | Walkability +++, Amenities +++ | shopping-bag |
+| The Quiet Introvert | "Peace and privacy over foot traffic. You want a street where the loudest thing is the wind." | Quiet +++ (low Amenities/Transit); absorbs the WFH signal from Q11 as a chip variant ("home-office-friendly quiet") | moon |
+| The Downtown Commuter | "You need to get downtown fast and back home even faster — proximity to the core is non-negotiable." | Transit +++, Walkability + | briefcase |
 
-Ties default to the archetype whose signature most overlaps the *matched neighbourhood's* own top sub-scores, so the card copy always feels consistent with the actual place, not just the quiz answers in isolation. Archetype name + tagline + result neighbourhood + 3 reason chips + its accent colour is the full shareable payload — keep it to one clean card, not a report.
+Ties default to the archetype whose signature most overlaps the *matched neighbourhood's* own top sub-scores, so the card copy always feels consistent with the actual place, not just the quiz answers in isolation. Archetype name + tagline + result neighbourhood + 3 reason chips is the full shareable payload — keep it to one clean card, not a report.
+
+**Superseded:** an earlier draft of this section gave each archetype its own distinct accent colour (Coral/Blue/Green/Amber/Teal/Gray/Pink/Purple/Red), styled as a "transit map line legend." That direction was explicitly rejected in design review in favour of matching Vicinus's native app theme — the approved result card (§10) uses one consistent lime/forest-green treatment for every archetype, not nine different hues. The `api/src/modules/vibe-check` data module still carries a `colour` field per archetype for reference/history, but the frontend's `VibeCheckResult.accentColour` should always resolve to the single native `'lime-forest'` palette regardless of which archetype was matched — don't wire up per-archetype colours on the card.
 
 ## 8. Data Model & Persistence
 
