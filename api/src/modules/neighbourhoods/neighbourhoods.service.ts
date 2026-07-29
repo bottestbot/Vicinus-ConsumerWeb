@@ -5,12 +5,25 @@ import { RedisService } from '../../common/redis/redis.service'
 import { GoogleMapsProxyService } from './google-maps-proxy.service'
 import { PersonalizationService, PersonalizationResult } from './scoring/personalization.service'
 import { SubScores, WEIGHTS_VERSION } from './scoring/blend'
-import { haversineMeters } from './scoring/geo'
+import { haversineMeters, LatLng } from './scoring/geo'
 import { TRANSIT_CATEGORIES } from './poi-ingestion.service'
 
 const NEIGHBOURHOOD_TTL = 30 * 60
 // Personalized block is per-user and cheaper to recompute — shorter TTL.
 const PERSONALIZATION_TTL = 10 * 60
+
+// Housing-age sample: same 1.5 km disc the POI and vibe ingests use, so the
+// card's "1.5 km" framing means the same thing everywhere on the page.
+const HOUSING_AGE_RADIUS_M = 1500
+// Below this, a median build year is an anecdote, not a neighbourhood fact.
+const HOUSING_AGE_MIN_SAMPLE = 15
+const HOUSING_ERAS = [
+  { label: 'Pre-1960', from: 1800, to: 1959 },
+  { label: '1960s–70s', from: 1960, to: 1979 },
+  { label: '1980s–90s', from: 1980, to: 1999 },
+  { label: '2000s–10s', from: 2000, to: 2019 },
+  { label: '2020s', from: 2020, to: 2100 },
+] as const
 
 @Injectable()
 export class NeighbourhoodsService {
@@ -329,10 +342,11 @@ export class NeighbourhoodsService {
     const centroid =
       centroidLat != null && centroidLng != null ? { lat: centroidLat, lng: centroidLng } : null
 
-    const [marketSnapshot, localEssentials, liveListings] = await Promise.all([
+    const [marketSnapshot, localEssentials, liveListings, housingAge] = await Promise.all([
       this.getMarketSnapshot(row),
       this.getLocalEssentials(row.id, centroid),
       this.getDetailListings(row),
+      this.getHousingAge(centroid),
     ])
 
     const photos = Array.isArray(row.photos) ? (row.photos as string[]) : []
@@ -372,6 +386,7 @@ export class NeighbourhoodsService {
         weightsVersion: WEIGHTS_VERSION,
       },
       localEssentials,
+      housingAge,
       // Proxied API paths, NOT Google URLs — the direct URLs carry the API key
       // and must never reach the browser. The FE prefixes these with its API
       // base. These are image sources for the tiles, not interactive links:
@@ -474,6 +489,58 @@ export class NeighbourhoodsService {
       priceChange30d: 0,
       daysOnMarket,
       activeListings,
+    }
+  }
+
+  // Housing age for the "Age" essentials card: the median build year of active
+  // listings inside the same 1.5 km disc the POI/vibe ingests use, plus the era
+  // mix.
+  //
+  // This is a listings sample, NOT the housing stock — only ~41% of synced DDF
+  // rows carry a YearBuilt, and only homes currently for sale are counted. The
+  // FE labels it with `sampleSize` for exactly that reason; never present it as
+  // "the age of this neighbourhood".
+  private async getHousingAge(centroid: LatLng | null): Promise<HousingAge | null> {
+    if (!centroid) return null
+
+    const latDelta = HOUSING_AGE_RADIUS_M / 111_000
+    const lngDelta =
+      HOUSING_AGE_RADIUS_M / (111_000 * Math.cos((centroid.lat * Math.PI) / 180) || 111_000)
+
+    const sample = await this.prisma.property.findMany({
+      where: {
+        status: 'Active',
+        displayOnInternet: true,
+        yearBuilt: { gt: 1800 },
+        lat: { gte: centroid.lat - latDelta, lte: centroid.lat + latDelta },
+        lng: { gte: centroid.lng - lngDelta, lte: centroid.lng + lngDelta },
+      },
+      select: { yearBuilt: true },
+      take: 500,
+    })
+
+    const years = sample
+      .map((p) => p.yearBuilt)
+      .filter((y): y is number => y != null)
+      .sort((a, b) => a - b)
+
+    // Too thin a sample is worse than no card — a median over three listings
+    // reads as a fact about the whole area. The FE hides the card on null.
+    if (years.length < HOUSING_AGE_MIN_SAMPLE) return null
+
+    const eras: HousingAge['eras'] = []
+    for (const era of HOUSING_ERAS) {
+      const count = years.filter((y) => y >= era.from && y <= era.to).length
+      if (count > 0) eras.push({ label: era.label, count })
+    }
+    eras.sort((a, b) => b.count - a.count)
+
+    return {
+      medianYearBuilt: Math.round(median(years)),
+      newestYearBuilt: years[years.length - 1],
+      oldestYearBuilt: years[0],
+      sampleSize: years.length,
+      eras: eras.slice(0, 3),
     }
   }
 
@@ -691,6 +758,17 @@ export interface MarketSnapshot {
   activeListings: number
 }
 
+/** Build-year profile of the *active listings* near the centroid — not the
+ *  housing stock. `sampleSize` must be surfaced wherever this is shown. */
+export interface HousingAge {
+  medianYearBuilt: number
+  newestYearBuilt: number
+  oldestYearBuilt: number
+  sampleSize: number
+  /** Up to three eras, largest first. */
+  eras: { label: string; count: number }[]
+}
+
 export interface LivabilityBlock {
   score: number
   percentile: number
@@ -780,6 +858,8 @@ export interface NeighbourhoodDetailBase {
   marketSnapshot: MarketSnapshot
   livability: LivabilityBlock
   localEssentials: LocalEssentialsBuckets
+  /** Null when there's no centroid or too thin a listings sample to be honest. */
+  housingAge: HousingAge | null
   localInfoTiles: LocalInfoTiles
   liveListings: PropertySummary[]
 }

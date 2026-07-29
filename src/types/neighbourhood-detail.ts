@@ -94,6 +94,21 @@ export interface NeighbourhoodDetailResponse {
      *  nearest station and a nearest bus stop. Same optionality as `transit`. */
     transitBus?: PoiItem[]
   }
+  /**
+   * Build-year profile of the ACTIVE LISTINGS within 1.5 km — not the housing
+   * stock. Only ~41% of synced DDF rows carry a YearBuilt and only homes for
+   * sale are counted, so `sampleSize` must be shown wherever this is rendered.
+   * Null when the area has no centroid or too thin a sample; optional because
+   * older API deploys don't send the field at all.
+   */
+  housingAge?: {
+    medianYearBuilt: number
+    newestYearBuilt: number
+    oldestYearBuilt: number
+    sampleSize: number
+    /** Up to three eras, largest first. */
+    eras: { label: string; count: number }[]
+  } | null
   localInfoTiles: {
     staticMapUrl: string | null
     streetViewUrl: string | null

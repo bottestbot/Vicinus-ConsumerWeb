@@ -289,7 +289,6 @@ export default function NeighbourhoodContextScore({ property, detail }: Neighbou
         {/* Verdict rail (client boundary — personalization hangs here). */}
         <VerdictRail
           slug={neighbourhood.slug}
-          livability={livability}
           personalization={personalization}
           areaStrengths={deriveAreaStrengths(livability)}
         />

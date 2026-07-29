@@ -3,9 +3,10 @@
 // Merge 3 "verdict rail" — the right column of the Life-around section.
 // Personalized: match %, reason rows citing real places/distances, caution
 // rows. Cold start (signed out / no priorities): area strengths derived from
-// the livability breakdown, never a fabricated match. Livability anchors the
-// footer in both states. Client component: the personalization fetch (Clerk-
-// gated, never server-cached) hangs off this boundary.
+// the livability breakdown, never a fabricated match. The blended Livability
+// score itself is not surfaced — it's held back for now. Client component: the
+// personalization fetch (Clerk-gated, never server-cached) hangs off this
+// boundary.
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
@@ -13,7 +14,6 @@ import apiClient from '@/lib/api/client'
 import type { NeighbourhoodDetailResponse } from '@/types/neighbourhood-detail'
 
 type Personalization = NeighbourhoodDetailResponse['personalization']
-type Livability = NeighbourhoodDetailResponse['livability']
 
 export interface RailReason {
   /** Bold lead, e.g. "Holland Park 350 m". */
@@ -26,7 +26,6 @@ export interface RailReason {
 interface VerdictRailProps {
   /** Neighbourhood slug — keys the per-user personalization fetch. */
   slug: string
-  livability: Livability
   personalization: Personalization
   /** Cold-start reason rows derived from area data (computed by the section). */
   areaStrengths: RailReason[]
@@ -54,7 +53,6 @@ function ReasonRow({ reason }: { reason: RailReason }) {
 
 export default function VerdictRail({
   slug,
-  livability,
   personalization: initial,
   areaStrengths,
 }: VerdictRailProps) {
@@ -97,11 +95,6 @@ export default function VerdictRail({
       ]
     : areaStrengths
 
-  const isScored = livability.score > 0
-  const displayScore = Math.round(livability.score)
-  const topPercent = Math.max(1, Math.round(100 - livability.percentile))
-  const showPercentile = isScored && livability.percentile > 0
-
   return (
     <aside className="flex h-full flex-col rounded-2xl bg-[#1C3829] p-6 text-white">
       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A3E635]">
@@ -135,28 +128,7 @@ export default function VerdictRail({
         </div>
       )}
 
-      <div className="mt-auto flex items-end justify-between gap-3 border-t border-white/[0.13] pt-3.5">
-        <div>
-          {isScored ? (
-            <>
-              <p>
-                <span className="font-heading text-[22px] font-semibold leading-none text-[#A3E635]">
-                  {displayScore}
-                </span>
-                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/70">
-                  Livability
-                </span>
-              </p>
-              {showPercentile && (
-                <p className="mt-0.5 text-[10px] text-white/55">
-                  Top {topPercent}%{livability.region ? ` in ${livability.region}` : ''}
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-xs font-medium text-white/50">Livability not yet rated</p>
-          )}
-        </div>
+      <div className="mt-auto flex items-end justify-end gap-3 border-t border-white/[0.13] pt-3.5">
         <Link
           href={
             isPersonalized || signedInNoPriorities

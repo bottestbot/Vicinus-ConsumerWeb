@@ -78,10 +78,14 @@ export default function NeighbourhoodDetailBody({ slug, province }: Props) {
         personalization={personalization}
       />
 
-      <LocalEssentials localEssentials={localEssentials} neighbourhood={neighbourhood} />
+      <LocalEssentials
+        localEssentials={localEssentials}
+        neighbourhood={neighbourhood}
+        housingAge={data.housingAge}
+      />
 
       <div className="py-10 border-b border-[#E8E6E1]">
-        <LivabilityPanel livability={livability} city={neighbourhood.city} />
+        <LivabilityPanel livability={livability} />
       </div>
 
       <LocalInfoTiles
