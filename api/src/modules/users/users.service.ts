@@ -373,7 +373,7 @@ export class UsersService {
       const profileData = {
         goal: parsed.goal,
         timeline: parsed.timeline,
-        homeType: parsed.homeType,
+        homeTypes: parsed.homeTypes,
         budgetMin: parsed.budgetMin,
         budgetMax: parsed.budgetMax,
         bedroomsMin: parsed.bedroomsMin,

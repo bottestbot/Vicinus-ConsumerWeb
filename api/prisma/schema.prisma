@@ -47,7 +47,10 @@ model UserPreferenceProfile {
 
   goal               String? // buy | sell | rent | exploring
   timeline           String? // 3mo | 3-6mo | 6-12mo | researching
-  homeType           String? // condo | townhouse | detached | presale | any
+  // Multi-select subset of condo|townhouse|detached|presale|any ("any" is
+  // exclusive — the wizard clears the others when it is picked). Replaced the
+  // former scalar `homeType`; legacy blobs with the scalar parse to one entry.
+  homeTypes          String[]
   // Parsed from the budget band DISPLAY string (e.g. "$600K–$1M") into ints —
   // never the display string. Open-ended bands leave the unbounded side null.
   budgetMin          Int?

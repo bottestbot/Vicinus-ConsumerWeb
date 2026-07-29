@@ -19,7 +19,7 @@ interface OnboardingData {
   neighbourhoods?: string[]
   openToNearby?: boolean
   lifestylePriorities?: string[]
-  homeType?: string
+  homeTypes?: string[]
   budget?: string
   bedrooms?: string
   mortgage?: string
@@ -50,28 +50,44 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
 
 // ─── Icon Tile (goal / home type) ─────────────────────────────────────────────
 
+// `multi` renders a checkbox affordance so a row of these reads as
+// select-many rather than pick-one. Labels are single long words
+// ("Townhouse"), so the tile must let them wrap instead of overflowing —
+// hence min-w-0 + break-words + the narrower tracking on small screens.
 function IconTile({
   icon,
   label,
   selected,
   onClick,
+  multi = false,
+  className = '',
 }: {
   icon: React.ReactNode
   label: string
   selected: boolean
   onClick: () => void
+  multi?: boolean
+  className?: string
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-2.5 rounded-2xl border p-5 transition-all duration-150 ${
+      {...(multi ? { role: 'checkbox' as const, 'aria-checked': selected } : { 'aria-pressed': selected })}
+      className={`relative flex min-w-0 flex-col items-center justify-center gap-2.5 rounded-2xl border p-3 text-center transition-all duration-150 sm:p-5 ${
         selected
           ? 'border-[#1C3829] bg-[#1C3829]/5 ring-1 ring-[#1C3829]'
           : 'border-[#E8E6E1] bg-white hover:border-[#1C3829]/40'
-      }`}
+      } ${className}`}
     >
+      {multi && selected && (
+        <CheckCircle2 size={16} className="absolute right-2 top-2 text-[#1C3829]" aria-hidden="true" />
+      )}
       <span className={`${selected ? 'text-[#1C3829]' : 'text-[#6B6B6B]'}`}>{icon}</span>
-      <span className={`text-xs font-bold uppercase tracking-widest ${selected ? 'text-[#1C3829]' : 'text-[#6B6B6B]'}`}>
+      <span
+        className={`w-full break-words text-[10px] font-bold uppercase leading-tight tracking-wide sm:text-xs sm:tracking-widest ${
+          selected ? 'text-[#1C3829]' : 'text-[#6B6B6B]'
+        }`}
+      >
         {label}
       </span>
     </button>
@@ -251,7 +267,7 @@ function Step1({
               <span className="w-7 h-7 rounded-full border border-[#D9D6CF] flex items-center justify-center text-xs font-bold text-[#6B6B6B]">01</span>
               <p className="text-sm font-medium text-[#3D3D3D]">Are you looking to buy, sell, rent, or just exploring the market?</p>
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
                 { key: 'buy', label: 'Buy', icon: <Home size={22} /> },
                 { key: 'sell', label: 'Sell', icon: <Tag size={22} /> },
@@ -503,33 +519,54 @@ function Step3({
   onBack: () => void
   onSaveExit: () => void
 }) {
+  const homeTypes = data.homeTypes ?? []
+
+  // Multi-select. `any` ("Open to all") is mutually exclusive with the specific
+  // types — picking it clears the rest, and picking a specific type clears it.
+  function toggleHomeType(key: string) {
+    if (homeTypes.includes(key)) {
+      onChange({ homeTypes: homeTypes.filter((t) => t !== key) })
+    } else if (key === 'any') {
+      onChange({ homeTypes: ['any'] })
+    } else {
+      onChange({ homeTypes: [...homeTypes.filter((t) => t !== 'any'), key] })
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#F5F3EE] flex flex-col">
       <StepNav step={3} total={5} onSaveExit={onSaveExit} />
 
       <div className="flex-1 overflow-y-auto max-w-3xl mx-auto w-full px-6 py-10 space-y-10">
         <div>
-          <h1 className="font-heading text-4xl font-bold text-[#111111]">What does your dream home look like?</h1>
+          <h1 className="font-heading text-3xl sm:text-4xl font-bold text-[#111111]">What does your dream home look like?</h1>
           <div className="mt-3 h-0.5 w-40 bg-[#1C3829]" />
         </div>
 
         {/* Home type */}
         <div>
-          <p className="font-semibold text-[#111111] mb-4">What type of home are you looking for?</p>
-          <div className="grid grid-cols-5 gap-3">
+          <p className="font-semibold text-[#111111] mb-4">
+            What type of home are you looking for?{' '}
+            <span className="text-[#6B6B6B] font-normal">(Select all that apply)</span>
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {HOME_TYPES.map((t) => (
               <IconTile
                 key={t.key}
                 icon={t.icon}
                 label={t.label}
-                selected={data.homeType === t.key}
-                onClick={() => onChange({ homeType: t.key })}
+                multi
+                // 5 tiles in a 2-col grid leaves "Open to all" alone on the
+                // last row; let it take the full width there instead.
+                className={t.key === 'any' ? 'col-span-2 sm:col-span-1' : ''}
+                selected={homeTypes.includes(t.key)}
+                onClick={() => toggleHomeType(t.key)}
               />
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-10">
           {/* Budget */}
           <div>
             <p className="font-semibold text-[#111111] mb-4">What&apos;s your target budget range?</p>
@@ -577,13 +614,13 @@ function Step3({
         </div>
       </div>
 
-      <div className="border-t border-[#E8E6E1] px-6 py-5 flex items-center justify-between bg-[#F5F3EE]">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-widest text-[#6B6B6B] hover:text-[#111111]">
-          <ChevronLeft size={16} /> Previous Step
+      <div className="border-t border-[#E8E6E1] px-4 sm:px-6 py-5 flex items-center justify-between gap-3 bg-[#F5F3EE]">
+        <button onClick={onBack} className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs sm:text-sm font-bold uppercase tracking-wide sm:tracking-widest text-[#6B6B6B] hover:text-[#111111]">
+          <ChevronLeft size={16} /> Previous <span className="hidden sm:inline">Step</span>
         </button>
         <button
           onClick={onNext}
-          className="flex items-center gap-2 bg-[#1C3829] text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-[#2D5A3D] transition-colors"
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap bg-[#1C3829] text-white text-xs sm:text-sm font-bold px-4 sm:px-6 py-3 rounded-xl hover:bg-[#2D5A3D] transition-colors"
         >
           Next: Buyer Readiness <ChevronRight size={16} />
         </button>

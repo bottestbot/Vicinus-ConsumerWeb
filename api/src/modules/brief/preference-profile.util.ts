@@ -11,7 +11,8 @@
  * Keys mirror the wizard literals EXACTLY (see OnboardingWizard.tsx):
  *   goal ∈ buy|sell|rent|exploring
  *   timeline ∈ 3mo|3-6mo|6-12mo|researching
- *   homeType ∈ condo|townhouse|detached|presale|any
+ *   homeTypes ⊂ condo|townhouse|detached|presale|any (multi-select; legacy
+ *     blobs carry a scalar `homeType` instead and are read as a 1-element list)
  *   lifestylePriorities ⊂ schools|commute|transit|parks|dining|walkability|quiet
  *     (`more` is a dead tile — never persisted)
  *   mortgage ∈ approved|in_progress|not_yet|cash
@@ -37,7 +38,7 @@ const LIFESTYLE = [
 export interface ParsedPreferenceProfile {
   goal: string | null
   timeline: string | null
-  homeType: string | null
+  homeTypes: string[]
   budgetMin: number | null
   budgetMax: number | null
   bedroomsMin: number | null
@@ -117,6 +118,22 @@ export function parseOnboardingBlob(
     if (v && !lifestylePriorities.includes(v)) lifestylePriorities.push(v)
   }
 
+  // Home type went multi-select; blobs written before that carry a scalar
+  // `homeType`. Accumulation means both keys can coexist, so prefer the array
+  // and fall back to the scalar only when the array is absent/empty.
+  const rawHomeTypes = Array.isArray(b.homeTypes)
+    ? (b.homeTypes as unknown[])
+    : []
+  const homeTypes: string[] = []
+  for (const h of rawHomeTypes) {
+    const v = pickEnum(h, HOME_TYPES)
+    if (v && !homeTypes.includes(v)) homeTypes.push(v)
+  }
+  if (homeTypes.length === 0) {
+    const legacy = pickEnum(b.homeType, HOME_TYPES)
+    if (legacy) homeTypes.push(legacy)
+  }
+
   const rawHoods = Array.isArray(b.neighbourhoods)
     ? (b.neighbourhoods as unknown[])
     : []
@@ -131,7 +148,7 @@ export function parseOnboardingBlob(
   return {
     goal: pickEnum(b.goal, GOALS),
     timeline: pickEnum(b.timeline, TIMELINES),
-    homeType: pickEnum(b.homeType, HOME_TYPES),
+    homeTypes,
     budgetMin: budget.min,
     budgetMax: budget.max,
     bedroomsMin: parseBedroomsMin(b.bedrooms),
