@@ -18,11 +18,15 @@ const BATCH_DELAY_MS = 1500
 
 const AMENITY_FILTER = 'restaurant|cafe|bar|supermarket|school|hospital|pharmacy|bank|park'
 const LEISURE_FILTER = 'park|playground'
-// Transit stations/stops for the PDP "Life around" Transit tile. Stored under
-// the 'transit' category, which is deliberately NOT a PoiCategory: both
-// scorers skip unknown categories, so stations can never move a walkability
-// or amenities score (transit access has its own GTFS-based sub-score).
+// Transit for the PDP "Life around" Transit tile, split two ways so the tile
+// can name a rail station and a bus stop separately: 'transit' is rail
+// (SkyTrain/tram), 'transit_bus' is bus. Neither is a PoiCategory — both
+// scorers skip unknown categories, so transit can never move a walkability or
+// amenities score (transit access has its own GTFS-based sub-score).
 const RAILWAY_FILTER = 'station|tram_stop'
+
+export type TransitCategory = 'transit' | 'transit_bus'
+export const TRANSIT_CATEGORIES: TransitCategory[] = ['transit', 'transit_bus']
 
 @Injectable()
 export class PoiIngestionService {
@@ -127,6 +131,7 @@ export class PoiIngestionService {
   way["railway"~"^(station)$"](${around});
   node["public_transport"="station"](${around});
   node["amenity"="bus_station"](${around});
+  node["highway"="bus_stop"](${around});
 );
 out center tags;`
     return fetchOverpass(this.http, this.config, query, OVERPASS_TIMEOUT_S)
@@ -157,9 +162,9 @@ out center tags;`
 interface PoiRow {
   neighbourhoodId: string
   osmId: string
-  // 'transit' rides along in storage but stays outside PoiCategory so it can
-  // never enter the scoring weight maps.
-  category: PoiCategory | 'transit'
+  // Transit categories ride along in storage but stay outside PoiCategory so
+  // they can never enter the scoring weight maps.
+  category: PoiCategory | TransitCategory
   name: string | null
   lat: number
   lng: number
@@ -168,13 +173,15 @@ interface PoiRow {
 
 // Map raw OSM tags into a single livability category. Amenity tags take
 // precedence over the generic `shop=*` (which falls through to errands).
-function mapTagsToCategory(tags: Record<string, string>): PoiCategory | 'transit' | null {
+function mapTagsToCategory(tags: Record<string, string>): PoiCategory | TransitCategory | null {
   // Transit first: a station tagged with an incidental shop/amenity must not
   // be filed as an errand.
   const railway = tags['railway']
   if (railway === 'station' || railway === 'tram_stop') return 'transit'
   if (tags['public_transport'] === 'station') return 'transit'
-  if (tags['amenity'] === 'bus_station') return 'transit'
+  // Bus exchanges file as bus, not rail — the tile reads "nearest bus stop",
+  // and an exchange is the most useful answer to that when one is close.
+  if (tags['highway'] === 'bus_stop' || tags['amenity'] === 'bus_station') return 'transit_bus'
 
   const amenity = tags['amenity']
   switch (amenity) {

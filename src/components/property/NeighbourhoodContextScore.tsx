@@ -46,32 +46,43 @@ function buildTiles(
   homeLat: number,
   homeLng: number,
 ): TileData[] {
-  const { parks, schools, shopAndEat, transit = [] } = detail.localEssentials
+  const { parks, schools, shopAndEat, transit = [], transitBus = [] } = detail.localEssentials
 
   const parksSel = nearestPois(parks, homeLat, homeLng, 1)
   const parksWithin15 = withHomeDistance(parks, homeLat, homeLng).filter(
     (p) => !p.approx && p.homeDistanceM <= WALK_15_MIN_M,
   ).length
   const schoolsSel = nearestPois(schools, homeLat, homeLng, 1)
-  const transitSel = nearestPois(transit, homeLat, homeLng, 1)
+  const stationSel = nearestPois(transit, homeLat, homeLng, 1)
+  const busSel = nearestPois(transitBus, homeLat, homeLng, 1)
   const shopBuckets = bucketShopAndEat(shopAndEat).slice(0, 3)
 
   const moreLine = (n: number) => (n > 0 ? `+ ${n} more nearby` : null)
 
   // Transit ALWAYS leads the grid (product decision — never Healthcare here).
-  // Stations when ingested; else the GTFS-based sub-score; else an honest
+  // Stations/stops when ingested; else the GTFS-based sub-score; else an honest
   // "no data yet" line. Healthcare data still exists in the API for other
   // surfaces, it just doesn't get a PDP tile.
+  //
+  // A rail station headlines when there is one — it's the stronger signal, and
+  // it's what buyers ask about — with the nearest bus stop on the second line.
+  // Most areas have no station at all, so the bus stop leads there instead.
+  const nearestStation = stationSel.nearest[0] ?? null
+  const nearestBus = busSel.nearest[0] ?? null
+  const transitPrimary = nearestStation ?? nearestBus
+  const busStopLine = (p: HomeRelativePoi) => {
+    const dist = poiDistanceLabel(p)
+    return `Bus stop — ${p.name}${dist ? ` · ${dist}` : ''}`
+  }
   const transitScore = detail.livability.breakdown.transit
-  const transitTile: TileData = transitSel.nearest[0]
+  const transitTile: TileData = transitPrimary
     ? {
         key: 'transit',
         title: 'Transit',
         icon: <TrainFront size={13} />,
         mapKind: 'transit',
-        primary: transitSel.nearest[0],
-        secondary:
-          transitSel.moreCount > 0 ? `+ ${transitSel.moreCount} more stops nearby` : null,
+        primary: transitPrimary,
+        secondary: nearestStation && nearestBus ? busStopLine(nearestBus) : null,
         chips: [],
       }
     : transitScore != null && transitScore > 0

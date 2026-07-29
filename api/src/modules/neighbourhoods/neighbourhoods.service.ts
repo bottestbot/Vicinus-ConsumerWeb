@@ -6,6 +6,7 @@ import { GoogleMapsProxyService } from './google-maps-proxy.service'
 import { PersonalizationService, PersonalizationResult } from './scoring/personalization.service'
 import { SubScores, WEIGHTS_VERSION } from './scoring/blend'
 import { haversineMeters } from './scoring/geo'
+import { TRANSIT_CATEGORIES } from './poi-ingestion.service'
 
 const NEIGHBOURHOOD_TTL = 30 * 60
 // Personalized block is per-user and cheaper to recompute — shorter TTL.
@@ -547,20 +548,38 @@ export class NeighbourhoodsService {
       parks: [],
       shopAndEat: [],
       transit: [],
+      transitBus: [],
     }
     if (!latest) return buckets
 
-    // No ordering guarantee here, so a tight cap silently drops whole rare
-    // categories in dense areas (City Centre's 251 POIs lost its only transit
-    // station to the old take:200). A snapshot is bounded by the 1.5 km ingest
-    // radius, so 1000 comfortably covers the densest urban core.
-    const pois = await this.prisma.neighbourhoodPoi.findMany({
-      where: { neighbourhoodId, snapshotVersion: latest.snapshotVersion },
-      select: { id: true, name: true, category: true, lat: true, lng: true },
-      take: 1000,
-    })
+    // Transit is read separately and uncapped. Bus stops alone can run to the
+    // hundreds inside the 1.5 km radius, so sharing one capped, unordered query
+    // would let them crowd out rarer categories — and the tile reports the
+    // *nearest* stop, which a partial set can't answer correctly.
+    // The rest keeps a cap: unordered, so too tight a limit silently drops
+    // whole categories in dense areas (City Centre's 251 POIs lost its only
+    // station to the old take:200). 1000 covers the densest urban core.
+    const [pois, transitPois] = await Promise.all([
+      this.prisma.neighbourhoodPoi.findMany({
+        where: {
+          neighbourhoodId,
+          snapshotVersion: latest.snapshotVersion,
+          category: { notIn: TRANSIT_CATEGORIES },
+        },
+        select: { id: true, name: true, category: true, lat: true, lng: true },
+        take: 1000,
+      }),
+      this.prisma.neighbourhoodPoi.findMany({
+        where: {
+          neighbourhoodId,
+          snapshotVersion: latest.snapshotVersion,
+          category: { in: TRANSIT_CATEGORIES },
+        },
+        select: { id: true, name: true, category: true, lat: true, lng: true },
+      }),
+    ])
 
-    for (const poi of pois) {
+    for (const poi of [...pois, ...transitPois]) {
       const p: PoiItem = {
         id: poi.id,
         name: poi.name ?? 'Unnamed',
@@ -576,6 +595,7 @@ export class NeighbourhoodsService {
       else if (poi.category === 'healthcare') buckets.healthcare.push(p)
       else if (poi.category === 'parks') buckets.parks.push(p)
       else if (poi.category === 'transit') buckets.transit.push(p)
+      else if (poi.category === 'transit_bus') buckets.transitBus.push(p)
       else if (['grocery', 'restaurants', 'coffee', 'errands'].includes(poi.category))
         buckets.shopAndEat.push(p)
     }
@@ -587,6 +607,7 @@ export class NeighbourhoodsService {
       buckets.parks,
       buckets.shopAndEat,
       buckets.transit,
+      buckets.transitBus,
     ]
     for (const list of lists) {
       list.sort((a, b) => a.distanceM - b.distanceM)
@@ -737,9 +758,12 @@ export interface LocalEssentialsBuckets {
   healthcare: PoiItem[]
   parks: PoiItem[]
   shopAndEat: PoiItem[]
-  /** Stations/stops (category 'transit') — PDP Transit tile. Empty until the
-   *  transit-station ingest has run for the area. */
+  /** Rail stations (category 'transit') — PDP Transit tile. Empty until the
+   *  transit ingest has run for the area. */
   transit: PoiItem[]
+  /** Bus stops and exchanges (category 'transit_bus'). Kept separate from rail
+   *  so the tile can name a nearest station and a nearest bus stop. */
+  transitBus: PoiItem[]
 }
 
 export interface LocalInfoTiles {

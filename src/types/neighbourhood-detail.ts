@@ -87,9 +87,12 @@ export interface NeighbourhoodDetailResponse {
     healthcare: PoiItem[]
     parks: PoiItem[]
     shopAndEat: PoiItem[]
-    /** Stations/stops for the PDP Transit tile. Optional: older API deploys
+    /** Rail stations for the PDP Transit tile. Optional: older API deploys
      *  don't send it, and it stays empty until the transit ingest has run. */
     transit?: PoiItem[]
+    /** Bus stops and exchanges, separate from rail so the tile can name a
+     *  nearest station and a nearest bus stop. Same optionality as `transit`. */
+    transitBus?: PoiItem[]
   }
   localInfoTiles: {
     staticMapUrl: string | null
