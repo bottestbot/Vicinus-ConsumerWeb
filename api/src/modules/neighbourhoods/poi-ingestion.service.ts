@@ -69,6 +69,18 @@ export class PoiIngestionService {
       .map((el) => this.toPoiRow(el, neighbourhoodId, snapshotVersion))
       .filter((r): r is PoiRow => r !== null)
 
+    // An empty result for a 1.5 km radius is a failed/throttled Overpass call,
+    // not a real answer — nowhere we cover has zero amenities. Replacing on
+    // empty deletes a good snapshot and leaves the area blank: a single batch
+    // run wiped Richmond City Centre (1035 POIs, 4 stations) and Sapperton this
+    // way. Bail before the delete so the previous snapshot survives, and throw
+    // so the batch counts it as failed instead of reporting a healthy zero.
+    if (rows.length === 0) {
+      throw new Error(
+        `Overpass returned no POIs for ${neighbourhoodId} — keeping the existing snapshot`,
+      )
+    }
+
     // Replace this neighbourhood's rows for the current snapshot atomically.
     await this.prisma.$transaction([
       this.prisma.neighbourhoodPoi.deleteMany({ where: { neighbourhoodId, snapshotVersion } }),
