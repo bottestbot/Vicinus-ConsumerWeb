@@ -18,6 +18,7 @@ import { getAnswerIcon } from './answer-icons'
 import { getOrCreateVibeSessionId } from '@/lib/vibe-check/session'
 import { FALLBACK_QUIZ_QUESTIONS } from '@/lib/vibe-check/quiz-fallback'
 import { getVibeCheckQuestions, submitVibeCheck, type VibeCheckQuestion } from '@/lib/api/vibe-check'
+import { capture } from '@/lib/analytics/capture'
 
 // ─── Progress bar ───────────────────────────────────────────────────────────
 
@@ -258,6 +259,10 @@ export default function VibeCheckQuiz() {
   const [loadingQuestions, setLoadingQuestions] = useState(false)
 
   async function handleStart() {
+    // PRD §3/§9: quiz-starts-from-referral must be measurable in PostHog, not
+    // just share-button clicks — so the ?ref= shortId (if present) rides along
+    // on the start event itself.
+    capture('vibe_check_started', { referredByShortId })
     setLoadingQuestions(true)
     await loadQuestions()
     setLoadingQuestions(false)
@@ -277,6 +282,11 @@ export default function VibeCheckQuiz() {
   async function handleSelect(question: VibeCheckQuestion, optionId: string) {
     const nextAnswers = { ...answers, [question.id]: optionId }
     setAnswers(nextAnswers)
+    capture('vibe_check_question_answered', {
+      questionId: question.id,
+      answerId: optionId,
+      questionIndex,
+    })
 
     const total = questions?.length ?? 0
     const isLast = questionIndex === total - 1
@@ -300,6 +310,11 @@ export default function VibeCheckQuiz() {
         answerIds,
         sessionId: sessionId || getOrCreateVibeSessionId(),
         referredByShortId,
+      })
+      capture('vibe_check_completed', {
+        archetypeKey: data.archetypeKey,
+        matchedNeighbourhoodName: data.matchedNeighbourhood.name,
+        matchPercent: data.matchPercent,
       })
       router.push(`/vibe/${data.shortId}`)
     } catch {

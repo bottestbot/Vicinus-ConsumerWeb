@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Share2, RotateCcw } from 'lucide-react'
 import Logo from '@/components/brand/Logo'
 import { archetypePalette } from './archetype-palette'
+import { capture } from '@/lib/analytics/capture'
 import type { VibeCheckResult } from '@/types/vibe-check'
 
 interface Props {
@@ -79,6 +80,9 @@ export default function VibeCheckResultCard({ result }: Props) {
             ? { title: shareTitle, text: shareText, url: shareUrl, files: [shareFile] }
             : { title: shareTitle, text: shareText, url: shareUrl }
         )
+        // navigator.share() only resolves on a completed share (it rejects on
+        // dismiss/cancel), so this fires exactly when the user actually shared.
+        capture('vibe_check_shared', { method: 'native-share', shortId })
       } catch {
         // User dismissed the share sheet — nothing to do.
       }
@@ -95,6 +99,7 @@ export default function VibeCheckResultCard({ result }: Props) {
           const file = await fetchShareImageFile()
           if (file) {
             await navigator.clipboard.write([new ClipboardItem({ [file.type]: file })])
+            capture('vibe_check_shared', { method: 'clipboard-image', shortId })
           }
         } catch {
           // Image clipboard copy unsupported/unavailable — copy-link below still runs.
@@ -102,6 +107,7 @@ export default function VibeCheckResultCard({ result }: Props) {
       }
       try {
         await navigator.clipboard.writeText(shareUrl)
+        capture('vibe_check_shared', { method: 'clipboard-link', shortId })
       } catch {
         // Clipboard write blocked — no toast system to fall back to yet.
       }
@@ -197,6 +203,7 @@ export default function VibeCheckResultCard({ result }: Props) {
 
         <Link
           href={`/sign-up?redirect_url=/vibe/${shortId}`}
+          onClick={() => capture('vibe_check_signup_clicked', { shortId, archetypeKey: result.archetypeKey })}
           className="mt-5 block text-center text-xs font-semibold text-[#1C3829] underline-offset-2 hover:underline"
         >
           Sign up to unlock 2 more matches →
@@ -213,6 +220,7 @@ export default function VibeCheckResultCard({ result }: Props) {
           </button>
           <Link
             href="/vibe"
+            onClick={() => capture('vibe_check_retake_clicked')}
             className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[#E8E6E1] px-5 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#1C3829] hover:text-[#1C3829]"
           >
             <RotateCcw size={15} strokeWidth={2.5} />
