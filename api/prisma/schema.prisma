@@ -27,7 +27,7 @@ model User {
   // Deliberately NOT Alert.readAt: markAllRead hard-deletes alerts, so the brief
   // must not touch it or the notification list silently empties. Advanced on the
   // brief's CTA click (BRIEF-12), never on view. Null ⇒ fall back to a 7-day window.
-  lastBriefAt         DateTime?
+  lastBriefAt DateTime?
 
   savedProperties   SavedProperty[]
   visitedProperties VisitedProperty[]
@@ -35,6 +35,7 @@ model User {
   alerts            Alert[]
   openHouseVisits   OpenHouseVisit[]
   preferenceProfile UserPreferenceProfile?
+  vibeCheckResults  VibeCheckResult[]
 }
 
 // BRIEF-01 — structured, queryable projection of the onboarding blob.
@@ -45,20 +46,20 @@ model UserPreferenceProfile {
   id     String @id @default(uuid())
   userId String @unique
 
-  goal               String? // buy | sell | rent | exploring
-  timeline           String? // 3mo | 3-6mo | 6-12mo | researching
+  goal                String? // buy | sell | rent | exploring
+  timeline            String? // 3mo | 3-6mo | 6-12mo | researching
   // Multi-select subset of condo|townhouse|detached|presale|any ("any" is
   // exclusive — the wizard clears the others when it is picked). Replaced the
   // former scalar `homeType`; legacy blobs with the scalar parse to one entry.
-  homeTypes          String[]
+  homeTypes           String[]
   // Parsed from the budget band DISPLAY string (e.g. "$600K–$1M") into ints —
   // never the display string. Open-ended bands leave the unbounded side null.
-  budgetMin          Int?
-  budgetMax          Int?
-  bedroomsMin        Int? // parsed from "1+"/"2+"/"3+"/"4+"
-  mortgage           String? // approved | in_progress | not_yet | cash
-  workingWithRealtor String? // yes | no | open
-  openToNearby       Boolean?
+  budgetMin           Int?
+  budgetMax           Int?
+  bedroomsMin         Int? // parsed from "1+"/"2+"/"3+"/"4+"
+  mortgage            String? // approved | in_progress | not_yet | cash
+  workingWithRealtor  String? // yes | no | open
+  openToNearby        Boolean?
   // Ordered subset of schools|commute|transit|parks|dining|walkability|quiet.
   // Order encodes weight (first = highest priority). `more` is a dead wizard
   // tile and is never persisted.
@@ -230,14 +231,14 @@ model Neighbourhood {
   // storage. These computed scores are the source of truth going forward; the
   // legacy seeded `walkScore`/`transitScore`/`livingGrade` above are retained
   // for backwards-compat but superseded by the `*Score` floats below.
-  livabilityScore         Float?
-  walkabilityScore        Float?
-  transitSubScore         Float? // computed transit sub-score (legacy `transitScore Int?` kept intact)
-  schoolsScore            Float?
-  amenitiesScore          Float?
-  livabilityPercentile    Float?
+  livabilityScore          Float?
+  walkabilityScore         Float?
+  transitSubScore          Float? // computed transit sub-score (legacy `transitScore Int?` kept intact)
+  schoolsScore             Float?
+  amenitiesScore           Float?
+  livabilityPercentile     Float?
   livabilityWeightsVersion String?
-  livabilityComputedAt    DateTime?
+  livabilityComputedAt     DateTime?
 
   // VIBE-01 — "neighbourhood vibe" raw inputs from OSM ways (not points, so not
   // in NeighbourhoodPoi): cycling infra length, green land-use coverage, and
@@ -251,9 +252,10 @@ model Neighbourhood {
   vibeMetricsVersion    String?
   vibeMetricsComputedAt DateTime?
 
-  properties      Property[]
-  localEssentials LocalEssential[]
-  pois            NeighbourhoodPoi[]
+  properties       Property[]
+  localEssentials  LocalEssential[]
+  pois             NeighbourhoodPoi[]
+  vibeCheckResults VibeCheckResult[]
 }
 
 // NBHD-02 — raw OSM/Overpass POIs, snapshotted per ingestion run so a quarterly
@@ -286,6 +288,40 @@ model LocalEssential {
   distanceKm      Float?
 
   neighbourhood Neighbourhood @relation(fields: [neighbourhoodId], references: [id])
+}
+
+// VIBE-CHECK-01 — the shareable quiz result. Anonymous-first: `userId` is null
+// until the quiz-taker signs up, tracked pre-auth by `sessionId` and merged in
+// on the post-signup return trip. `shortId` (not `id`) is the public
+// /vibe/<shortId> slug, kept short deliberately for social sharing.
+model VibeCheckResult {
+  id        String  @id @default(uuid())
+  shortId   String  @unique
+  userId    String?
+  sessionId String
+  answers   Json
+
+  archetypeKey           String
+  matchedNeighbourhoodId String
+  matchPercent           Int
+  // Share of quiz-takers matched to the same neighbourhood, recomputed
+  // periodically — not computed per-request. Null until the first batch run.
+  matchRarityPct         Float?
+  runnerUpIds            Json
+
+  referralCode       String  @unique
+  referredByResultId String?
+
+  createdAt DateTime @default(now())
+
+  user                 User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  matchedNeighbourhood Neighbourhood     @relation(fields: [matchedNeighbourhoodId], references: [id])
+  referredBy           VibeCheckResult?  @relation("VibeCheckReferral", fields: [referredByResultId], references: [id])
+  referrals            VibeCheckResult[] @relation("VibeCheckReferral")
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([matchedNeighbourhoodId])
 }
 
 model SavedProperty {
