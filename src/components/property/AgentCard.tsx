@@ -1,10 +1,9 @@
 'use client'
 
 // Agent contact card — appears in the right sidebar of the detail page
-import { Phone, Mail, ExternalLink } from 'lucide-react'
+import { Phone, Mail } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
-import { realtorHref } from '@/lib/format'
-import { logEmailRealtor, logListingClick } from '@/lib/api/analytics'
+import { logEmailRealtor } from '@/lib/api/analytics'
 import { useLeadInquiry } from '@/components/providers/LeadInquiryProvider'
 
 interface AgentCardProps {
@@ -79,16 +78,6 @@ export default function AgentCard({ property }: AgentCardProps) {
           <Mail size={14} />
           Send Message
         </button>
-        <a
-          href={realtorHref(property.realtorUrl)}
-          onClick={() => logListingClick(property.id)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1.5 text-[10px] text-[#6B6B6B] hover:text-[#1C3829] transition-colors mt-1"
-        >
-          <ExternalLink size={10} />
-          View on REALTOR.ca
-        </a>
       </div>
     </div>
   )

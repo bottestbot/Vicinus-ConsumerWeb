@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { Heart, ChevronLeft, ChevronRight, Bookmark, Calendar } from 'lucide-react'
 import type { SavedPropertyRecord } from '@/types/dashboard'
 import PropertyCell from '@/components/property/PropertyCell'
+// CREA-05: reports the DDF `Click` event on card → detail navigation.
+import ListingLink from '@/components/property/ListingLink'
 
 const CARDS_PER_PAGE = 3
 
@@ -27,7 +29,7 @@ function PropertyCard({ record }: CardProps) {
 
   return (
     <div className="group bg-white rounded-xl overflow-hidden border border-[#E8E6E1] hover:border-[#1C3829]/40 hover:shadow-md transition-all duration-200 flex flex-col">
-      <Link href={`/properties/${property.id}`} className="flex-1 flex flex-col">
+      <ListingLink href={`/properties/${property.id}`} className="flex-1 flex flex-col">
         {/* Photo */}
         <div className="relative h-44 overflow-hidden bg-[#F2F0EB] shrink-0">
           <Image
@@ -62,7 +64,7 @@ function PropertyCard({ record }: CardProps) {
             }}
           />
         </div>
-      </Link>
+      </ListingLink>
 
       {/* Schedule Tour CTA */}
       <div className="px-3.5 pb-3.5">

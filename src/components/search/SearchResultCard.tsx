@@ -6,6 +6,7 @@ import { Star } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property } from '@/types/search'
 import PropertyCell from '@/components/property/PropertyCell'
+import { logListingClick } from '@/lib/api/analytics'
 
 interface SearchResultCardProps {
   property: Property
@@ -21,6 +22,8 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
 
   const openDetail = () => {
     setSelectedProperty(property.id)
+    // CREA-05: card → detail navigation is the DDF `Click` event.
+    logListingClick(property.id)
     router.push(`/properties/${property.id}`)
   }
 

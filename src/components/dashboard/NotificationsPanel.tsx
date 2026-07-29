@@ -7,6 +7,7 @@ import { useAlerts, useDeleteAlert, useMarkAllAlertsRead, ALERTS_PAGE_SIZE } fro
 import { useOpenHouseVisits } from '@/hooks/useOpenHouseVisits'
 import { formatOpenHouseTime, formatOpenHouseTimeRange } from '@/lib/format'
 import AddToScheduleButton from '@/components/property/AddToScheduleButton'
+import { logListingClick } from '@/lib/api/analytics'
 import type { Alert, AlertType, DashboardProperty, OpenHouseVisit } from '@/types/dashboard'
 
 type Tab = 'All' | 'Alerts' | 'Schedule'
@@ -387,6 +388,8 @@ export default function NotificationsPanel() {
     const propertyId = alert.property?.id ?? alert.propertyId
     if (!propertyId) return
     deleteAlert.mutate(alert.id)
+    // CREA-05: alert → detail navigation is the DDF `Click` event.
+    logListingClick(propertyId)
     router.push(`/properties/${propertyId}`)
   }
 

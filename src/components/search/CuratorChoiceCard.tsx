@@ -1,10 +1,11 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
 import { Heart, Share2, Maximize2 } from 'lucide-react'
 import type { Property } from '@/types/search'
 import PropertyCell, { ListingAttribution } from '@/components/property/PropertyCell'
+// CREA-05: reports the DDF `Click` event on card → detail navigation.
+import ListingLink from '@/components/property/ListingLink'
 
 interface CuratorChoiceCardProps {
   property: Property
@@ -25,7 +26,7 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
       </div>
 
       {/* Image */}
-      <Link href={`/properties/${property.id}`}>
+      <ListingLink href={`/properties/${property.id}`}>
         <div className="relative h-52 overflow-hidden bg-[#1C2020] group">
           <Image
             src={property.imageUrl || FALLBACK_IMAGE}
@@ -66,7 +67,7 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
             </p>
           </div>
         </div>
-      </Link>
+      </ListingLink>
 
       {/* Content below image */}
       <div className="p-4">
@@ -100,11 +101,11 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
         )}
 
         {/* CTA */}
-        <Link href={`/properties/${property.id}`}>
+        <ListingLink href={`/properties/${property.id}`}>
           <button className="w-full py-2.5 bg-[#1C3829] text-white rounded-lg text-sm font-medium hover:bg-[#2D5A3D] transition-colors">
             View Property
           </button>
-        </Link>
+        </ListingLink>
 
         {/* CREA compliance — standardized attribution + deep-linked badge */}
         <ListingAttribution

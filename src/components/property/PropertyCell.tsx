@@ -30,7 +30,12 @@ export interface PropertyCellData {
   mlsNumber?: string | null
   /** DDF ListingURL — deep-links the REALTOR.ca badge to this exact listing. */
   realtorUrl?: string | null
-  /** DDF ListingKey. Needed to report the CREA `Click` event (CREA-05). */
+  /**
+   * DDF ListingKey. Carried for callers that render their own badge — this cell
+   * does not use it. The CREA `Click` event (CREA-05) is reported by whatever
+   * owns the card → detail navigation (ListingLink, or the router.push handler),
+   * not here: this component never handles the click.
+   */
   listingKey?: string | null
 }
 
@@ -78,7 +83,7 @@ interface AttributionProps {
   brokerageName?: string | null
   mlsNumber?: string | null
   realtorUrl?: string | null
-  /** DDF ListingKey — reports the CREA `Click` event on the badge (CREA-05). */
+  /** DDF ListingKey. Accepted but unused — see the note on PropertyCellData. */
   listingKey?: string | null
   theme?: Theme
   /** Show the "Data provided by CREA" line (default true). */

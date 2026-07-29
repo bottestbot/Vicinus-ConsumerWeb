@@ -10,6 +10,7 @@ import { getPropertyDetail } from '@/lib/api/properties'
 import { saveProperty, unsaveProperty } from '@/lib/api/users'
 import { useUserStore } from '@/store/userStore'
 import PropertyCell from '@/components/property/PropertyCell'
+import { logListingClick } from '@/lib/api/analytics'
 
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80'
@@ -89,7 +90,11 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
     }
   }
 
-  const openDetail = () => router.push(`/properties/${listingKey}`)
+  const openDetail = () => {
+    // CREA-05: popup → detail navigation is the DDF `Click` event.
+    logListingClick(listingKey)
+    router.push(`/properties/${listingKey}`)
+  }
 
   return (
     <Popup

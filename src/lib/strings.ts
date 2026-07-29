@@ -763,7 +763,6 @@ export const STRINGS = {
   PROPERTY_AGENT_FALLBACK: 'Listing Brokerage',
   PROPERTY_AGENT_MLS_LABEL: 'MLS® Number',
   PROPERTY_AGENT_SEND_MESSAGE: 'Send Message',
-  PROPERTY_AGENT_VIEW_REALTOR_CA: 'View on REALTOR.ca',
 
   // ─── Property detail · Action bar ───────────────────────────────────────────
   PROPERTY_ACTIONBAR_SAVE: 'Save',

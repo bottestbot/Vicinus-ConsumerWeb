@@ -11,6 +11,8 @@ import Footer from '@/components/layout/Footer'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
 import { getFeaturedProperties, type FeaturedProperty } from '@/lib/api/properties'
 import { ListingAttribution } from '@/components/property/PropertyCell'
+// CREA-05: reports the DDF `Click` event on card → detail navigation.
+import ListingLink from '@/components/property/ListingLink'
 import { formatPrice } from '@/types/search'
 import { STRINGS } from '@/lib/strings'
 import { geocodeCity, getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
@@ -34,7 +36,7 @@ function PropertyCard({ p }: { p: FeaturedProperty }) {
       {/* The attribution block below carries its own REALTOR.ca <a>, so the
           card link must not wrap it — nested anchors are invalid HTML and
           break hydration. */}
-      <Link href={p.href} className="block">
+      <ListingLink href={p.href} className="block">
         <div className="relative h-52 overflow-hidden bg-[#F2F0EB]">
           {p.image && (
             <Image
@@ -75,7 +77,7 @@ function PropertyCard({ p }: { p: FeaturedProperty }) {
             </span>
           </div>
         </div>
-      </Link>
+      </ListingLink>
 
       {/* DDF attribution — required wherever listing data is displayed. */}
       <ListingAttribution

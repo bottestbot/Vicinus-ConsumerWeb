@@ -10,6 +10,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import PropertyCell from '@/components/property/PropertyCell'
+import { logListingClick } from '@/lib/api/analytics'
 import type { NeighbourhoodDetailResponse, PropertySummary } from '@/types/neighbourhood-detail'
 
 interface Props {
@@ -27,7 +28,10 @@ function ListingCard({ listing }: { listing: PropertySummary }) {
   // `listing.id` 404s every time. The API returns the key in `slug`.
   const listingKey = listing.slug
   const goToListing = () => {
-    if (listingKey) router.push(`/properties/${listingKey}`)
+    if (!listingKey) return
+    // CREA-05: card → detail navigation is the DDF `Click` event.
+    logListingClick(listingKey)
+    router.push(`/properties/${listingKey}`)
   }
   const isMatch = listing.isMatch === true
 
@@ -79,8 +83,8 @@ function ListingCard({ listing }: { listing: PropertySummary }) {
               brokerageName: listing.brokerageName,
               mlsNumber: listing.mlsNumber,
               realtorUrl: listing.realtorUrl,
-              // Also the DDF key, not the local id — this is what gets reported
-              // to CREA as the Click event (PropertyCell → logListingClick).
+              // Also the DDF key, not the local id — the same value `goToListing`
+              // reports to CREA as the Click event.
               listingKey,
             }}
           />

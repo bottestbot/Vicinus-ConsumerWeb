@@ -3,11 +3,12 @@
 // FE-406: NearbyOpenHouses — cards carousel
 import { useRef } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import type { OpenHouseProperty } from '@/types/property'
 import { formatOpenHouseTimeRange } from '@/lib/format'
 import PropertyCell, { ListingAttribution } from '@/components/property/PropertyCell'
+// CREA-05: reports the DDF `Click` event on card → detail navigation.
+import ListingLink from '@/components/property/ListingLink'
 import AddToScheduleButton from './AddToScheduleButton'
 
 interface NearbyOpenHousesProps {
@@ -64,7 +65,7 @@ export default function NearbyOpenHouses({ openHouses }: NearbyOpenHousesProps) 
         style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}
       >
         {openHouses.map((oh) => (
-          <Link
+          <ListingLink
             key={oh.id}
             href={`/properties/${oh.id}`}
             className="shrink-0 w-72 bg-white rounded-2xl border border-[#E8E6E1] shadow-sm overflow-hidden hover:shadow-md hover:border-[#1C3829]/30 transition-all duration-200 group"
@@ -132,7 +133,7 @@ export default function NearbyOpenHouses({ openHouses }: NearbyOpenHousesProps) 
                 listingKey={oh.id}
               />
             </div>
-          </Link>
+          </ListingLink>
         ))}
       </div>
     </section>
