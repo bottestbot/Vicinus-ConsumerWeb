@@ -23,6 +23,7 @@ import { LeadModule } from './modules/lead/lead.module'
 import { ContactModule } from './modules/contact/contact.module'
 import { HealthModule } from './modules/health/health.module'
 import { BriefModule } from './modules/brief/brief.module'
+import { VibeCheckModule } from './modules/vibe-check/vibe-check.module'
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { BriefModule } from './modules/brief/brief.module'
     ContactModule,
     HealthModule,
     BriefModule,
+    VibeCheckModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
