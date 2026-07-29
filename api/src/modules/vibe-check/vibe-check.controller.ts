@@ -1,11 +1,15 @@
-import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common'
-import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { Body, Controller, Get, NotFoundException, Param, Post, UseGuards } from '@nestjs/common'
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard'
+import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { VibeCheckService, PublicQuizQuestion, VibeCheckSubmitResponse } from './vibe-check.service'
 import { SubmitVibeCheckDto } from './dto/submit-vibe-check.dto'
+import { ClaimVibeCheckDto } from './dto/claim-vibe-check.dto'
 
-// VIBE-CHECK — anonymous-first by design (PRD §8): no auth guard on either
-// route. `userId` on the persisted result stays null until a separate
-// post-signup merge task wires it up.
+// VIBE-CHECK — anonymous-first by design (PRD §8): no auth guard on the quiz
+// routes below. `userId` on the persisted result stays null until `claim`
+// (the post-signup merge step, guarded — it needs to know who's calling) is
+// hit from the result page.
 @ApiTags('vibe-check')
 @Controller('vibe-check')
 export class VibeCheckController {
@@ -29,5 +33,16 @@ export class VibeCheckController {
     const result = await this.vibeCheck.getResultByShortId(shortId)
     if (!result) throw new NotFoundException(`No vibe check result for shortId "${shortId}"`)
     return result
+  }
+
+  @Post('claim')
+  @UseGuards(ClerkAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      "Attach an anonymous quiz session's unclaimed results to the signed-in user, pre-filling onboarding's lifestylePriorities if unset. Idempotent.",
+  })
+  claim(@CurrentUser() clerkId: string, @Body() dto: ClaimVibeCheckDto): Promise<{ claimed: number }> {
+    return this.vibeCheck.claim(clerkId, dto)
   }
 }

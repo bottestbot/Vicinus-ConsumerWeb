@@ -31,3 +31,9 @@ export const submitVibeCheck = (payload: SubmitVibeCheckPayload) =>
 
 export const getVibeCheckResult = (shortId: string) =>
   apiClient.get<VibeCheckResult>(`/vibe-check/result/${shortId}`)
+
+// Post-signup merge (PRD §8/§9) — auth-guarded, apiClient's interceptor attaches
+// the Clerk bearer token. Idempotent server-side, so safe to call on every
+// signed-in visit to a result page, not just once.
+export const claimVibeCheck = (sessionId: string) =>
+  apiClient.post<{ claimed: number }>('/vibe-check/claim', { sessionId })

@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { blendLivability, LivabilityWeights, SubScores } from '../neighbourhoods/scoring/blend'
+import { UsersService } from '../users/users.service'
+import { parseOnboardingBlob } from '../brief/preference-profile.util'
 import { QUIZ_QUESTIONS } from './quiz-questions.data'
 import { VIBE_ARCHETYPES } from './vibe-archetypes.data'
 import { scoreQuizAnswers } from './score-quiz-answers'
 import { assignArchetypeKey } from './archetype-matching'
 import { generateToken } from './short-id.util'
+import { deriveLifestylePriorities } from './lifestyle-priorities.util'
 import { SubmitVibeCheckDto } from './dto/submit-vibe-check.dto'
+import { ClaimVibeCheckDto } from './dto/claim-vibe-check.dto'
 import { ArchetypeKey } from './types'
 
 export interface PublicQuizQuestion {
@@ -54,7 +58,10 @@ interface RankedNeighbourhood {
 
 @Injectable()
 export class VibeCheckService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly users: UsersService,
+  ) {}
 
   getQuestions(): PublicQuizQuestion[] {
     // Drop dimensionDeltas/flavorDeltas — the client only renders/collects ids+text.
@@ -116,6 +123,47 @@ export class VibeCheckService {
       runnerUps: runnersUp.map((n) => ({ name: n.name, matchPercent: n.score })),
       accentColour: 'lime-forest',
     }
+  }
+
+  // VIBE-CHECK-05 — merges an anonymous quiz session into the signed-in
+  // caller's account (PRD §8/§9's "signup-from-quiz" merge task). Claims every
+  // still-unclaimed result for this sessionId (a retake produces a second row
+  // with the same sessionId, so this can legitimately be >1), then pre-fills
+  // lifestylePriorities from the most recently created of them.
+  //
+  // Idempotent by construction: an unknown sessionId, or one whose rows are
+  // already claimed (userId already set), simply matches zero rows and no-ops
+  // — calling this twice, or calling it for a session that never took the
+  // quiz, is not an error.
+  async claim(clerkId: string, dto: ClaimVibeCheckDto): Promise<{ claimed: number }> {
+    const unclaimed = await this.prisma.vibeCheckResult.findMany({
+      where: { sessionId: dto.sessionId, userId: null },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (unclaimed.length === 0) return { claimed: 0 }
+
+    const user = await this.users.getMe(clerkId)
+
+    await this.prisma.vibeCheckResult.updateMany({
+      where: { id: { in: unclaimed.map((r) => r.id) } },
+      data: { userId: user.id },
+    })
+
+    // Only pre-fill lifestylePriorities if the user hasn't already set their
+    // own through the real onboarding wizard — a quiz-derived guess must
+    // never clobber a deliberate wizard choice.
+    const existing = parseOnboardingBlob(user.onboardingData as Record<string, unknown> | null)
+    if (existing.lifestylePriorities.length === 0) {
+      const mostRecent = unclaimed[0] // sorted desc by createdAt above
+      const answerIds = Array.isArray(mostRecent.answers) ? (mostRecent.answers as string[]) : []
+      const { weights, flavors } = scoreQuizAnswers(answerIds)
+      const lifestylePriorities = deriveLifestylePriorities(weights, flavors)
+      if (lifestylePriorities.length > 0) {
+        await this.users.updateOnboarding(clerkId, { stepData: { lifestylePriorities } })
+      }
+    }
+
+    return { claimed: unclaimed.length }
   }
 
   private async rankNeighbourhoods(weights: LivabilityWeights): Promise<RankedNeighbourhood[]> {

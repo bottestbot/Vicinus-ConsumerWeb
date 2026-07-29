@@ -8,6 +8,7 @@ import { Share2, RotateCcw } from 'lucide-react'
 import Logo from '@/components/brand/Logo'
 import { archetypePalette } from './archetype-palette'
 import { capture } from '@/lib/analytics/capture'
+import { markVibeAuthReturn } from '@/lib/vibeAuthReturn'
 import type { VibeCheckResult } from '@/types/vibe-check'
 
 interface Props {
@@ -203,7 +204,10 @@ export default function VibeCheckResultCard({ result }: Props) {
 
         <Link
           href={`/sign-up?redirect_url=/vibe/${shortId}`}
-          onClick={() => capture('vibe_check_signup_clicked', { shortId, archetypeKey: result.archetypeKey })}
+          onClick={() => {
+            markVibeAuthReturn()
+            capture('vibe_check_signup_clicked', { shortId, archetypeKey: result.archetypeKey })
+          }}
           className="mt-5 block text-center text-xs font-semibold text-[#1C3829] underline-offset-2 hover:underline"
         >
           Sign up to unlock 2 more matches →
