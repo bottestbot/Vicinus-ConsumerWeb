@@ -5,7 +5,7 @@
 // doesn't re-trigger a results query on every tick — only Apply commits to
 // the store.
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Slider } from '@base-ui/react/slider'
 import { useSearchStore } from '@/store/searchStore'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
@@ -23,6 +23,7 @@ const RENT_STEP = 100
 export default function PriceFilterPopover({ theme }: { theme: GlassTheme }) {
   const { filters, setFilter } = useSearchStore()
   const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const t = glass(theme)
 
   const isRent = filters.listingType === 'For Rent'
@@ -54,7 +55,7 @@ export default function PriceFilterPopover({ theme }: { theme: GlassTheme }) {
   }
 
   return (
-    <div className="relative shrink-0">
+    <div ref={wrapRef} className="relative shrink-0">
       <button
         onClick={() => (open ? setOpen(false) : openPopover())}
         aria-expanded={open}
@@ -66,7 +67,13 @@ export default function PriceFilterPopover({ theme }: { theme: GlassTheme }) {
         Price
       </button>
 
-      <ResponsivePopover open={open} onClose={() => setOpen(false)} theme={theme} desktopClassName="w-[340px]">
+      <ResponsivePopover
+        open={open}
+        onClose={() => setOpen(false)}
+        theme={theme}
+        anchorRef={wrapRef}
+        desktopClassName="w-[340px]"
+      >
         <div className="p-4 space-y-5">
           <p className={`text-xs font-semibold ${t.textFaint} uppercase tracking-widest`}>
             {isRent ? 'Monthly rent' : 'Price range'}

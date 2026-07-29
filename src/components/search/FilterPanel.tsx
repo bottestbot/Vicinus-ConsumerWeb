@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
@@ -357,16 +357,6 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
     (filters.maxMonthlyPayment !== null || filters.maxHoaFee !== null ? 1 : 0)
   const hasAnyFilter = activeCount > 0
 
-  // Close the dropdown on outside click.
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
   return (
     <div
       className={`flex flex-col gap-2 px-2.5 py-2 rounded-3xl @min-[700px]:flex-row @min-[700px]:items-center @min-[700px]:gap-3 @min-[700px]:rounded-full ${t.bar}`}
@@ -410,7 +400,7 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
             )}
           </button>
 
-          <ResponsivePopover open={open} onClose={() => setOpen(false)} theme={theme}>
+          <ResponsivePopover open={open} onClose={() => setOpen(false)} theme={theme} anchorRef={wrapRef}>
             <FiltersDropdown theme={theme} onClose={() => setOpen(false)} />
           </ResponsivePopover>
         </div>
