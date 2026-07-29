@@ -1,9 +1,9 @@
 'use client'
 
 // Inner map component — separated so it can be dynamically imported
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import Map, { Marker, Popup } from 'react-map-gl/mapbox'
+import Map, { Marker, Popup, type MapRef } from 'react-map-gl/mapbox'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { NearbyListing } from '@/types/property'
 import { formatPrice, formatFullPrice } from '@/types/search'
@@ -85,6 +85,14 @@ export default function ActivityMapInner({
   nearbyListings,
 }: ActivityMapInnerProps) {
   const [selectedListing, setSelectedListing] = useState<NearbyListing | null>(null)
+  const mapRef = useRef<MapRef>(null)
+
+  // With reuseMaps the GL instance survives navigation, keeping the previous
+  // listing's camera — initialViewState is ignored on reuse, so recentre
+  // imperatively. Harmless no-op on a fresh instance.
+  useEffect(() => {
+    mapRef.current?.jumpTo({ center: [longitude, latitude], zoom: 14 })
+  }, [latitude, longitude])
 
   if (!MAPBOX_TOKEN) {
     return (
@@ -98,6 +106,8 @@ export default function ActivityMapInner({
 
   return (
     <Map
+      ref={mapRef}
+      reuseMaps
       mapboxAccessToken={MAPBOX_TOKEN}
       initialViewState={{ latitude, longitude, zoom: 14 }}
       style={{ width: '100%', height: '100%' }}

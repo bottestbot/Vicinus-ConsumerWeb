@@ -2,7 +2,8 @@
 
 // Interactive Mapbox map rendered inside LocationMapModal. Always loaded via
 // dynamic import (ssr: false) from LocationMapModal — Mapbox needs the DOM.
-import Map, { Marker, NavigationControl } from 'react-map-gl/mapbox'
+import { useEffect, useRef } from 'react'
+import Map, { Marker, NavigationControl, type MapRef } from 'react-map-gl/mapbox'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { MapPin } from 'lucide-react'
 
@@ -15,6 +16,14 @@ interface LocationMapModalInnerProps {
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''
 
 export default function LocationMapModalInner({ latitude, longitude, address }: LocationMapModalInnerProps) {
+  const mapRef = useRef<MapRef>(null)
+
+  // reuseMaps keeps the GL instance (and its camera) across modal opens —
+  // recentre on the current listing; no-op on a fresh instance.
+  useEffect(() => {
+    mapRef.current?.jumpTo({ center: [longitude, latitude], zoom: 15 })
+  }, [latitude, longitude])
+
   if (!MAPBOX_TOKEN) {
     return (
       <div className="w-full h-full bg-gradient-to-br from-[#E8E6E1] to-[#CECAB8] flex flex-col items-center justify-center gap-3">
@@ -29,6 +38,8 @@ export default function LocationMapModalInner({ latitude, longitude, address }: 
   return (
     <div className="relative w-full h-full">
       <Map
+        ref={mapRef}
+        reuseMaps
         mapboxAccessToken={MAPBOX_TOKEN}
         initialViewState={{ latitude, longitude, zoom: 15 }}
         style={{ width: '100%', height: '100%' }}

@@ -1,0 +1,381 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neighbourhood × Match — Merged C+D Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FAF8F4; --card:#FFFFFF; --border:#E8E6E1; --track:#F2F0EB;
+    --forest:#1C3829; --lime:#A3E635; --ink:#111111; --muted:#6B6B6B;
+    --tint:#EAF0EC; --ai-bg:#F5F7F0; --amber-bg:#FDF2DE; --amber:#8A5A12;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#EFEDE8;font-family:'Inter',system-ui,sans-serif;color:var(--ink);
+    -webkit-font-smoothing:antialiased;padding:48px 24px 80px}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+  .wrap{max-width:1240px;margin:0 auto}
+
+  .page-head{margin-bottom:40px}
+  .page-head .eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--forest)}
+  .page-head h1{font-family:'Playfair Display',Georgia,serif;font-size:34px;font-weight:600;margin-top:6px}
+  .page-head p{color:var(--muted);font-size:14px;margin-top:8px;max-width:760px;line-height:1.6}
+
+  .option{margin-bottom:56px}
+  .opt-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+  .opt-badge{background:var(--forest);color:#fff;font-size:11px;font-weight:700;letter-spacing:.1em;
+    padding:4px 10px;border-radius:999px;text-transform:uppercase}
+  .opt-head h2{font-family:'Playfair Display',Georgia,serif;font-size:24px;font-weight:600}
+  .opt-sub{color:var(--muted);font-size:13.5px;line-height:1.6;margin-bottom:6px;max-width:880px}
+  .uses{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .uses span{font-size:10.5px;font-weight:600;color:var(--forest);background:var(--tint);border-radius:999px;padding:3px 9px}
+  .frame{background:var(--cream);border:1px solid #E2DFD8;border-radius:20px;padding:40px 44px;
+    box-shadow:0 1px 3px rgba(0,0,0,.04)}
+
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px}
+  .sec-head h3{font-family:'Playfair Display',Georgia,serif;font-size:21px;font-weight:600}
+  .sec-head a{font-size:12px;color:var(--forest);font-weight:500;text-decoration:none}
+  .sec-head a:hover{text-decoration:underline}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 2px rgba(17,17,17,.04)}
+
+  .map{position:relative;overflow:hidden;border-radius:16px;background:#F5F4F1;height:100%;min-height:210px}
+  .map svg{position:absolute;inset:0;width:100%;height:100%}
+  .map-pill{position:absolute;left:12px;bottom:12px;background:rgba(255,255,255,.94);border:1px solid var(--border);
+    border-radius:999px;font-size:11px;font-weight:600;color:var(--ink);padding:5px 11px}
+  .map-pill small{color:var(--muted);font-weight:500}
+  .map-match{position:absolute;right:12px;top:12px;background:var(--lime);color:var(--forest);
+    border-radius:999px;font-size:11.5px;font-weight:800;padding:6px 12px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  .poi-dot{position:absolute;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:11px;background:#fff;border:1.5px solid var(--forest);color:var(--forest);
+    box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .poi-dot.hot{border-color:var(--forest);background:var(--lime)}
+
+  .bar{height:6px;background:var(--track);border-radius:999px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--forest);border-radius:999px}
+  .bar.dark{background:rgba(255,255,255,.14)}
+  .bar.dark i{background:var(--lime)}
+
+  /* tiles (shared) */
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{padding:14px 16px;position:relative}
+  .tile .head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .tile .ic{width:26px;height:26px;border-radius:8px;background:var(--tint);display:flex;align-items:center;
+    justify-content:center;font-size:13px}
+  .tile .head b{font-size:12.5px;font-weight:600}
+  .tile .poi{font-size:12px;color:#333;display:flex;justify-content:space-between;gap:8px;line-height:1.55}
+  .tile .poi span{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .tile .more{font-size:11px;color:var(--forest);font-weight:600;margin-top:5px}
+  .chips-inline{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+  .chips-inline span{font-size:11px;background:var(--track);border-radius:999px;padding:3px 9px;color:#444}
+
+  .scorebar{margin-top:14px;background:var(--forest);border-radius:12px;color:#fff;display:flex;align-items:center;padding:12px 20px}
+  .scorebar .cell{display:flex;align-items:baseline;gap:7px;padding:0 18px;border-left:1px solid rgba(255,255,255,.14)}
+  .scorebar .cell:first-child{border-left:none;padding-left:0}
+  .scorebar b{font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:600;color:var(--lime)}
+  .scorebar span{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+  .scorebar .lead b{font-size:24px}
+  .scorebar .spacer{flex:1}
+  .scorebar .pct{font-size:10.5px;color:rgba(255,255,255,.65)}
+  .scorebar .match-pill{background:var(--lime);color:var(--forest);font-size:11px;font-weight:800;
+    border-radius:999px;padding:4px 11px;margin-left:14px}
+
+  /* ============ MERGE 1 — verdict banner ============ */
+  .banner{background:var(--ai-bg);border:2px solid var(--forest);border-radius:16px;padding:16px 22px;
+    display:flex;align-items:center;gap:18px;margin-bottom:14px}
+  .banner .spark{width:34px;height:34px;border-radius:11px;background:var(--forest);color:var(--lime);
+    display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .banner .txt{flex:1;min-width:0}
+  .banner .txt b{font-family:'Playfair Display',Georgia,serif;font-size:17px;font-weight:600;display:block}
+  .banner .txt p{font-size:12.5px;color:#4a4a44;margin-top:2px;line-height:1.5}
+  .banner .chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+  .pchip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;border-radius:999px;padding:5px 11px}
+  .pchip.good{background:#E7F0E6;color:var(--forest)}
+  .pchip.warn{background:var(--amber-bg);color:var(--amber)}
+  .banner .match{background:var(--lime);color:var(--forest);font-size:13px;font-weight:800;border-radius:999px;
+    padding:7px 14px;flex-shrink:0}
+  .m1-grid{display:grid;grid-template-columns:1fr 1.15fr;gap:16px}
+  .flag{position:absolute;top:12px;right:12px;background:var(--lime);color:var(--forest);
+    font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:3px 8px}
+
+  /* ============ MERGE 2 — personalized tiles ============ */
+  .m2-grid{display:grid;grid-template-columns:1fr 1.15fr;gap:16px}
+  .m2-right .fit-strip{background:var(--ai-bg);border:1.5px solid var(--forest);border-radius:13px;
+    padding:11px 16px;display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .m2-right .fit-strip .spark{width:26px;height:26px;border-radius:8px;background:var(--forest);color:var(--lime);
+    display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+  .m2-right .fit-strip p{font-size:12px;line-height:1.45;color:#333;flex:1}
+  .m2-right .fit-strip p b{font-weight:700}
+  .m2-right .fit-strip .match{background:var(--lime);color:var(--forest);font-size:12px;font-weight:800;
+    border-radius:999px;padding:5px 11px;flex-shrink:0}
+  .tile.hot{border:1.5px solid var(--forest);background:#FBFDF6}
+  .tile.hot .ic{background:var(--forest);color:var(--lime)}
+  .prio{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--forest);background:var(--lime);border-radius:999px;padding:2px 7px;margin-left:7px;transform:translateY(-1px)}
+  .caution-strip{margin-top:10px;background:var(--amber-bg);border-radius:11px;color:var(--amber);
+    font-size:12px;font-weight:600;padding:9px 14px;display:flex;align-items:center;gap:8px}
+
+  /* ============ MERGE 3 — verdict rail ============ */
+  .m3-grid{display:grid;grid-template-columns:1.62fr 1fr;gap:16px}
+  .m3-left .map{min-height:190px;margin-bottom:10px;height:auto}
+  .rail{background:var(--forest);border-radius:16px;color:#fff;padding:22px 24px;display:flex;flex-direction:column}
+  .rail .eyebrow{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--lime)}
+  .rail .big{font-family:'Playfair Display',Georgia,serif;font-size:44px;font-weight:600;color:var(--lime);
+    line-height:1;margin-top:8px}
+  .rail .big small{font-size:19px;color:rgba(255,255,255,.85)}
+  .rail .sent{font-size:12px;color:rgba(255,255,255,.72);line-height:1.55;margin-top:8px}
+  .rail .reasons{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+  .rail .reason{display:flex;gap:9px;font-size:12px;line-height:1.45;align-items:flex-start}
+  .rail .reason .tick{width:16px;height:16px;border-radius:99px;background:var(--lime);color:var(--forest);
+    display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;flex-shrink:0;margin-top:1px}
+  .rail .reason b{color:#fff;font-weight:600}
+  .rail .reason span{color:rgba(255,255,255,.62)}
+  .rail .reason.warn .tick{background:#E8C57C;color:#5B3E08}
+  .rail .foot{margin-top:auto;border-top:1px solid rgba(255,255,255,.13);padding-top:13px;display:flex;
+    align-items:center;justify-content:space-between}
+  .rail .foot .liv b{font-family:'Playfair Display',Georgia,serif;font-size:22px;color:var(--lime);font-weight:600}
+  .rail .foot .liv span{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    color:rgba(255,255,255,.7);margin-left:6px}
+  .rail .foot .liv small{display:block;font-size:10.5px;color:rgba(255,255,255,.55);margin-top:2px}
+  .rail .foot a{color:var(--lime);font-size:11.5px;font-weight:600;text-decoration:none}
+
+  .footnote{margin-top:8px;color:#8B887F;font-size:12px;line-height:1.6;max-width:880px}
+</style>
+
+<div class="wrap">
+  <div class="page-head">
+    <p class="eyebrow">Vicinus · Property Detail Page · Round 2</p>
+    <h1>Neighbourhood × match — merging C and D</h1>
+    <p>Three ways to fuse <b>Option C</b> (named places and distances around this home) with <b>Option D</b>
+    (your personal match). The shift: the match score stops being a separate card and becomes the lens the
+    neighbourhood evidence is read through — POIs justify the match, and the match explains the POIs.
+    Signed-out visitors see the same layouts with the match elements swapped for area strengths and a
+    "set your priorities" prompt.</p>
+  </div>
+
+  <svg width="0" height="0" style="position:absolute">
+    <symbol id="minimap" viewBox="0 0 460 230" preserveAspectRatio="xMidYMid slice">
+      <rect width="460" height="230" fill="#F5F4F1"/>
+      <polygon points="96,26 348,14 420,92 388,206 158,218 62,150" fill="#A3E635" opacity="0.07"/>
+      <polygon points="96,26 348,14 420,92 388,206 158,218 62,150" fill="none" stroke="#1C3829" stroke-opacity="0.3" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <line x1="0" y1="118" x2="460" y2="112" stroke="#fff" stroke-width="9"/>
+      <line x1="150" y1="0" x2="158" y2="230" stroke="#fff" stroke-width="8"/>
+      <line x1="298" y1="0" x2="290" y2="230" stroke="#fff" stroke-width="5"/>
+      <line x1="0" y1="52" x2="460" y2="46" stroke="#fff" stroke-width="4"/>
+      <line x1="0" y1="182" x2="460" y2="176" stroke="#fff" stroke-width="4"/>
+      <line x1="72" y1="0" x2="76" y2="230" stroke="#ECEAE6" stroke-width="3"/>
+      <line x1="382" y1="0" x2="376" y2="230" stroke="#ECEAE6" stroke-width="3"/>
+      <line x1="222" y1="0" x2="226" y2="230" stroke="#ECEAE6" stroke-width="2.5"/>
+      <text x="196" y="106" font-family="Inter,sans-serif" font-size="10" fill="#B3B0A9">102 Ave</text>
+      <text x="136" y="86" font-family="Inter,sans-serif" font-size="10" fill="#B3B0A9" transform="rotate(-90 136 86)">King George Blvd</text>
+      <text x="310" y="200" font-family="Inter,sans-serif" font-size="10" fill="#B3B0A9">City Centre</text>
+      <line x1="230" y1="112" x2="230" y2="130" stroke="#1C3829" stroke-width="2.5"/>
+      <circle cx="230" cy="130" r="2.5" fill="#1C3829"/>
+      <circle cx="230" cy="98" r="15" fill="#1C3829"/>
+      <circle cx="230" cy="98" r="5" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <circle cx="230" cy="102" r="1.6" fill="#fff"/>
+    </symbol>
+  </svg>
+
+  <!-- ================= MERGE 1 ================= -->
+  <div class="option">
+    <div class="opt-head"><span class="opt-badge">Merge 1</span><h2>The verdict banner</h2></div>
+    <p class="opt-sub">D compresses into one banner that sits on top of C: match score, one plain-English
+    sentence, and the reason/caution chips. The essentials below become the banner's evidence — tiles that
+    correspond to a saved priority carry the lime "For you" flag Vicinus already uses on listing cards.</p>
+    <div class="uses"><span>personalization matchPercent + chips</span><span>localEssentials + distances</span><span>livability compact</span></div>
+    <div class="frame">
+      <div class="sec-head"><h3>Life around 13857 102 Ave</h3><a href="#">View full profile →</a></div>
+      <div class="banner">
+        <span class="spark">✦</span>
+        <div class="txt">
+          <b>This home's area fits you</b>
+          <p>Strong on transit, parks and budget — the essentials below are ranked against your priorities.</p>
+        </div>
+        <div class="chips">
+          <span class="pchip good">✓ Transit</span>
+          <span class="pchip good">✓ Parks</span>
+          <span class="pchip good">✓ Budget</span>
+          <span class="pchip warn">⚠ Fewer detached</span>
+        </div>
+        <span class="match">86% match</span>
+      </div>
+      <div class="m1-grid">
+        <div class="card map">
+          <svg><use href="#minimap"/></svg>
+          <div class="poi-dot hot" style="left:74%;top:28%">🚈</div>
+          <div class="poi-dot hot" style="left:63%;top:64%">🌳</div>
+          <div class="poi-dot" style="left:26%;top:22%">🎓</div>
+          <div class="poi-dot" style="left:38%;top:72%">🛒</div>
+          <div class="map-pill">Surrey City Centre <small>· Surrey</small></div>
+        </div>
+        <div class="tiles">
+          <div class="card tile">
+            <span class="flag">For you</span>
+            <div class="head"><span class="ic">🚈</span><b>Transit</b></div>
+            <div class="poi">Surrey Central Station<span>650 m</span></div>
+            <div class="poi">King George Station<span>900 m</span></div>
+            <div class="more">SkyTrain + 6 bus routes</div>
+          </div>
+          <div class="card tile">
+            <span class="flag">For you</span>
+            <div class="head"><span class="ic">🌳</span><b>Nature &amp; parks</b></div>
+            <div class="poi">Holland Park<span>350 m</span></div>
+            <div class="poi">Forsyth Park<span>750 m</span></div>
+            <div class="more">4 parks within 15 min</div>
+          </div>
+          <div class="card tile">
+            <div class="head"><span class="ic">🎓</span><b>Schools</b></div>
+            <div class="poi">Forsyth Road Elementary<span>400 m</span></div>
+            <div class="poi">Kwantlen Park Secondary<span>1.1 km</span></div>
+            <div class="more">+ 3 more in catchment</div>
+          </div>
+          <div class="card tile">
+            <div class="head"><span class="ic">🛒</span><b>Shop &amp; eat</b></div>
+            <div class="chips-inline"><span>12 restaurants</span><span>4 cafés</span><span>2 grocers</span><span>Central City Mall</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="scorebar">
+        <div class="cell lead"><b class="serif">82</b><span>Livability</span></div>
+        <div class="cell"><b class="serif">80</b><span>Walk</span></div>
+        <div class="cell"><b class="serif">71</b><span>Transit</span></div>
+        <div class="cell"><b class="serif">74</b><span>Schools</span></div>
+        <div class="cell"><b class="serif">88</b><span>Amenities</span></div>
+        <div class="spacer"></div>
+        <span class="pct">Top 8% in BC · How we calculate this</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MERGE 2 ================= -->
+  <div class="option">
+    <div class="opt-head"><span class="opt-badge">Merge 2</span><h2>Personalized essentials</h2></div>
+    <p class="opt-sub">No separate match card at all — personalization is woven into C's own components.
+    The match pill sits on the map, a one-line fit strip introduces the tiles, priority categories are
+    reordered first with a forest outline and "priority" tag, and the caution becomes a slim amber strip.
+    The score bar carries the match at the end.</p>
+    <div class="uses"><span>personalization woven into tiles</span><span>priority ordering</span><span>caution strip</span></div>
+    <div class="frame">
+      <div class="sec-head"><h3>Life around 13857 102 Ave</h3><a href="#">View full profile →</a></div>
+      <div class="m2-grid">
+        <div class="card map">
+          <svg><use href="#minimap"/></svg>
+          <span class="map-match">86% match</span>
+          <div class="poi-dot hot" style="left:74%;top:28%">🚈</div>
+          <div class="poi-dot hot" style="left:63%;top:64%">🌳</div>
+          <div class="poi-dot" style="left:26%;top:22%">🎓</div>
+          <div class="poi-dot" style="left:38%;top:72%">🛒</div>
+          <div class="map-pill">Surrey City Centre <small>· Surrey</small></div>
+        </div>
+        <div class="m2-right">
+          <div class="fit-strip">
+            <span class="spark">✦</span>
+            <p><b>Ordered by your priorities</b> — transit and parks first, from your saved searches.</p>
+            <span class="match">86%</span>
+          </div>
+          <div class="tiles">
+            <div class="card tile hot">
+              <div class="head"><span class="ic">🚈</span><b>Transit</b><span class="prio">Priority</span></div>
+              <div class="poi">Surrey Central Station<span>650 m</span></div>
+              <div class="poi">King George Station<span>900 m</span></div>
+              <div class="more">Matches your transit priority</div>
+            </div>
+            <div class="card tile hot">
+              <div class="head"><span class="ic">🌳</span><b>Parks</b><span class="prio">Priority</span></div>
+              <div class="poi">Holland Park<span>350 m</span></div>
+              <div class="poi">Forsyth Park<span>750 m</span></div>
+              <div class="more">4 parks within 15 min</div>
+            </div>
+            <div class="card tile">
+              <div class="head"><span class="ic">🎓</span><b>Schools</b></div>
+              <div class="poi">Forsyth Road Elementary<span>400 m</span></div>
+              <div class="poi">Kwantlen Park Secondary<span>1.1 km</span></div>
+              <div class="more">+ 3 more in catchment</div>
+            </div>
+            <div class="card tile">
+              <div class="head"><span class="ic">🛒</span><b>Shop &amp; eat</b></div>
+              <div class="chips-inline"><span>12 restaurants</span><span>4 cafés</span><span>2 grocers</span></div>
+            </div>
+          </div>
+          <div class="caution-strip">⚠ Heads-up for you: fewer detached homes in this area</div>
+        </div>
+      </div>
+      <div class="scorebar">
+        <div class="cell lead"><b class="serif">82</b><span>Livability</span></div>
+        <div class="cell"><b class="serif">80</b><span>Walk</span></div>
+        <div class="cell"><b class="serif">71</b><span>Transit</span></div>
+        <div class="cell"><b class="serif">74</b><span>Schools</span></div>
+        <div class="spacer"></div>
+        <span class="pct">Top 8% in BC</span>
+        <span class="match-pill">86% match for you</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MERGE 3 ================= -->
+  <div class="option">
+    <div class="opt-head"><span class="opt-badge">Merge 3</span><h2>The verdict rail</h2></div>
+    <p class="opt-sub">Evidence on the left, verdict on the right. C's map and tiles stay together while a
+    full-height forest rail argues the case: big match score, then reasons that cite the actual places and
+    distances ("SkyTrain 650 m — your transit priority"), the caution, and livability anchoring the foot.
+    The strongest visual hierarchy of the three — one glance gives the verdict, one more gives the proof.</p>
+    <div class="uses"><span>reasons cite real POIs</span><span>match + livability in one rail</span><span>map + tiles from C</span></div>
+    <div class="frame">
+      <div class="sec-head"><h3>Life around 13857 102 Ave</h3><a href="#">View full profile →</a></div>
+      <div class="m3-grid">
+        <div class="m3-left">
+          <div class="card map">
+            <svg><use href="#minimap"/></svg>
+            <div class="poi-dot hot" style="left:74%;top:28%">🚈</div>
+            <div class="poi-dot hot" style="left:63%;top:64%">🌳</div>
+            <div class="poi-dot" style="left:26%;top:22%">🎓</div>
+            <div class="poi-dot" style="left:38%;top:72%">🛒</div>
+            <div class="map-pill">Surrey City Centre <small>· Surrey</small></div>
+          </div>
+          <div class="tiles">
+            <div class="card tile">
+              <div class="head"><span class="ic">🚈</span><b>Transit</b></div>
+              <div class="poi">Surrey Central Station<span>650 m</span></div>
+              <div class="more">SkyTrain + 6 bus routes</div>
+            </div>
+            <div class="card tile">
+              <div class="head"><span class="ic">🌳</span><b>Parks</b></div>
+              <div class="poi">Holland Park<span>350 m</span></div>
+              <div class="more">4 parks within 15 min</div>
+            </div>
+            <div class="card tile">
+              <div class="head"><span class="ic">🎓</span><b>Schools</b></div>
+              <div class="poi">Forsyth Road Elementary<span>400 m</span></div>
+              <div class="more">+ 3 more in catchment</div>
+            </div>
+            <div class="card tile">
+              <div class="head"><span class="ic">🛒</span><b>Shop &amp; eat</b></div>
+              <div class="chips-inline"><span>12 restaurants</span><span>4 cafés</span><span>2 grocers</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rail">
+          <span class="eyebrow">✦ For you</span>
+          <div class="big">86<small>% match</small></div>
+          <p class="sent">This home and its area score high on what you filter for, from your saved searches
+          and priorities.</p>
+          <div class="reasons">
+            <div class="reason"><span class="tick">✓</span><div><b>SkyTrain 650 m</b> <span>— your transit priority</span></div></div>
+            <div class="reason"><span class="tick">✓</span><div><b>Holland Park 350 m</b> <span>— parks within 10 min</span></div></div>
+            <div class="reason"><span class="tick">✓</span><div><b>$848K median</b> <span>— under your budget cap</span></div></div>
+            <div class="reason warn"><span class="tick">!</span><div><b>Fewer detached homes</b> <span>— mostly condos here</span></div></div>
+          </div>
+          <div class="foot">
+            <div class="liv"><b class="serif">82</b><span>Livability</span><small>Top 8% in BC</small></div>
+            <a href="#">Edit priorities →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">All three use the same data: personalization (matchPercent, reasonChips, cautionChips),
+  localEssentials POIs with distances, and the livability blend. The lime "For you" flag and match-pill
+  language mirror what listing cards already do, so the pattern reads as one system across search, feed and PDP.
+  Cold start: swap match elements for "What stands out here" + a set-priorities prompt.</p>
+</div>

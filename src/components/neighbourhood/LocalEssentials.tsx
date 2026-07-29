@@ -5,6 +5,7 @@
 import Link from 'next/link'
 import { GraduationCap, HeartPulse, TreePine, ShoppingBag, ArrowRight } from 'lucide-react'
 import { formatDistance } from '@/lib/format'
+import { bucketShopAndEat } from '@/lib/poi'
 import type { NeighbourhoodDetailResponse, PoiItem } from '@/types/neighbourhood-detail'
 
 interface Props {
@@ -37,22 +38,8 @@ function CardHeader({
   )
 }
 
-function bucketShopAndEat(items: PoiItem[]) {
-  const buckets: Record<string, number> = {}
-  const label = (cat: string): string => {
-    const c = cat.toLowerCase()
-    if (/(restaurant|food|dining)/.test(c)) return 'restaurants'
-    if (/(cafe|coffee)/.test(c)) return 'cafés'
-    if (/(grocer|supermarket|market)/.test(c)) return 'grocers'
-    if (/(shop|store|retail)/.test(c)) return 'shops'
-    return 'places'
-  }
-  for (const item of items) {
-    const key = label(item.category)
-    buckets[key] = (buckets[key] ?? 0) + 1
-  }
-  return Object.entries(buckets)
-}
+// Bucketing lives in src/lib/poi.ts so the PDP "Life around" section and this
+// card always group identically.
 
 export default function LocalEssentials({ localEssentials, neighbourhood }: Props) {
   const { schools, healthcare, parks, shopAndEat } = localEssentials
@@ -139,12 +126,12 @@ export default function LocalEssentials({ localEssentials, neighbourhood }: Prop
             <p className="text-xs text-[#6B6B6B]">No shops or eateries mapped yet.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {shopBuckets.map(([label, count]) => (
+              {shopBuckets.map((b) => (
                 <span
-                  key={label}
+                  key={b.key}
                   className="rounded-full bg-[#F2F0EB] px-2.5 py-1 text-xs font-medium text-[#111111]"
                 >
-                  {count} {label}
+                  {b.count} {b.label}
                 </span>
               ))}
             </div>

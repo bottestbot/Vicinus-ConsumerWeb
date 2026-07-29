@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
 import { getPropertyDetail, getListingOpenHouses, getNearbyOpenHouses, getMarketContext } from '@/lib/api/properties'
+import { getNeighbourhoodDetail, resolveNeighbourhoodForPoint } from '@/lib/api/neighbourhoods'
 import { realtorHref } from '@/lib/format'
 import OpenHouseSchedule from '@/components/property/OpenHouseSchedule'
 import PropertyGallery from '@/components/property/PropertyGallery'
@@ -83,6 +84,20 @@ async function NearbyOpenHousesSection({ id }: { id: string }) {
 async function MarketContextSection({ id, property }: { id: string; property: PropertyDetail }) {
   const data = await getMarketContext(id)
   return <MarketContext property={property} data={data} />
+}
+
+// Live DDF payloads carry no neighbourhood link, so resolve one from the
+// listing's coordinates, then fetch the same aggregate the neighbourhood page
+// uses. Both calls are shared-cached (no user data) and the section renders a
+// degraded map-only variant when nothing resolves — never fabricated scores.
+async function NeighbourhoodSection({ property }: { property: PropertyDetail }) {
+  const resolved = await resolveNeighbourhoodForPoint(
+    property.city,
+    property.latitude,
+    property.longitude,
+  )
+  const detail = resolved ? await getNeighbourhoodDetail(resolved.slug) : null
+  return <NeighbourhoodContextScore property={property} detail={detail} />
 }
 
 // ─── Listing unavailable ──────────────────────────────────────────────────────
@@ -216,8 +231,10 @@ export default async function PropertyDetailPage({
         {/* ── Divider ───────────────────────────────────────────────────── */}
         <div className="border-t border-[#E8E6E1]" />
 
-        {/* ── Neighbourhood Context Score ───────────────────────────────── */}
-        <NeighbourhoodContextScore property={property} />
+        {/* ── Neighbourhood Context ("Life around {address}") ───────────── */}
+        <Suspense fallback={<SectionSkeleton className="h-96" />}>
+          <NeighbourhoodSection property={property} />
+        </Suspense>
 
         {/* ── Mortgage Analysis (dark green) — sales only: running a mortgage
             calculator over a monthly rent produced a nonsense "$13/mo" (RENT-02) */}

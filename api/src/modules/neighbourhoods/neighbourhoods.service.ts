@@ -546,13 +546,18 @@ export class NeighbourhoodsService {
       healthcare: [],
       parks: [],
       shopAndEat: [],
+      transit: [],
     }
     if (!latest) return buckets
 
+    // No ordering guarantee here, so a tight cap silently drops whole rare
+    // categories in dense areas (City Centre's 251 POIs lost its only transit
+    // station to the old take:200). A snapshot is bounded by the 1.5 km ingest
+    // radius, so 1000 comfortably covers the densest urban core.
     const pois = await this.prisma.neighbourhoodPoi.findMany({
       where: { neighbourhoodId, snapshotVersion: latest.snapshotVersion },
       select: { id: true, name: true, category: true, lat: true, lng: true },
-      take: 200,
+      take: 1000,
     })
 
     for (const poi of pois) {
@@ -570,6 +575,7 @@ export class NeighbourhoodsService {
       if (poi.category === 'schools') buckets.schools.push(p)
       else if (poi.category === 'healthcare') buckets.healthcare.push(p)
       else if (poi.category === 'parks') buckets.parks.push(p)
+      else if (poi.category === 'transit') buckets.transit.push(p)
       else if (['grocery', 'restaurants', 'coffee', 'errands'].includes(poi.category))
         buckets.shopAndEat.push(p)
     }
@@ -580,6 +586,7 @@ export class NeighbourhoodsService {
       buckets.healthcare,
       buckets.parks,
       buckets.shopAndEat,
+      buckets.transit,
     ]
     for (const list of lists) {
       list.sort((a, b) => a.distanceM - b.distanceM)
@@ -730,6 +737,9 @@ export interface LocalEssentialsBuckets {
   healthcare: PoiItem[]
   parks: PoiItem[]
   shopAndEat: PoiItem[]
+  /** Stations/stops (category 'transit') — PDP Transit tile. Empty until the
+   *  transit-station ingest has run for the area. */
+  transit: PoiItem[]
 }
 
 export interface LocalInfoTiles {

@@ -1,4 +1,5 @@
 import type { Neighbourhood, Essential, NeighbourhoodAgent, NeighbourhoodListing } from '@/types/neighbourhood'
+import { haversineDistanceM } from '@/lib/geo'
 import type {
   NeighbourhoodDetailResponse,
   PoiItem,
@@ -270,6 +271,60 @@ export async function getNeighbourhoods(): Promise<Neighbourhood[]> {
   return data.map(mapNeighbourhood).filter((n) => isLaunchCity(n.city))
 }
 
+// ─── Listing → neighbourhood resolution (PDP Merge-3 section) ─────────────────
+// Live DDF listing payloads (`/search/listing/:id`) carry no neighbourhood link,
+// so the property page resolves one from the listing's coordinates: same city,
+// nearest validated centroid, hard distance cap. The cap matters — an
+// out-of-coverage listing must degrade to "no neighbourhood" rather than claim
+// whichever centroid happens to be least far away.
+
+const MAX_RESOLVE_DISTANCE_M = 3_000
+
+export interface ResolvedNeighbourhoodRef {
+  slug: string
+  name: string
+  city: string
+}
+
+export async function resolveNeighbourhoodForPoint(
+  city: string | null | undefined,
+  latitude: number,
+  longitude: number,
+): Promise<ResolvedNeighbourhoodRef | null> {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+  // 0,0 is the mapper's stand-in for "DDF sent no coordinates".
+  if (latitude === 0 && longitude === 0) return null
+
+  // Launch-city filtered + shared 30-min cache — same index the /neighbourhoods
+  // page renders, so a listing can never resolve to a hidden/unverified area.
+  const all = await getNeighbourhoods()
+  const coordRows = all.filter((n) => n.lat != null && n.lng != null)
+
+  // Rows sharing an IDENTICAL centroid are geocode defaults (e.g. several
+  // Surrey neighbourhoods all pinned to the city point). Matching against one
+  // of them assigns the listing to an arbitrary wrong neighbourhood, so the
+  // whole ambiguous group is excluded rather than guessed at.
+  const keyOf = (n: (typeof coordRows)[number]) =>
+    `${(n.lat as number).toFixed(5)},${(n.lng as number).toFixed(5)}`
+  const centroidCounts = new Map<string, number>()
+  for (const n of coordRows) centroidCounts.set(keyOf(n), (centroidCounts.get(keyOf(n)) ?? 0) + 1)
+  const withCoords = coordRows.filter((n) => centroidCounts.get(keyOf(n)) === 1)
+
+  // Prefer same-city candidates; DDF city strings occasionally disagree with
+  // ours ("North Surrey" etc.), so fall back to any city — the distance cap
+  // still keeps cross-city matches honest at boundaries.
+  const cityNorm = (city ?? '').trim().toLowerCase()
+  const sameCity = withCoords.filter((n) => n.city.trim().toLowerCase() === cityNorm)
+  const candidates = sameCity.length > 0 ? sameCity : withCoords
+
+  let best: { n: (typeof candidates)[number]; d: number } | null = null
+  for (const n of candidates) {
+    const d = haversineDistanceM(latitude, longitude, n.lat as number, n.lng as number)
+    if (d <= MAX_RESOLVE_DISTANCE_M && (best === null || d < best.d)) best = { n, d }
+  }
+  return best ? { slug: best.n.slug, name: best.n.name, city: best.n.city } : null
+}
+
 // ─── Aggregate detail endpoint (NBHD-09) ──────────────────────────────────────
 // Serves the redesigned detail page in one call. The backend is being built in
 // parallel; until `/neighbourhoods/:slug/detail` ships, `getNeighbourhoodDetail`
@@ -361,6 +416,7 @@ function composeDetail(
     healthcare: essentials.filter((e) => e.category === 'healthcare').map(essentialToPoi),
     parks: essentials.filter((e) => e.category === 'parks').map(essentialToPoi),
     shopAndEat: [] as PoiItem[], // no shop/eat category in the legacy essentials feed
+    transit: [] as PoiItem[], // no station data in the legacy essentials feed
   }
 
   // Cold-start personalization: no signed-in user context here, so isPersonalized

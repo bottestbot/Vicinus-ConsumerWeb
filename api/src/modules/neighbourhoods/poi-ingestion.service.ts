@@ -18,6 +18,11 @@ const BATCH_DELAY_MS = 1500
 
 const AMENITY_FILTER = 'restaurant|cafe|bar|supermarket|school|hospital|pharmacy|bank|park'
 const LEISURE_FILTER = 'park|playground'
+// Transit stations/stops for the PDP "Life around" Transit tile. Stored under
+// the 'transit' category, which is deliberately NOT a PoiCategory: both
+// scorers skip unknown categories, so stations can never move a walkability
+// or amenities score (transit access has its own GTFS-based sub-score).
+const RAILWAY_FILTER = 'station|tram_stop'
 
 @Injectable()
 export class PoiIngestionService {
@@ -118,6 +123,10 @@ export class PoiIngestionService {
   way["shop"](${around});
   node["leisure"~"${LEISURE_FILTER}"](${around});
   way["leisure"~"${LEISURE_FILTER}"](${around});
+  node["railway"~"^(${RAILWAY_FILTER})$"](${around});
+  way["railway"~"^(station)$"](${around});
+  node["public_transport"="station"](${around});
+  node["amenity"="bus_station"](${around});
 );
 out center tags;`
     return fetchOverpass(this.http, this.config, query, OVERPASS_TIMEOUT_S)
@@ -148,7 +157,9 @@ out center tags;`
 interface PoiRow {
   neighbourhoodId: string
   osmId: string
-  category: PoiCategory
+  // 'transit' rides along in storage but stays outside PoiCategory so it can
+  // never enter the scoring weight maps.
+  category: PoiCategory | 'transit'
   name: string | null
   lat: number
   lng: number
@@ -157,7 +168,14 @@ interface PoiRow {
 
 // Map raw OSM tags into a single livability category. Amenity tags take
 // precedence over the generic `shop=*` (which falls through to errands).
-function mapTagsToCategory(tags: Record<string, string>): PoiCategory | null {
+function mapTagsToCategory(tags: Record<string, string>): PoiCategory | 'transit' | null {
+  // Transit first: a station tagged with an incidental shop/amenity must not
+  // be filed as an errand.
+  const railway = tags['railway']
+  if (railway === 'station' || railway === 'tram_stop') return 'transit'
+  if (tags['public_transport'] === 'station') return 'transit'
+  if (tags['amenity'] === 'bus_station') return 'transit'
+
   const amenity = tags['amenity']
   switch (amenity) {
     case 'supermarket':
