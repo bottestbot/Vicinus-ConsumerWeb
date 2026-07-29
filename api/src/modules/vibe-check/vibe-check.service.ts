@@ -171,6 +171,86 @@ export class VibeCheckService {
       })
   }
 
+  // Reconstructs the same response shape `submit` returns, from a persisted
+  // row — recomputing weights/percentages from the stored `answers` rather
+  // than persisting them redundantly, since scoreQuizAnswers/blendLivability
+  // are pure functions of (answers, neighbourhood sub-scores) and will
+  // reproduce the original numbers exactly.
+  async getResultByShortId(shortId: string): Promise<VibeCheckSubmitResponse | null> {
+    const row = await this.prisma.vibeCheckResult.findUnique({
+      where: { shortId },
+      include: {
+        matchedNeighbourhood: {
+          select: {
+            name: true,
+            city: true,
+            walkabilityScore: true,
+            schoolsScore: true,
+            amenitiesScore: true,
+            transitSubScore: true,
+          },
+        },
+      },
+    })
+    if (!row) return null
+
+    const runnerUpIds = Array.isArray(row.runnerUpIds) ? (row.runnerUpIds as string[]) : []
+    const runnerUpRows = runnerUpIds.length
+      ? await this.prisma.neighbourhood.findMany({
+          where: { id: { in: runnerUpIds } },
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            walkabilityScore: true,
+            schoolsScore: true,
+            amenitiesScore: true,
+            transitSubScore: true,
+          },
+        })
+      : []
+    // findMany(... in ...) doesn't preserve order — restore the original ranking.
+    const orderedRunnerUps = runnerUpIds
+      .map((id) => runnerUpRows.find((r) => r.id === id))
+      .filter((r): r is (typeof runnerUpRows)[number] => r != null)
+
+    const answerIds = Array.isArray(row.answers) ? (row.answers as string[]) : []
+    const { weights } = scoreQuizAnswers(answerIds)
+    const archetype = VIBE_ARCHETYPES[row.archetypeKey as ArchetypeKey]
+    const matchedSub = this.toSubScores(row.matchedNeighbourhood)
+
+    return {
+      shortId: row.shortId,
+      archetypeKey: row.archetypeKey as ArchetypeKey,
+      archetypeName: archetype.name,
+      tagline: archetype.tagline,
+      matchedNeighbourhood: { name: row.matchedNeighbourhood.name, city: row.matchedNeighbourhood.city ?? '' },
+      matchPercent: row.matchPercent,
+      reasonChips: this.reasonChips(matchedSub),
+      matchRarityPct: row.matchRarityPct,
+      runnerUps: orderedRunnerUps.map((n) => {
+        const sub = this.toSubScores(n)
+        const blended = blendLivability(sub, weights)
+        return { name: n.name, matchPercent: blended == null ? 0 : Math.round(blended) }
+      }),
+      accentColour: 'lime-forest',
+    }
+  }
+
+  private toSubScores(n: {
+    walkabilityScore: number | null
+    schoolsScore: number | null
+    amenitiesScore: number | null
+    transitSubScore: number | null
+  }): SubScores {
+    return {
+      walkability: n.walkabilityScore,
+      schools: n.schoolsScore,
+      amenities: n.amenitiesScore,
+      transit: n.transitSubScore,
+    }
+  }
+
   private async resolveReferrer(referredByShortId?: string): Promise<string | null> {
     if (!referredByShortId) return null
     const referrer = await this.prisma.vibeCheckResult.findUnique({

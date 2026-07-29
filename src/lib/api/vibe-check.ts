@@ -28,3 +28,6 @@ export interface SubmitVibeCheckPayload {
 
 export const submitVibeCheck = (payload: SubmitVibeCheckPayload) =>
   apiClient.post<VibeCheckResult>('/vibe-check/submit', payload)
+
+export const getVibeCheckResult = (shortId: string) =>
+  apiClient.get<VibeCheckResult>(`/vibe-check/result/${shortId}`)

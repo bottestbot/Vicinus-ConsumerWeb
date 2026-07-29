@@ -172,9 +172,11 @@ export default function VibeCheckResultCard({ result }: Props) {
           ))}
         </div>
 
-        <div className="mt-4 rounded-full bg-[#EDF6DD] px-4 py-2 text-center text-xs font-bold text-[#1C3829]">
-          Only {matchRarityPct}% of quiz takers match here
-        </div>
+        {matchRarityPct != null && (
+          <div className="mt-4 rounded-full bg-[#EDF6DD] px-4 py-2 text-center text-xs font-bold text-[#1C3829]">
+            Only {matchRarityPct}% of quiz takers match here
+          </div>
+        )}
 
         <div className="mt-5">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-[#6B6B6B]">

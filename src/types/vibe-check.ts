@@ -27,7 +27,9 @@ export interface VibeCheckResult {
   matchedNeighbourhood: VibeCheckMatchedNeighbourhood
   matchPercent: number
   reasonChips: string[]
-  matchRarityPct: number
+  // Null until a periodic batch job backfills it from the live quiz-taker
+  // distribution (PRD §8) — every freshly-submitted result starts null.
+  matchRarityPct: number | null
   runnerUps: VibeCheckRunnerUp[]
   accentColour: VibeArchetypeColourKey
 }

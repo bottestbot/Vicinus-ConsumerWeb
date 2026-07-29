@@ -1,4 +1,4 @@
-import { getMockVibeCheckResult } from '@/lib/vibe-check/fixtures'
+import { getVibeCheckResult } from '@/lib/api/vibe-check'
 import { renderVibeShareImage, VIBE_SHARE_IMAGE_SIZE } from '@/lib/vibe-check/share-image'
 
 // Per-result share image for /vibe/[shortId] (NEIGHBOURHOOD_VIBE_CHECK_PRD.md
@@ -15,6 +15,6 @@ interface ImageProps {
 
 export default async function Image({ params }: ImageProps) {
   const { shortId } = await params
-  const result = getMockVibeCheckResult(shortId)
+  const { data: result } = await getVibeCheckResult(shortId)
   return renderVibeShareImage(result)
 }

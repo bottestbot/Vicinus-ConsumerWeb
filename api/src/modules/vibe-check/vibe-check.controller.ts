@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common'
+import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { VibeCheckService, PublicQuizQuestion, VibeCheckSubmitResponse } from './vibe-check.service'
 import { SubmitVibeCheckDto } from './dto/submit-vibe-check.dto'
@@ -21,5 +21,13 @@ export class VibeCheckController {
   @ApiOperation({ summary: 'Score quiz answers, match a neighbourhood, and persist the shareable result' })
   submit(@Body() dto: SubmitVibeCheckDto): Promise<VibeCheckSubmitResponse> {
     return this.vibeCheck.submit(dto)
+  }
+
+  @Get('result/:shortId')
+  @ApiOperation({ summary: 'Fetch a previously-submitted result by its public shortId' })
+  async getResult(@Param('shortId') shortId: string): Promise<VibeCheckSubmitResponse> {
+    const result = await this.vibeCheck.getResultByShortId(shortId)
+    if (!result) throw new NotFoundException(`No vibe check result for shortId "${shortId}"`)
+    return result
   }
 }
