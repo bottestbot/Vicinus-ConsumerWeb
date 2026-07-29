@@ -38,3 +38,18 @@ export function getOrCreateVibeSessionId(): string {
     return generateId()
   }
 }
+
+/**
+ * Reads the persisted vibe-check session id WITHOUT creating one — used by
+ * the post-signup claim merge (PRD §8/§9), which should only ever attempt to
+ * claim a session that actually took the quiz. Unlike getOrCreateVibeSessionId,
+ * a visitor who never took the quiz gets null rather than a freshly-minted id.
+ */
+export function peekVibeSessionId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage.getItem(SESSION_KEY)
+  } catch {
+    return null
+  }
+}

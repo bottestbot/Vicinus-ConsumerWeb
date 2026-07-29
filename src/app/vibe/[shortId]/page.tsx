@@ -6,6 +6,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { isAxiosError } from 'axios'
 import VibeCheckResultCard from '@/components/vibe-check/VibeCheckResultCard'
+import VibeCheckClaimGate from '@/components/vibe-check/VibeCheckClaimGate'
 import { getVibeCheckResult } from '@/lib/api/vibe-check'
 import type { VibeCheckResult } from '@/types/vibe-check'
 
@@ -58,6 +59,7 @@ export default async function VibeCheckResultPage({ params }: PageProps) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#FAF9F6] px-4 py-10 font-ui">
+      <VibeCheckClaimGate />
       <VibeCheckResultCard result={result} />
     </div>
   )
