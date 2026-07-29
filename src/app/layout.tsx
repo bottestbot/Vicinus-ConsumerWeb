@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter, Playfair_Display, Space_Grotesk } from 'next/font/google'
+import { Inter, Space_Grotesk } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import QueryProvider from '@/components/providers/QueryProvider'
 import LocationProvider from '@/components/providers/LocationProvider'
@@ -12,12 +12,6 @@ import './globals.css'
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
-  display: 'swap',
-})
-
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-playfair',
   display: 'swap',
 })
 
@@ -48,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
     >
-      <html lang="en" className={`${inter.variable} ${playfair.variable} ${spaceGrotesk.variable}`}>
+      <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
         <body className="font-sans">
           <QueryProvider>
             <LeadInquiryProvider>
