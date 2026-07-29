@@ -42,6 +42,8 @@ export class NeighbourhoodsService {
         photos: true,
         lat: true,
         lng: true,
+        centroidLat: true,
+        centroidLng: true,
       },
       orderBy: { name: 'asc' },
     })
@@ -89,6 +91,8 @@ export class NeighbourhoodsService {
         photos: true,
         lat: true,
         lng: true,
+        centroidLat: true,
+        centroidLng: true,
       },
     })
 
@@ -804,6 +808,8 @@ function toSummary(row: {
   photos?: Prisma.JsonValue
   lat?: number | null
   lng?: number | null
+  centroidLat?: number | null
+  centroidLng?: number | null
 }): NeighbourhoodSummary {
   const photos = Array.isArray(row.photos) ? (row.photos as string[]) : []
   return {
@@ -819,8 +825,13 @@ function toSummary(row: {
     schoolGrade: row.livingGrade,
     heroImageUrl: photos[0] ?? null,
     photos,
-    lat: row.lat ?? null,
-    lng: row.lng ?? null,
+    // Centroid first: it's derived from the official boundary, while `lat`/`lng`
+    // is legacy display geocoding that a seed without a Mapbox token leaves
+    // null. Listing→neighbourhood resolution reads these, so serving the legacy
+    // pair alone silently degraded every property page to the map-only variant.
+    // Same precedence the POI ingest uses.
+    lat: row.centroidLat ?? row.lat ?? null,
+    lng: row.centroidLng ?? row.lng ?? null,
   }
 }
 
