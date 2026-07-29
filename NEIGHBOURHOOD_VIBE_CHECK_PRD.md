@@ -66,7 +66,7 @@ Each question maps to one or more existing scoring dimensions so the result is b
 | 10 | Your ideal "close to home" escape | A 20-minute flight out of town — hate wasting time getting to the airport → flavor: proximity to airport · A weekend drive up the coast or into the mountains → Green + · Honestly I never want to leave my neighbourhood — it has everything → Amenities +++, Walkability ++ |
 | 11 | Your workday looks like... | Work from home, rarely commute → Quiet ++, Green + · Commute downtown to an office → Transit +++, Walkability + · Commute somewhere else in the region → neutral/drive · Hybrid — a couple days in, a couple from home → Transit +, Quiet + |
 
-Q5, Q6, and Q10 are pure "flavor/tiebreaker" questions — they don't touch the core walkability/transit/schools/amenities blend, only reason-chip and archetype generation (see §6). Q10's airport option is the weakest signal of the eleven and the first to cut if the quiz runs long.
+Q5 and Q6 are pure "flavor/tiebreaker" questions — they don't touch the core walkability/transit/schools/amenities blend, only reason-chip and archetype generation (see §6). Q10 is mixed: its first two options (airport, weekend drive) are flavor-only, but its third ("I never want to leave my neighbourhood") deliberately carries real core deltas (Amenities +++, Walkability ++) since that answer is itself a strong walkability/amenities signal, not just flavor — implemented as such in `score-quiz-answers.ts`. Q10's airport option is the weakest signal of the eleven and the first to cut if the quiz runs long.
 
 Design note: keep copy playful and visual (icon cards, confident personality-quiz tone), not a disguised settings form — this is the core "make it fun" requirement.
 
