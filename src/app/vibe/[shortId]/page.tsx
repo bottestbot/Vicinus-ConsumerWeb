@@ -15,9 +15,27 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { shortId } = await params
   const result = getMockVibeCheckResult(shortId)
+  const title = `${result.archetypeName} — Vibe Check`
+  const description = `${result.matchPercent}% match with ${result.matchedNeighbourhood.name}, ${result.matchedNeighbourhood.city}. ${result.tagline}`
+  // Image itself comes from the colocated opengraph-image.tsx/twitter-image.tsx
+  // file conventions (Next.js auto-wires the og:image/twitter:image tags from
+  // those) — openGraph/twitter here just need to carry the per-result
+  // title/description and repeat siteName/type since setting `openGraph`
+  // replaces the root layout's rather than merging with it.
   return {
-    title: `${result.archetypeName} — Vibe Check`,
-    description: `${result.matchPercent}% match with ${result.matchedNeighbourhood.name}, ${result.matchedNeighbourhood.city}. ${result.tagline}`,
+    title,
+    description,
+    openGraph: {
+      siteName: 'Vicinus',
+      type: 'website',
+      title,
+      description,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
   }
 }
 
