@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Search, X } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import type { Neighbourhood } from '@/types/neighbourhood'
 import { formatPrice } from '@/types/search'
@@ -69,6 +70,57 @@ function filterNeighbourhoods(all: Neighbourhood[], province: string, city: stri
   if (province !== 'all') result = result.filter((n) => n.province === province)
   if (city !== ALL_CITIES) result = result.filter((n) => n.city === city)
   return result
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+//
+// Client-side only — all rows are already loaded, and 112 entries is cheap to
+// scan on every keystroke. Search runs against the FULL set, independent of
+// the active province/city pills, so a search can surface a result outside
+// whatever's currently selected.
+
+const SEARCH_NEIGHBOURHOOD_LIMIT = 5
+const SEARCH_CITY_LIMIT = 3
+
+interface CityMatch {
+  city: string
+  province: string
+  count: number
+}
+
+function matchNeighbourhoods(all: Neighbourhood[], query: string): Neighbourhood[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  return all.filter((n) => n.name.toLowerCase().includes(q) || n.city.toLowerCase().includes(q))
+}
+
+// Cities whose NAME matches the query (distinct from neighbourhoods that
+// happen to sit in a matching city) — e.g. typing "surrey" should offer to
+// jump straight to Surrey even though no neighbourhood is itself named Surrey.
+function matchCities(all: Neighbourhood[], query: string): CityMatch[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  const counts = new Map<string, CityMatch>()
+  for (const n of all) {
+    if (!n.city.toLowerCase().includes(q)) continue
+    const key = `${n.province}|${n.city}`
+    const existing = counts.get(key)
+    if (existing) existing.count += 1
+    else counts.set(key, { city: n.city, province: n.province, count: 1 })
+  }
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count)
+}
+
+// Results ranked name-starts-with-query first, then alphabetical — a search
+// for "kits" should lead with Kitsilano, not an unrelated mid-name match.
+function rankByQuery(matches: Neighbourhood[], query: string): Neighbourhood[] {
+  const q = query.trim().toLowerCase()
+  return [...matches].sort((a, b) => {
+    const aStarts = a.name.toLowerCase().startsWith(q) ? 0 : 1
+    const bStarts = b.name.toLowerCase().startsWith(q) ? 0 : 1
+    if (aStarts !== bStarts) return aStarts - bStarts
+    return a.name.localeCompare(b.name)
+  })
 }
 
 // ── NBR-02: default province ──────────────────────────────────────────────────
@@ -285,9 +337,134 @@ function CityFilter({
   )
 }
 
+// ── Search bar with autocomplete ──────────────────────────────────────────────
+
+function SearchBar({
+  query,
+  onChange,
+  isOpen,
+  onFocus,
+  onClose,
+  neighbourhoodMatches,
+  cityMatches,
+  onPickNeighbourhood,
+  onPickCity,
+}: {
+  query: string
+  onChange: (value: string) => void
+  isOpen: boolean
+  onFocus: () => void
+  onClose: () => void
+  neighbourhoodMatches: Neighbourhood[]
+  cityMatches: CityMatch[]
+  onPickNeighbourhood: (n: Neighbourhood) => void
+  onPickCity: (c: CityMatch) => void
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    function onPointerDown(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) onClose()
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onClose()
+        inputRef.current?.blur()
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isOpen, onClose])
+
+  const hasMatches = neighbourhoodMatches.length > 0 || cityMatches.length > 0
+  const showDropdown = isOpen && query.trim().length > 0
+
+  return (
+    <div ref={wrapRef} className="relative max-w-[460px] mb-6">
+      <div
+        className={`flex items-center gap-2.5 bg-white rounded-2xl border px-4 py-3.5 transition-colors ${
+          isOpen ? 'border-[#1C3829]' : 'border-[#E0DDD8]'
+        }`}
+      >
+        <Search size={17} className="text-[#1C3829] flex-shrink-0" />
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={onFocus}
+          placeholder="Search by name or city — &quot;Kitsilano&quot;, &quot;Surrey&quot;"
+          className="w-full bg-transparent text-sm text-[#111111] placeholder:text-[#999] outline-none"
+        />
+        {query && (
+          <button
+            onClick={() => {
+              onChange('')
+              inputRef.current?.focus()
+            }}
+            aria-label="Clear search"
+            className="flex-shrink-0 text-[#A9A69C] hover:text-[#555] transition-colors"
+          >
+            <X size={15} />
+          </button>
+        )}
+      </div>
+
+      {showDropdown && hasMatches && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 bg-white border border-[#E8E6E1] rounded-2xl p-1.5 shadow-lg">
+          {neighbourhoodMatches.length > 0 && (
+            <>
+              <p className="px-2.5 pt-1.5 pb-1 text-[9.5px] font-bold uppercase tracking-wider text-[#A9A69C]">
+                Neighbourhoods
+              </p>
+              {neighbourhoodMatches.map((n) => (
+                <button
+                  key={n.slug}
+                  onClick={() => onPickNeighbourhood(n)}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm text-[#111111] hover:bg-[#F5F3EE] transition-colors text-left"
+                >
+                  <span>{n.name}</span>
+                  <span className="text-xs text-[#6B6B6B]">
+                    {n.city}, {n.province}
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+          {cityMatches.length > 0 && (
+            <>
+              <p className="px-2.5 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-wider text-[#A9A69C]">
+                Cities
+              </p>
+              {cityMatches.map((c) => (
+                <button
+                  key={`${c.province}|${c.city}`}
+                  onClick={() => onPickCity(c)}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm text-[#111111] hover:bg-[#F5F3EE] transition-colors text-left"
+                >
+                  <span>{c.city}</span>
+                  <span className="text-xs text-[#6B6B6B]">
+                    {c.count} neighbourhood{c.count === 1 ? '' : 's'}
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   // A `?city=` param (e.g. from the homepage "Understand the vicinity" cards)
   // takes precedence over the ambient search-store context for pre-selection.
@@ -317,6 +494,36 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
   const [selectedCity, setSelectedCity] = useState(ALL_CITIES)
   const [isSticky, setIsSticky] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
+
+  // ── Search ──────────────────────────────────────────────────────────────
+  const [searchText, setSearchText] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const searchActive = searchText.trim().length > 0
+
+  const searchResults = useMemo(
+    () => rankByQuery(matchNeighbourhoods(data, searchText), searchText),
+    [data, searchText],
+  )
+  const searchNeighbourhoodOptions = useMemo(
+    () => searchResults.slice(0, SEARCH_NEIGHBOURHOOD_LIMIT),
+    [searchResults],
+  )
+  const searchCityOptions = useMemo(
+    () => matchCities(data, searchText).slice(0, SEARCH_CITY_LIMIT),
+    [data, searchText],
+  )
+
+  function handlePickNeighbourhood(n: Neighbourhood) {
+    setIsSearchOpen(false)
+    router.push(`/neighbourhoods/${n.slug}`)
+  }
+
+  function handlePickCity(c: CityMatch) {
+    setSelectedProvince(c.province)
+    setSelectedCity(c.city)
+    setSearchText('')
+    setIsSearchOpen(false)
+  }
 
   // NBR-03: context-aware pre-selection on mount. An explicit `?city=` param
   // wins over the ambient search-store query/userCity.
@@ -365,6 +572,12 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
   function selectProvince(key: string) {
     setSelectedProvince(key)
     setSelectedCity(ALL_CITIES)
+    setSearchText('')
+  }
+
+  function selectCity(key: string) {
+    setSelectedCity(key)
+    setSearchText('')
   }
 
   if (data.length === 0) {
@@ -388,6 +601,18 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
   return (
     <>
       <FilterStyles />
+
+      <SearchBar
+        query={searchText}
+        onChange={setSearchText}
+        isOpen={isSearchOpen}
+        onFocus={() => setIsSearchOpen(true)}
+        onClose={() => setIsSearchOpen(false)}
+        neighbourhoodMatches={searchNeighbourhoodOptions}
+        cityMatches={searchCityOptions}
+        onPickNeighbourhood={handlePickNeighbourhood}
+        onPickCity={handlePickCity}
+      />
 
       {/* Sentinel for sticky detection */}
       <div ref={sentinelRef} />
@@ -423,7 +648,7 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
           <CityFilter
             cityOptions={cityOptions}
             selectedCity={selectedCity}
-            onSelect={setSelectedCity}
+            onSelect={selectCity}
             allLabel={`All ${provinceLabel}`}
             allCount={cityAllCount}
             compact={isSticky}
@@ -431,8 +656,39 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
         )}
       </div>
 
-      {/* NBR-06: Empty state when selected city has no neighbourhoods */}
-      {activeCity && filtered.length === 0 ? (
+      {/* Search-mode grid: overrides the province/city pill filtering entirely */}
+      {searchActive ? (
+        searchResults.length === 0 ? (
+          <div className="mt-8 rounded-2xl border-2 border-dashed border-[#E0DDD8] px-6 py-12 text-center">
+            <p className="font-heading text-lg font-semibold text-[#111111] mb-1">
+              No matches for &ldquo;{searchText.trim()}&rdquo;
+            </p>
+            <p className="text-sm text-[#6B6B6B] mb-6">
+              Try a different name or city, or browse the full list instead.
+            </p>
+            <button
+              onClick={() => setSearchText('')}
+              className="rounded-full border border-[#1C3829] px-4 py-1.5 text-xs font-semibold text-[#1C3829] hover:bg-[#1C3829] hover:text-white transition-colors"
+            >
+              Clear search
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="mt-2 mb-4 text-[11px] font-bold uppercase tracking-widest text-[#1C3829]">
+              Results for &ldquo;{searchText.trim()}&rdquo;
+              <span className="ml-2 text-[#999] font-normal normal-case tracking-normal">
+                {searchResults.length}
+              </span>
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {searchResults.map((n) => (
+                <NeighbourhoodCard key={n.slug} neighbourhood={n} showCityTag />
+              ))}
+            </div>
+          </>
+        )
+      ) : activeCity && filtered.length === 0 ? (
         <div className="mt-8 rounded-2xl border-2 border-dashed border-[#E0DDD8] px-6 py-12 text-center">
           <p className="font-heading text-lg font-semibold text-[#111111] mb-1">
             No neighbourhoods in {activeCity} yet
