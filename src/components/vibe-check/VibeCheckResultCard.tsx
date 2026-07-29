@@ -29,18 +29,77 @@ export default function VibeCheckResultCard({ result }: Props) {
   const palette = archetypePalette[accentColour]
   const [firstWord, ...restWords] = archetypeName.replace(/^The\s+/i, '').split(' ')
 
+  // OG image generation (a parallel task, see PRD §9/§10) is expected to land at
+  // this conventional Next.js route-segment path — /vibe/[shortId]/opengraph-image
+  // — colocated with src/app/vibe/[shortId]/page.tsx. It may not exist yet, or may
+  // land somewhere slightly different, so every fetch of it below is best-effort
+  // and wrapped so a miss (404/network/unsupported browser) never blocks sharing.
+  const ogImagePath = `/vibe/${shortId}/opengraph-image`
+
+  const buildShareUrl = () => {
+    // PRD §9: shared links carry `?ref=<resultId>` for referral attribution — this
+    // page's own shortId becomes the referral code for whoever clicks it next.
+    // The bare `/vibe/<shortId>` URL (no ref) must keep unfurling identically, so
+    // we only ever add the param, never change the path itself.
+    if (typeof window === 'undefined') return `/vibe/${shortId}?ref=${shortId}`
+    const url = new URL(window.location.href)
+    url.searchParams.set('ref', shortId)
+    return url.toString()
+  }
+
+  const fetchShareImageFile = async () => {
+    const response = await fetch(ogImagePath)
+    if (!response.ok) return null
+    const blob = await response.blob()
+    return new File([blob], 'vibe-check.png', { type: blob.type || 'image/png' })
+  }
+
   const handleShare = async () => {
-    const shareUrl = typeof window !== 'undefined' ? window.location.href : `/vibe/${shortId}`
+    const shareUrl = buildShareUrl()
+    const shareTitle = 'Vicinus Vibe Check'
     const shareText = `I'm ${archetypeName} — ${matchPercent}% match with ${matchedNeighbourhood.name}. What's your vibe?`
+
     if (typeof navigator !== 'undefined' && navigator.share) {
+      // Try to attach the pre-rendered share image (PRD §9: "an image, not just a
+      // link"). Any failure here — image not built yet, 404, network error, browser
+      // without File-share support — just means we share without it below.
+      let shareFile: File | null = null
       try {
-        await navigator.share({ title: 'Vicinus Vibe Check', text: shareText, url: shareUrl })
+        const file = await fetchShareImageFile()
+        if (file && navigator.canShare?.({ files: [file] })) {
+          shareFile = file
+        }
+      } catch {
+        // OG image unavailable — fall back to the text+url share below.
+      }
+
+      try {
+        await navigator.share(
+          shareFile
+            ? { title: shareTitle, text: shareText, url: shareUrl, files: [shareFile] }
+            : { title: shareTitle, text: shareText, url: shareUrl }
+        )
       } catch {
         // User dismissed the share sheet — nothing to do.
       }
       return
     }
+
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      // Desktop fallback (PRD §9: "copy image" + "copy link"). Copying the image is
+      // a nice-to-have on top of the always-reliable copy-link, not a replacement —
+      // if ClipboardItem/image copy isn't supported or the fetch fails, we still
+      // fall through to copy-link below.
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+        try {
+          const file = await fetchShareImageFile()
+          if (file) {
+            await navigator.clipboard.write([new ClipboardItem({ [file.type]: file })])
+          }
+        } catch {
+          // Image clipboard copy unsupported/unavailable — copy-link below still runs.
+        }
+      }
       try {
         await navigator.clipboard.writeText(shareUrl)
       } catch {
