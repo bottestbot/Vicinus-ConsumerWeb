@@ -48,6 +48,43 @@ const DIMENSION_LABEL: Record<keyof SubScores, string> = {
   transit: 'transit access',
 }
 
+// The launch pool: the 10 Metro Vancouver municipalities covered by the
+// TransLink GTFS feed, which is the only region where all four sub-scores are
+// actually computed (122 neighbourhoods as of launch). Deliberately an explicit
+// city list rather than inferring the pool from `transitSubScore IS NOT NULL` —
+// the pool shouldn't silently grow or shrink when scores are recomputed or a
+// new GTFS feed is added.
+const LAUNCH_CITIES = [
+  'Vancouver',
+  'Burnaby',
+  'Surrey',
+  'Richmond',
+  'Coquitlam',
+  'North Vancouver',
+  'New Westminster',
+  'West Vancouver',
+  'Port Coquitlam',
+  'Port Moody',
+] as const
+
+// A dimension carrying at least this share of the user's weight is one the
+// quiz says they actually care about.
+const MATERIAL_WEIGHT = 0.15
+
+// blendLivability drops a null dimension and redistributes its weight across
+// the rest. That's right on a neighbourhood's own page — score it honestly with
+// the data we have — but in a *ranked* comparison it's backwards: a missing
+// score is never penalised, it just hands its weight to whatever the candidate
+// happens to be good at. Harris Green, Victoria (no transit score, since the
+// GTFS feed is Metro Vancouver only) beat Downtown Vancouver on a transit-led
+// quiz for exactly this reason. So in ranking, a candidate missing a dimension
+// the user actually weights is not a candidate at all.
+function missesMaterialDimension(sub: SubScores, weights: LivabilityWeights): boolean {
+  return (Object.keys(weights) as (keyof SubScores)[]).some(
+    (dim) => sub[dim] == null && weights[dim] >= MATERIAL_WEIGHT,
+  )
+}
+
 interface RankedNeighbourhood {
   id: string
   name: string
@@ -169,14 +206,8 @@ export class VibeCheckService {
   }
 
   private async rankNeighbourhoods(weights: LivabilityWeights): Promise<RankedNeighbourhood[]> {
-    // PRD §2 non-goals: "not attempting quiz coverage outside BC's 382 seeded
-    // neighbourhoods." The Neighbourhood table carries a handful of non-BC rows
-    // (other product surfaces reference out-of-province neighbourhoods too), so
-    // without this filter a stray out-of-province row can outrank every real
-    // candidate and hand back a match nobody taking a "Metro Vancouver vibe
-    // check" should ever see.
     const rows = await this.prisma.neighbourhood.findMany({
-      where: { province: 'BC' },
+      where: { province: 'BC', city: { in: [...LAUNCH_CITIES] } },
       select: {
         id: true,
         name: true,
@@ -196,11 +227,8 @@ export class VibeCheckService {
         amenities: row.amenitiesScore,
         transit: row.transitSubScore,
       }
+      if (missesMaterialDimension(sub, weights)) continue
       const blended = blendLivability(sub, weights)
-      // blendLivability returns null only when every sub-score is null (PRD
-      // §6.5 handles the *partial* null case — transit outside the 10 GTFS
-      // cities — via blend.ts's own proportional reweighting, so this only
-      // excludes neighbourhoods with literally no score data at all).
       if (blended == null) continue
       ranked.push({ id: row.id, name: row.name, city: row.city, sub, score: Math.round(blended) })
     }
