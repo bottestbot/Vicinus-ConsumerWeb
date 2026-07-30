@@ -404,8 +404,9 @@ export class NeighbourhoodsService {
 
   // Bulk version of getMarketSnapshot's price half — one query for every
   // neighbourhood instead of one query per neighbourhood. Buckets active
-  // listings by lowercased city (the dominant match in buildLocationClauses)
-  // and takes each neighbourhood's median from its bucket. Below a minimum
+  // listings by lowercased city — coarser than buildLocationClauses' per-
+  // neighbourhood box (NBHDCTA-04), a deliberate tradeoff to keep this a single
+  // query — and takes each neighbourhood's median from its bucket. Below a minimum
   // sample size a "median" is more noise than signal, so it's left unset
   // rather than showing a price derived from 1-2 listings.
   private async computeBulkMedianPrices(
@@ -932,26 +933,37 @@ function median(values: number[]): number {
 }
 
 // Scope properties to a neighbourhood by LOCATION (shared by the listings and
-// market-snapshot queries). Match either a case-insensitive city equality or a
-// lat/lng box around the neighbourhood's coordinates. Empty array ⇒ no location
-// signal, so the caller must avoid an unscoped country-wide query.
+// market-snapshot queries). Empty array ⇒ no location signal, so the caller
+// must avoid an unscoped country-wide query.
+//
+// NBHDCTA-04: a case-insensitive city-name match ORed against a wide box was
+// pulling in listings from anywhere in the same city, not the neighbourhood —
+// in a dense city (Vancouver's 22 local areas all carry `city: "Vancouver"`)
+// the city clause alone matched every active listing citywide, unrelated
+// local areas included. Fix, until NBHD-18's boundary polygons land and this
+// can do real point-in-polygon containment: prefer the tighter lat/lng box
+// alone whenever a centroid exists (box radius also brought down from 8km,
+// which was itself wide enough to cross into neighbouring areas); only fall
+// back to the citywide match when there's no centroid to box around at all.
+const NEIGHBOURHOOD_RADIUS_KM = 3
 function buildLocationClauses(neighbourhood: {
   city: string | null
   lat: number | null
   lng: number | null
 }): Prisma.PropertyWhereInput[] {
-  const orClauses: Prisma.PropertyWhereInput[] = []
-  if (neighbourhood.city) {
-    orClauses.push({ city: { equals: neighbourhood.city, mode: 'insensitive' } })
-  }
   if (neighbourhood.lat != null && neighbourhood.lng != null) {
-    const RADIUS_KM = 8
-    const latDelta = RADIUS_KM / 111
-    const lngDelta = RADIUS_KM / (111 * Math.cos((neighbourhood.lat * Math.PI) / 180) || 111)
-    orClauses.push({
-      lat: { gte: neighbourhood.lat - latDelta, lte: neighbourhood.lat + latDelta },
-      lng: { gte: neighbourhood.lng - lngDelta, lte: neighbourhood.lng + lngDelta },
-    })
+    const latDelta = NEIGHBOURHOOD_RADIUS_KM / 111
+    const lngDelta =
+      NEIGHBOURHOOD_RADIUS_KM / (111 * Math.cos((neighbourhood.lat * Math.PI) / 180) || 111)
+    return [
+      {
+        lat: { gte: neighbourhood.lat - latDelta, lte: neighbourhood.lat + latDelta },
+        lng: { gte: neighbourhood.lng - lngDelta, lte: neighbourhood.lng + lngDelta },
+      },
+    ]
   }
-  return orClauses
+  if (neighbourhood.city) {
+    return [{ city: { equals: neighbourhood.city, mode: 'insensitive' } }]
+  }
+  return []
 }

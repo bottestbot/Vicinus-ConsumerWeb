@@ -73,29 +73,11 @@ export default function NeighbourhoodHero({
         </h1>
       </div>
 
-      {/* Right — market snapshot + reel */}
+      {/* Right — market snapshot */}
       <div className="flex flex-col gap-5 p-6 sm:p-7">
         <MarketSnapshot marketSnapshot={marketSnapshot} walkScore={walkScore} transitScore={transitScore} />
-        <ReelCard />
       </div>
     </section>
-  )
-}
-
-function ReelCard() {
-  return (
-    <div className="mt-auto flex items-center gap-3 rounded-xl bg-[#1C3829] p-3.5">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#A3E635]">
-        {/* play triangle */}
-        <svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true">
-          <path d="M2 1.5v9l8-4.5-8-4.5z" fill="#1C3829" />
-        </svg>
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-white">Neighbourhood reel</p>
-        <p className="text-[11px] uppercase tracking-widest text-white/60">A 2-minute cinematic tour</p>
-      </div>
-    </div>
   )
 }
 

@@ -91,6 +91,11 @@ export interface InitialSearch {
   beds: number | null
   baths: number | null
   propertyType: string[]
+  // NBHDCTA-02: set when arriving from a neighbourhood's "Explore Listings" CTA
+  // — a bbox around that neighbourhood's centroid, and its name for the results
+  // header (a neighbourhood name isn't a searchable city/address `q`).
+  bbox?: string | null
+  locationLabel?: string
 }
 
 // Vancouver fallback (BUG-03 / BUY-03): used to scope default results when no
@@ -128,15 +133,24 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     if (initial.propertyType.length > 0) setFilter('propertyType', initial.propertyType)
   }, [initial, setQuery, setFilter])
 
+  // NBHDCTA-02: a neighbourhood's "Explore Listings" CTA arrives with a locked
+  // bbox around that neighbourhood's centroid (computed server-side in
+  // page.tsx). It takes priority over the geolocation/Vancouver default so the
+  // first render is actually scoped to the neighbourhood — but once the user
+  // pans the map, `mapBoundsStr` below takes over as normal.
+  const lockedBbox = initial?.bbox ?? null
+
   // Effective bounding box when browsing (no text query). Priority:
-  // live map bounds > device location > Vancouver fallback. This scopes both the
-  // Feed and the map pins so that, with no search and no geolocation, Buy loads
-  // Vancouver listings instead of a global "All Properties" set (BUY-03).
+  // live map bounds > neighbourhood CTA lock > device location > Vancouver
+  // fallback. This scopes both the Feed and the map pins so that, with no
+  // search and no geolocation, Buy loads Vancouver listings instead of a
+  // global "All Properties" set (BUY-03).
   const mapBoundsStr = mapBounds
     ? `${mapBounds.west},${mapBounds.south},${mapBounds.east},${mapBounds.north}`
     : null
   const defaultBbox =
     mapBoundsStr ??
+    lockedBbox ??
     (userCoords
       ? bboxAround(userCoords.longitude, userCoords.latitude)
       : bboxAround(VANCOUVER.longitude, VANCOUVER.latitude))
@@ -150,15 +164,18 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     bbox: !query ? defaultBbox : undefined,
   }
 
-  // Params for the Feed view. Same filters as the list, but city-scoped rather
-  // than bbox-bound (the feed has no map): a text search drives `city`, and when
-  // browsing we default to the device city / Vancouver so the feed is never
-  // global. Shares the store filters so switching Feed↔Map keeps the query.
+  // Params for the Feed view. Normally city-scoped rather than bbox-bound (the
+  // feed has no map): a text search drives `city`, and when browsing we default
+  // to the device city / Vancouver so the feed is never global. But a locked
+  // neighbourhood bbox (NBHDCTA-02) takes priority over the city default — a
+  // neighbourhood name isn't a `city` DDF can filter on, so bbox is the only way
+  // to scope the feed to it. Shares the store filters so switching Feed↔Map
+  // keeps the query.
   const feedParams: SearchParams = {
     ...queryParams,
-    bbox: undefined,
+    bbox: !query && lockedBbox ? lockedBbox : undefined,
     status: queryParams.status || 'Active',
-    city: query ? undefined : (effectiveCity || 'Vancouver'),
+    city: query || lockedBbox ? undefined : (effectiveCity || 'Vancouver'),
   }
 
   // Numbered pagination for the list pane. Reset to page 1 whenever the query
@@ -264,7 +281,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
               <ResultsList
                 properties={properties}
                 totalCount={totalCount}
-                locationLabel={query || effectiveCity || 'Vancouver'}
+                locationLabel={query || initial?.locationLabel || effectiveCity || 'Vancouver'}
                 isLoading={isLoading || isPlaceholderData}
                 page={page}
                 totalPages={totalPages}

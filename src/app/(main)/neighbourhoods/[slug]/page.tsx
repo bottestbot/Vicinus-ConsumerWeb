@@ -33,7 +33,12 @@ export default async function NeighbourhoodDetailPage({ params }: PageProps) {
     <div className="min-h-screen bg-[#FAF9F6] pb-16 pt-16 font-ui">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <NeighbourhoodDetailBody slug={slug} province={neighbourhood.province} />
-        <NeighbourhoodCTA name={neighbourhood.name} slug={slug} />
+        <NeighbourhoodCTA
+          name={neighbourhood.name}
+          slug={slug}
+          lat={neighbourhood.lat}
+          lng={neighbourhood.lng}
+        />
       </div>
     </div>
   )
