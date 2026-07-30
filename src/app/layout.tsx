@@ -2,11 +2,13 @@ import type { Metadata } from 'next'
 import { Inter, Space_Grotesk } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import QueryProvider from '@/components/providers/QueryProvider'
+import PostHogProvider from '@/components/providers/PostHogProvider'
 import LocationProvider from '@/components/providers/LocationProvider'
 import LeadInquiryProvider from '@/components/providers/LeadInquiryProvider'
 import OnboardingGate from '@/components/onboarding/OnboardingGate'
 import OnboardingModal from '@/components/onboarding/OnboardingModal'
 import SavedPropertiesGate from '@/components/providers/SavedPropertiesGate'
+import ConsentBanner from '@/components/consent/ConsentBanner'
 import './globals.css'
 
 const inter = Inter({
@@ -45,15 +47,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
         <body className="font-sans">
-          <QueryProvider>
-            <LeadInquiryProvider>
-              <LocationProvider />
-              <OnboardingGate />
-              <SavedPropertiesGate />
-              {children}
-              <OnboardingModal />
-            </LeadInquiryProvider>
-          </QueryProvider>
+          <PostHogProvider>
+            <QueryProvider>
+              <LeadInquiryProvider>
+                <LocationProvider />
+                <OnboardingGate />
+                <SavedPropertiesGate />
+                {children}
+                <OnboardingModal />
+                <ConsentBanner />
+              </LeadInquiryProvider>
+            </QueryProvider>
+          </PostHogProvider>
         </body>
       </html>
     </ClerkProvider>

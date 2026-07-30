@@ -7,6 +7,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property, MapPinResponse } from '@/types/search'
 import { reverseGeocodeCity } from '@/lib/geocode'
+import { track } from '@/lib/analytics/capture'
 import PricePin from './PricePin'
 import MapListingPopup from './MapListingPopup'
 
@@ -155,9 +156,18 @@ export default function MapView({ properties, pins = [], fitSignal = '' }: MapVi
       // back-and-forth) fires one lookup for where the map settles, not one
       // per moveend. A request-id guard drops a stale response if the user
       // pans again before an in-flight lookup returns.
-      const { longitude, latitude } = e.viewState
+      const { longitude, latitude, zoom } = e.viewState
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
       geocodeTimerRef.current = setTimeout(async () => {
+        // Fires once per settled pan/zoom (this is the existing debounced
+        // viewport-change handler, reused rather than adding new debounce
+        // logic just for tracking).
+        if (bounds) {
+          track('map_moved', {
+            bbox: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()],
+            zoom,
+          })
+        }
         const reqId = ++geocodeReqRef.current
         const city = await reverseGeocodeCity(latitude, longitude)
         if (reqId !== geocodeReqRef.current) return

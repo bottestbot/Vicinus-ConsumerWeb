@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import { Bookmark, BookmarkCheck, X, Bell } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { useUser } from '@clerk/nextjs'
+import { track } from '@/lib/analytics/capture'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
 
 export default function SaveSearch({ theme = 'dark' }: { theme?: GlassTheme }) {
-  const { saveSearch, removeSavedSearch, loadSavedSearches, savedSearches, query } = useSearchStore()
+  const { saveSearch, removeSavedSearch, loadSavedSearches, savedSearches, query, filters } = useSearchStore()
   const { isSignedIn } = useUser()
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
@@ -31,6 +32,7 @@ export default function SaveSearch({ theme = 'dark' }: { theme?: GlassTheme }) {
       setSaved(true)
       setIsOpen(false)
       setName('')
+      track('saved_search_created', { filters })
       setTimeout(() => setSaved(false), 3000)
     } catch {
       setError(true)
@@ -133,7 +135,10 @@ export default function SaveSearch({ theme = 'dark' }: { theme?: GlassTheme }) {
                   <div key={ss.id} className="flex items-center justify-between py-1">
                     <span className={`text-xs truncate ${t.text}`}>{ss.name}</span>
                     <button
-                      onClick={() => removeSavedSearch(ss.id).catch(() => {})}
+                      onClick={() => {
+                        removeSavedSearch(ss.id).catch(() => {})
+                        track('saved_search_deleted', { filters: ss.filters })
+                      }}
                       className={`transition-colors ml-2 shrink-0 ${t.icon} hover:text-red-400`}
                     >
                       <X size={11} />

@@ -11,6 +11,7 @@ import { saveProperty, unsaveProperty } from '@/lib/api/users'
 import { useUserStore } from '@/store/userStore'
 import PropertyCell from '@/components/property/PropertyCell'
 import { logListingClick } from '@/lib/api/analytics'
+import { track } from '@/lib/analytics/capture'
 
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80'
@@ -85,6 +86,7 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
       // Only flip the heart once the write actually succeeds — toggling
       // unconditionally made a failed save look identical to a real one.
       toggleSaved(listingKey)
+      track(isSaved ? 'property_unsaved' : 'property_saved', { listing_key: listingKey, surface: 'search_card' })
     } catch {
       // Leave state untouched; the click silently did nothing on the backend.
     }

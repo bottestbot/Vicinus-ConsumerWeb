@@ -9,6 +9,7 @@ import FeedCard from '@/components/feed/FeedCard'
 import { searchProperties, type SearchParams } from '@/lib/api/search'
 import { saveProperty, unsaveProperty } from '@/lib/api/users'
 import { useUserStore } from '@/store/userStore'
+import { track } from '@/lib/analytics/capture'
 import type { Property } from '@/types/search'
 
 const PAGE_SIZE = 10
@@ -132,9 +133,11 @@ export default function FeedView({ params }: FeedViewProps) {
       return
     }
     try {
-      if (savedPropertyIds.has(id)) await unsaveProperty(id)
+      const wasSaved = savedPropertyIds.has(id)
+      if (wasSaved) await unsaveProperty(id)
       else await saveProperty(id)
       toggleSaved(id)
+      track(wasSaved ? 'property_unsaved' : 'property_saved', { listing_key: id, surface: 'feed_card' })
     } catch {
       // Leave state untouched; the tap silently did nothing on the backend.
     }
@@ -184,7 +187,11 @@ export default function FeedView({ params }: FeedViewProps) {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             const idx = cardRefs.current.findIndex((el) => el === entry.target)
-            if (idx !== -1) setActiveIndex(idx)
+            if (idx !== -1) {
+              setActiveIndex(idx)
+              const listing = listings[idx]
+              if (listing) track('feed_card_impression', { listing_key: listing.id, position: idx })
+            }
           }
         }
       },

@@ -4,9 +4,10 @@ import { useState, useRef } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
-import { HOME_TYPES } from '@/types/search'
+import { HOME_TYPES, type SearchFiltersExtended } from '@/types/search'
 import { searchProperties, type SearchParams } from '@/lib/api/search'
 import { formatNumber } from '@/lib/format'
+import { track } from '@/lib/analytics/capture'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
 import ListingTypeToggle from './ListingTypeToggle'
 import PriceFilterPopover from './PriceFilterPopover'
@@ -126,10 +127,18 @@ function useResultCount(): number | null {
 // ─── Combined filters dropdown (Basic + Advanced) ─────────────────────────────
 
 function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () => void }) {
-  const { filters, setFilter, resetFilters } = useSearchStore()
+  const { filters, setFilter: setFilterRaw, resetFilters } = useSearchStore()
   const count = useResultCount()
   const t = glass(theme)
   const inputCls = `w-full rounded-lg px-2.5 py-2 text-sm ${t.input}`
+
+  // Wraps the store's setFilter so every filter change in this dropdown also
+  // fires filter_applied — a single choke point instead of a track() call at
+  // every individual control below.
+  const setFilter = <K extends keyof SearchFiltersExtended>(name: K, value: SearchFiltersExtended[K]) => {
+    setFilterRaw(name, value)
+    track('filter_applied', { filter_name: name, filter_value: value })
+  }
 
   const SQFT = [null, 500, 1000, 1500, 2000, 3000, 5000]
   const COUNTS = [null, 1, 2, 3, 4]

@@ -11,6 +11,7 @@ export default function OnboardingPage() {
       <OnboardingWizard
         onComplete={() => router.push('/dashboard')}
         onSkip={() => router.push('/dashboard')}
+        entryPoint="standalone_page"
       />
     </div>
   )

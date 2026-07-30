@@ -4,6 +4,7 @@
 import { Phone, Mail } from 'lucide-react'
 import type { PropertyDetail } from '@/types/property'
 import { logEmailRealtor } from '@/lib/api/analytics'
+import { track } from '@/lib/analytics/capture'
 import { useLeadInquiry } from '@/components/providers/LeadInquiryProvider'
 
 interface AgentCardProps {
@@ -27,7 +28,10 @@ export default function AgentCard({ property }: AgentCardProps) {
   // CREA-05: contacting the listing REALTOR(R) is the `email_realtor` event the
   // REAW tier requires us to report. The phone CTA reports on tap; the Send
   // Message CTA reports on inquiry submit (inside ContactAgentModal).
-  const reportLead = () => logEmailRealtor(property.id)
+  const reportLead = () => {
+    logEmailRealtor(property.id)
+    track('agent_contact_clicked', { listing_key: property.id, channel: 'phone' })
+  }
 
   const fullAddress = [property.address, property.city, property.province]
     .filter(Boolean)
@@ -67,13 +71,14 @@ export default function AgentCard({ property }: AgentCardProps) {
           </a>
         )}
         <button
-          onClick={() =>
+          onClick={() => {
             openInquiry({
               listingKey: property.id,
               propertyAddress: fullAddress,
               agentName: primaryName,
             })
-          }
+            track('agent_contact_clicked', { listing_key: property.id, channel: 'form' })
+          }}
           className="flex items-center justify-center gap-2 w-full border border-[#E8E6E1] text-[#111111] text-sm font-medium py-2.5 rounded-xl hover:border-[#1C3829] transition-colors">
           <Mail size={14} />
           Send Message

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ArrowRight, Check } from 'lucide-react'
 import { submitRealtorWaitlist } from '@/lib/api/waitlist'
+import { track } from '@/lib/analytics/capture'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -33,15 +34,7 @@ export default function WaitlistForm() {
         cityMarket: cityMarket.trim() || undefined,
         company: company || undefined,
       })
-      // RH-FE-09: fire once the analytics client (DATA-08) lands — guarded no-op
-      // until then so this never throws pre-pipeline.
-      try {
-        ;(
-          window as unknown as { posthog?: { capture: (e: string, p?: unknown) => void } }
-        ).posthog?.capture('realtor_waitlist_submitted', { cityMarket: cityMarket.trim() })
-      } catch {
-        /* analytics not yet wired */
-      }
+      track('realtor_waitlist_submitted', { cityMarket: cityMarket.trim() })
       setStatus('success')
     } catch {
       setStatus('error')

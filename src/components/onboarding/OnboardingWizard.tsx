@@ -12,6 +12,7 @@ import { updateOnboarding } from '@/lib/api/users'
 import { getAutocomplete } from '@/lib/api/search'
 import type { AutocompleteSuggestion } from '@/types/search'
 import Logo from '@/components/brand/Logo'
+import { track } from '@/lib/analytics/capture'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,20 @@ interface OnboardingData {
 interface WizardProps {
   onComplete: () => void
   onSkip: () => void
+  // Optional — lets callers (OnboardingModal vs. the standalone /onboarding
+  // page) tag how the wizard was triggered. Omitted entirely from the
+  // `onboarding_started` event when not provided.
+  entryPoint?: string
+}
+
+// Step names mirror this file's own step-header comments (Step 1: The Basics,
+// Step 2: Location & Lifestyle, etc.) rather than inventing new labels.
+const STEP_NAMES: Record<number, string> = {
+  1: 'the_basics',
+  2: 'location_lifestyle',
+  3: 'property_specs',
+  4: 'buyer_readiness',
+  5: 'complete',
 }
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
@@ -835,10 +850,27 @@ function Step5({ onComplete, saving }: { onComplete: () => void; saving: boolean
 
 // ─── Wizard ───────────────────────────────────────────────────────────────────
 
-export default function OnboardingWizard({ onComplete, onSkip }: WizardProps) {
+export default function OnboardingWizard({ onComplete, onSkip, entryPoint }: WizardProps) {
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState<OnboardingData>({})
+  const startedAtRef = useRef<number>(Date.now())
+  const startedTrackedRef = useRef(false)
+
+  // Fires once, on mount — this component is only ever instantiated when the
+  // wizard is actually opened (modal or standalone page), so mount === start.
+  useEffect(() => {
+    if (startedTrackedRef.current) return
+    startedTrackedRef.current = true
+    track('onboarding_started', entryPoint ? { entry_point: entryPoint } : undefined)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Fires whenever the active step changes, including the first render.
+  useEffect(() => {
+    track('onboarding_step_viewed', { step_number: step, step_name: STEP_NAMES[step] })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
 
   function update(partial: Partial<OnboardingData>) {
     setFormData((prev) => ({ ...prev, ...partial }))
@@ -852,7 +884,33 @@ export default function OnboardingWizard({ onComplete, onSkip }: WizardProps) {
     }
   }
 
+  // Small, per-step subset of `formData` relevant to the step being left —
+  // avoids dumping the whole (still-in-progress) form on every event.
+  function selectionsForStep(stepNumber: number): Record<string, unknown> {
+    switch (stepNumber) {
+      case 1:
+        return { goal: formData.goal, timeline: formData.timeline }
+      case 2:
+        return {
+          neighbourhoods: formData.neighbourhoods,
+          openToNearby: formData.openToNearby,
+          lifestylePriorities: formData.lifestylePriorities,
+        }
+      case 3:
+        return { homeTypes: formData.homeTypes, budget: formData.budget, bedrooms: formData.bedrooms }
+      case 4:
+        return { mortgage: formData.mortgage, workingWithRealtor: formData.workingWithRealtor }
+      default:
+        return {}
+    }
+  }
+
   function next() {
+    track('onboarding_step_completed', {
+      step_number: step,
+      step_name: STEP_NAMES[step],
+      selections: selectionsForStep(step),
+    })
     // Persist what's been answered so far — abandoning the wizard mid-way
     // would otherwise discard the whole session.
     saveStep(formData)
@@ -875,15 +933,25 @@ export default function OnboardingWizard({ onComplete, onSkip }: WizardProps) {
       }
     }
     setSaving(false)
+    track('onboarding_completed', {
+      duration_ms: Date.now() - startedAtRef.current,
+      steps_completed: step,
+    })
     onComplete()
   }
 
+  function handleSkipStep1() {
+    track('onboarding_step_skipped', { step_number: step })
+    onSkip()
+  }
+
   async function handleSaveExit() {
+    track('onboarding_abandoned', { last_step: step })
     await saveStep(formData)
     onSkip()
   }
 
-  if (step === 1) return <Step1 data={formData} onChange={update} onNext={() => next()} onSkip={onSkip} onSaveExit={handleSaveExit} />
+  if (step === 1) return <Step1 data={formData} onChange={update} onNext={() => next()} onSkip={handleSkipStep1} onSaveExit={handleSaveExit} />
   if (step === 2) return <Step2 data={formData} onChange={update} onNext={() => next()} onBack={() => setStep(1)} onSaveExit={handleSaveExit} />
   if (step === 3) return <Step3 data={formData} onChange={update} onNext={() => next()} onBack={() => setStep(2)} onSaveExit={handleSaveExit} />
   if (step === 4) return <Step4 data={formData} onChange={update} onNext={() => next()} onBack={() => setStep(3)} onSaveExit={handleSaveExit} />

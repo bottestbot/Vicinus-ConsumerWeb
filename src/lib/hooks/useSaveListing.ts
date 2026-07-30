@@ -7,8 +7,11 @@ import { useRouter } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import { useUserStore } from '@/store/userStore'
 import { saveProperty, unsaveProperty } from '@/lib/api/users'
+import { track } from '@/lib/analytics/capture'
 
-export function useSaveListing(propertyId: string) {
+// `surface` identifies where the save toggle lives for analytics — defaults to
+// the detail page's ActionBar, the original (and still primary) caller.
+export function useSaveListing(propertyId: string, surface: string = 'detail_page') {
   const { isSignedIn } = useUser()
   const { savedPropertyIds, toggleSaved } = useUserStore()
   const [saving, setSaving] = useState(false)
@@ -35,6 +38,7 @@ export function useSaveListing(propertyId: string) {
       // when the write failed), which is why saves could go missing from the
       // dashboard with no indication anything went wrong.
       toggleSaved(propertyId)
+      track(isSaved ? 'property_unsaved' : 'property_saved', { listing_key: propertyId, surface })
     } catch {
       setSaveError(true)
       setTimeout(() => setSaveError(false), 4000)

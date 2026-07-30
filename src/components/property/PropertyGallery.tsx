@@ -8,6 +8,7 @@ import { X, ChevronLeft, ChevronRight, Grid2x2, Heart, Share2 } from 'lucide-rea
 import { formatPrice } from '@/lib/format'
 import { useSaveListing } from '@/lib/hooks/useSaveListing'
 import { useLightboxStore } from '@/store/lightboxStore'
+import { track } from '@/lib/analytics/capture'
 import ShareModal from './ShareModal'
 
 interface PropertyGalleryProps {
@@ -25,7 +26,7 @@ export default function PropertyGallery({ propertyId, images, address, price, li
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const [shareOpen, setShareOpen] = useState(false)
-  const { isSaved, saving, handleSave } = useSaveListing(propertyId)
+  const { isSaved, saving, handleSave } = useSaveListing(propertyId, 'gallery_lightbox')
   const setLightboxStoreOpen = useLightboxStore((s) => s.setOpen)
 
   const hero = images[0] ?? ''
@@ -64,6 +65,7 @@ export default function PropertyGallery({ propertyId, images, address, price, li
   function openLightbox(idx: number) {
     setLightboxIndex(idx)
     setLightboxOpen(true)
+    track('property_media_viewed', { listing_key: propertyId, media_type: 'photo' })
   }
 
   function closeLightbox() {

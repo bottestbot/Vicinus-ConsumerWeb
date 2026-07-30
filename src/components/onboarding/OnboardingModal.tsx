@@ -89,7 +89,7 @@ export default function OnboardingModal() {
         </button>
 
         <div className="h-full">
-          <OnboardingWizard onComplete={close} onSkip={close} />
+          <OnboardingWizard onComplete={close} onSkip={close} entryPoint="modal" />
         </div>
       </div>
     </div>

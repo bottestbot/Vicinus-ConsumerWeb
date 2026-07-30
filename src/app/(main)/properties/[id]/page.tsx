@@ -159,7 +159,7 @@ export default async function PropertyDetailPage({
       {/* ── Track visited (client effect) ─────────────────────────────── */}
       <TrackVisited propertyId={id} />
       {/* ── CREA DDF `view` analytics event (Task #2). id is the ListingKey. ── */}
-      <ListingViewTracker listingKey={id} />
+      <ListingViewTracker listingKey={id} price={property.price} city={property.city} beds={property.beds} />
 
       {/* ── Breadcrumb / Back nav ──────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
@@ -212,6 +212,7 @@ export default async function PropertyDetailPage({
         <VirtualTour
           youtubeUrl={property.youtubeUrl}
           virtualTourUrl={property.virtualTourUrl}
+          listingKey={id}
         />
 
         {/* ── Facts & features (live DDF only; mock data lacks it) ──────── */}

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import type { SellAnswers, SellPreviewRange } from '@/lib/api/sell'
 import { getSellPreview } from '@/lib/api/sell'
+import { track } from '@/lib/analytics/capture'
 
 interface Choice {
   key: string
@@ -174,6 +175,7 @@ export default function SellWizard({ address, onComplete, onBack }: Props) {
   }
 
   function submit() {
+    track('sell_step_completed', { step: 3 })
     onComplete({
       sellingPriority,
       biggestHurdle,
@@ -200,7 +202,7 @@ export default function SellWizard({ address, onComplete, onBack }: Props) {
           </p>
           <div className="grid sm:grid-cols-3 gap-5">
             {PRIORITIES.map((c) => (
-              <ChoiceCard key={c.key} choice={c} selected={sellingPriority === c.key} onClick={() => { setSellingPriority(c.key); setStep(2) }} />
+              <ChoiceCard key={c.key} choice={c} selected={sellingPriority === c.key} onClick={() => { setSellingPriority(c.key); track('sell_step_completed', { step: 1 }); setStep(2) }} />
             ))}
           </div>
         </div>
@@ -216,7 +218,7 @@ export default function SellWizard({ address, onComplete, onBack }: Props) {
           <p className="text-[#6B6B6B] mb-8">We’re here to serve your specific needs and remove any friction.</p>
           <div className="grid sm:grid-cols-2 gap-5">
             {HURDLES.map((c) => (
-              <ChoiceCard key={c.key} choice={c} selected={biggestHurdle === c.key} onClick={() => { setBiggestHurdle(c.key); setStep(3) }} />
+              <ChoiceCard key={c.key} choice={c} selected={biggestHurdle === c.key} onClick={() => { setBiggestHurdle(c.key); track('sell_step_completed', { step: 2 }); setStep(3) }} />
             ))}
           </div>
         </div>

@@ -6,10 +6,12 @@
 // (VirtualTourURLBranded/Unbranded); both were previously dropped by the FE.
 import { useState } from 'react'
 import { Play, ExternalLink } from 'lucide-react'
+import { track } from '@/lib/analytics/capture'
 
 interface VirtualTourProps {
   youtubeUrl?: string
   virtualTourUrl?: string
+  listingKey?: string
 }
 
 /** Pull the 11-char video id out of any common YouTube URL shape. */
@@ -27,7 +29,7 @@ function youtubeId(url: string): string | null {
   return null
 }
 
-export default function VirtualTour({ youtubeUrl, virtualTourUrl }: VirtualTourProps) {
+export default function VirtualTour({ youtubeUrl, virtualTourUrl, listingKey }: VirtualTourProps) {
   const [playing, setPlaying] = useState(false)
 
   const videoId = youtubeUrl ? youtubeId(youtubeUrl) : null
@@ -57,7 +59,10 @@ export default function VirtualTour({ youtubeUrl, virtualTourUrl }: VirtualTourP
             />
           ) : (
             <button
-              onClick={() => setPlaying(true)}
+              onClick={() => {
+                setPlaying(true)
+                track('property_media_viewed', { listing_key: listingKey, media_type: 'video' })
+              }}
               className="group absolute inset-0 w-full h-full"
               aria-label="Play property video tour"
             >
@@ -82,6 +87,7 @@ export default function VirtualTour({ youtubeUrl, virtualTourUrl }: VirtualTourP
           href={virtualTourUrl}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => track('property_media_viewed', { listing_key: listingKey, media_type: 'virtual_tour' })}
           className={`inline-flex items-center gap-2 text-sm font-medium text-[#1C3829] hover:underline ${
             videoId ? 'mt-4' : ''
           }`}

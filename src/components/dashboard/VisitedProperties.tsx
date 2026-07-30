@@ -30,7 +30,7 @@ function VisitedCard({ record }: { record: VisitedPropertyRecord }) {
     'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=400&q=80'
   const visitLabel = formatVisitDate(record.visitedAt)
   const address = buildAddress(property)
-  const { isSaved, saving, handleSave } = useSaveListing(property.id)
+  const { isSaved, saving, handleSave } = useSaveListing(property.id, 'dashboard')
   const { openInquiry } = useLeadInquiry()
 
   return (

@@ -260,6 +260,15 @@ export default function PrivacyPage() {
               settings; if you do, sign-in and some personalized features will
               not work.
             </p>
+            <p className="mt-3">
+              <strong>Product analytics.</strong> We use PostHog to understand
+              how visitors use the Platform and to improve it. Analytics
+              tracking only runs if you accept it in the cookie banner shown on
+              your first visit; if you reject it or have not yet responded, no
+              analytics events are captured. You can change your choice at any
+              time by clearing the <code>vicinus_consent</code> cookie in your
+              browser and revisiting the site.
+            </p>
           </section>
 
           {/* 5. Listing data and CREA */}

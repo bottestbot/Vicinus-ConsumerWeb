@@ -7,20 +7,25 @@
 // harmless, but we guard per listingKey anyway.
 import { useEffect, useRef } from 'react'
 import { logListingEvent } from '@/lib/api/analytics'
+import { track } from '@/lib/analytics/capture'
 
 interface ListingViewTrackerProps {
   /** The listing's DDF ListingKey (the property detail route id). */
   listingKey: string
+  price?: number | null
+  city?: string | null
+  beds?: number | null
 }
 
-export default function ListingViewTracker({ listingKey }: ListingViewTrackerProps) {
+export default function ListingViewTracker({ listingKey, price, city, beds }: ListingViewTrackerProps) {
   const firedFor = useRef<string | null>(null)
 
   useEffect(() => {
     if (!listingKey || firedFor.current === listingKey) return
     firedFor.current = listingKey
     void logListingEvent({ listingKey, eventType: 'view' })
-  }, [listingKey])
+    track('property_viewed', { listing_key: listingKey, price, city, beds })
+  }, [listingKey, price, city, beds])
 
   return null
 }

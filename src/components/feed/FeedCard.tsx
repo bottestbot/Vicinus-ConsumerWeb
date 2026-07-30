@@ -14,6 +14,7 @@ import {
 import type { Property } from '@/types/search'
 import { formatNumber, formatPrice as formatPriceCA, formatLeaseFrequency, realtorHref } from '@/lib/format'
 import { logListingClick } from '@/lib/api/analytics'
+import { track } from '@/lib/analytics/capture'
 import { useLeadInquiry } from '@/components/providers/LeadInquiryProvider'
 import { STRINGS } from '@/lib/strings'
 
@@ -531,6 +532,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             <div className="mt-3 pointer-events-auto">
               <Link
                 href={`/properties/${property.id}`}
+                onClick={() => track('feed_card_clicked', { listing_key: property.id })}
                 className="text-white/80 text-xs font-semibold underline underline-offset-2 hover:text-white"
               >
                 See full listing

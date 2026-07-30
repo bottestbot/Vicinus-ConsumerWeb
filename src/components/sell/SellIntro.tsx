@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { MapPin, ArrowRight, Home } from 'lucide-react'
 import { searchAddresses, type AddressSuggestion } from '@/lib/geocode'
+import { track } from '@/lib/analytics/capture'
 
 export default function SellIntro({ onExplore }: { onExplore: (address: string) => void }) {
   const [address, setAddress] = useState('')
@@ -84,7 +85,10 @@ export default function SellIntro({ onExplore }: { onExplore: (address: string) 
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (address.trim()) onExplore(address.trim())
+    if (address.trim()) {
+      track('sell_flow_started')
+      onExplore(address.trim())
+    }
   }
 
   return (

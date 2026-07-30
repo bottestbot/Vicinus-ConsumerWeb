@@ -1,13 +1,26 @@
 'use client'
 
+import { useEffect } from 'react'
 import { TrendingUp, ShieldCheck, ArrowRight, Bed, Bath, Square } from 'lucide-react'
 import type { SellValuation } from '@/lib/api/sell'
+import { track } from '@/lib/analytics/capture'
 
 function formatM(n: number): string {
   return `$${(n / 1_000_000).toFixed(2)}M`
 }
 
+// Best-effort city extraction from "123 Main St, North Vancouver, BC" so the
+// analytics event never carries the full street address (PII minimization).
+function cityFromAddress(address: string): string | undefined {
+  const parts = address.split(',').map((p) => p.trim()).filter(Boolean)
+  return parts.length >= 2 ? parts[parts.length - 2] : undefined
+}
+
 export default function SellValuationView({ data }: { data: SellValuation }) {
+  useEffect(() => {
+    track('valuation_viewed', { address_city: cityFromAddress(data.address) })
+  }, [data.address])
+
   return (
     <main className="bg-[#FAF9F6] min-h-screen pb-20">
       {/* Hero */}
@@ -112,7 +125,10 @@ export default function SellValuationView({ data }: { data: SellValuation }) {
               Our local experts combine data with human intuition to refine your property’s potential. Schedule a private walkthrough today.
             </p>
           </div>
-          <button className="flex items-center gap-2 bg-[#A3E635] text-[#111111] text-sm font-bold px-7 py-3.5 rounded-xl hover:bg-[#95D62F] transition-colors shrink-0">
+          <button
+            onClick={() => track('realtor_connect_requested', { address_city: cityFromAddress(data.address) })}
+            className="flex items-center gap-2 bg-[#A3E635] text-[#111111] text-sm font-bold px-7 py-3.5 rounded-xl hover:bg-[#95D62F] transition-colors shrink-0"
+          >
             Schedule Walkthrough <ArrowRight size={16} />
           </button>
         </div>

@@ -8,6 +8,7 @@
 import { useRef, useState } from 'react'
 import { Slider } from '@base-ui/react/slider'
 import { useSearchStore } from '@/store/searchStore'
+import { track } from '@/lib/analytics/capture'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
 import ResponsivePopover from './ResponsivePopover'
 import { formatNumber } from '@/lib/format'
@@ -42,8 +43,11 @@ export default function PriceFilterPopover({ theme }: { theme: GlassTheme }) {
   const hasValue = filters.minPrice !== null || filters.maxPrice !== null
 
   const apply = () => {
-    setFilter('minPrice', draftMin <= ABSOLUTE_MIN ? null : draftMin)
-    setFilter('maxPrice', draftMax >= ABSOLUTE_MAX ? null : draftMax)
+    const min = draftMin <= ABSOLUTE_MIN ? null : draftMin
+    const max = draftMax >= ABSOLUTE_MAX ? null : draftMax
+    setFilter('minPrice', min)
+    setFilter('maxPrice', max)
+    track('filter_applied', { filter_name: 'price', filter_value: { min, max } })
     setOpen(false)
   }
   const clear = () => {
