@@ -238,7 +238,13 @@ export default async function PropertyDetailPage({
 
         {/* ── Mortgage Analysis (dark green) — sales only: running a mortgage
             calculator over a monthly rent produced a nonsense "$13/mo" (RENT-02) */}
-        {property.listingType !== 'For Rent' && <MortgageAnalysis price={property.price} />}
+        {property.listingType !== 'For Rent' && (
+          <MortgageAnalysis
+            price={property.price}
+            listingKey={id}
+            propertyAddress={property.address}
+          />
+        )}
 
         {/* ── Nearby Open Houses (live DDF, falls back to mock for demo) ── */}
         <Suspense fallback={null}>

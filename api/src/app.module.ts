@@ -21,6 +21,7 @@ import { SellModule } from './modules/sell/sell.module'
 import { WaitlistModule } from './modules/waitlist/waitlist.module'
 import { LeadModule } from './modules/lead/lead.module'
 import { ContactModule } from './modules/contact/contact.module'
+import { MortgageModule } from './modules/mortgage/mortgage.module'
 import { HealthModule } from './modules/health/health.module'
 import { BriefModule } from './modules/brief/brief.module'
 import { VibeCheckModule } from './modules/vibe-check/vibe-check.module'
@@ -55,6 +56,7 @@ import { VibeCheckModule } from './modules/vibe-check/vibe-check.module'
     WaitlistModule,
     LeadModule,
     ContactModule,
+    MortgageModule,
     HealthModule,
     BriefModule,
     VibeCheckModule,

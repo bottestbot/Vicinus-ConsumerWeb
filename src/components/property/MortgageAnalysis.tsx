@@ -4,9 +4,12 @@
 // Forest green #1C3829 background — intentionally dark
 import { useState, useMemo } from 'react'
 import { DollarSign, Percent, Calendar, Home } from 'lucide-react'
+import MortgageBrokerModal from './MortgageBrokerModal'
 
 interface MortgageAnalysisProps {
   price: number
+  listingKey?: string
+  propertyAddress?: string
 }
 
 function calcMonthlyPayment(
@@ -35,7 +38,8 @@ function calcBcPtt(value: number): number {
   return Math.round(tax)
 }
 
-export default function MortgageAnalysis({ price }: MortgageAnalysisProps) {
+export default function MortgageAnalysis({ price, listingKey, propertyAddress }: MortgageAnalysisProps) {
+  const [showBrokerModal, setShowBrokerModal] = useState(false)
   // PDP-06: seed the calculator with the listing's asking price, but let the
   // user edit it (empty string while typing → treated as 0).
   const [homePrice, setHomePrice] = useState<number>(price > 0 ? price : 0)
@@ -219,11 +223,11 @@ export default function MortgageAnalysis({ price }: MortgageAnalysisProps) {
 
       {/* ── CTA ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <button className="flex-1 bg-white text-[#1C3829] font-semibold text-sm py-3 px-6 rounded-xl hover:bg-white/95 transition-colors">
-          Get Pre-Approved
-        </button>
-        <button className="flex-1 border border-white/30 text-white font-medium text-sm py-3 px-6 rounded-xl hover:bg-white/10 transition-colors">
-          Connect with Agent
+        <button
+          onClick={() => setShowBrokerModal(true)}
+          className="flex-1 bg-white text-[#1C3829] font-semibold text-sm py-3 px-6 rounded-xl hover:bg-white/95 transition-colors"
+        >
+          Contact Mortgage Broker
         </button>
       </div>
 
@@ -231,6 +235,14 @@ export default function MortgageAnalysis({ price }: MortgageAnalysisProps) {
       <p className="text-white/30 text-[10px] mt-4 leading-relaxed">
         Estimates are for illustrative purposes only. Actual payments may vary based on lender requirements, taxes, and insurance. Consult a licensed mortgage professional.
       </p>
+
+      {showBrokerModal && (
+        <MortgageBrokerModal
+          listingKey={listingKey}
+          propertyAddress={propertyAddress}
+          onClose={() => setShowBrokerModal(false)}
+        />
+      )}
     </section>
   )
 }
