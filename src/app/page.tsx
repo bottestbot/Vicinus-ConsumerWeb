@@ -18,9 +18,14 @@ import { STRINGS } from '@/lib/strings'
 import { geocodeCity, getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
 
 export const metadata: Metadata = {
-  title: 'Vicinus | Luxury Canadian Real Estate',
+  title: 'Vicinus | Canadian Real Estate & Predictive Insights',
   description:
-    "Beyond data. The Vicinus standard — intelligent curation of Canada's finest properties.",
+    'Bringing you closer to home. Powered by predictive data and smart tech, our advisors help you discover premier Canadian properties and make informed moves',
+  openGraph: {
+    title: 'Vicinus | Canadian Real Estate & Smart Market Data',
+    description:
+      'Bringing you closer to home. Powered by predictive data, Vicinus helps you discover top Canadian properties and make smarter real estate decisions.',
+  },
 }
 
 // Safe fallback image for a city card when no representative neighbourhood

@@ -39,9 +39,9 @@ export const STRINGS = {
   FOOTER_COPYRIGHT: '© {year} Vicinus. All rights reserved.',
 
   // ─── Homepage · Metadata ────────────────────────────────────────────────────
-  HOMEPAGE_META_TITLE: 'Vicinus | Luxury Canadian Real Estate',
+  HOMEPAGE_META_TITLE: 'Vicinus | Canadian Real Estate & Smart Market Data',
   HOMEPAGE_META_DESCRIPTION:
-    "Beyond data. The Vicinus standard — intelligent curation of Canada's finest properties.",
+    'Bringing you closer to home. Powered by predictive data, Vicinus helps you discover top Canadian properties and make smarter real estate decisions.',
 
   // ─── Homepage · Hero ────────────────────────────────────────────────────────
   // Rendered with "You" as an accent span between the two fragments.

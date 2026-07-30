@@ -26,10 +26,11 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vicinus.ca'),
   title: {
-    default: 'Vicinus | Luxury Canadian Real Estate',
+    default: 'Vicinus | Canadian Real Estate & Smart Market Data',
     template: '%s | Vicinus',
   },
-  description: 'Vicinus — the intelligent curator of luxury Canadian real estate. Beyond data. The Vicinus standard.',
+  description:
+    'Bringing you closer to home. Powered by predictive data, Vicinus helps you discover top Canadian properties and make smarter real estate decisions.',
   openGraph: {
     siteName: 'Vicinus',
     type: 'website',
