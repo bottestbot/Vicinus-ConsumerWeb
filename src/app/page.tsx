@@ -202,7 +202,7 @@ export default async function LandingPage() {
 
       {/* ── Curated Highlights ────────────────────────────────────────────── */}
       {highlights.length > 0 && (
-        <section className="pb-20 px-6">
+        <section className="pt-16 pb-20 px-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-end justify-between mb-8">
               <div>

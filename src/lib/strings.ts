@@ -67,12 +67,12 @@ export const STRINGS = {
   HOMEPAGE_PROPERTYCARD_SQFT: 'sqft',
 
   // ─── Homepage · Curated Highlights ──────────────────────────────────────────
-  HOMEPAGE_HIGHLIGHTS_TITLE: 'Swipe. Connect. Own',
+  HOMEPAGE_HIGHLIGHTS_TITLE: 'Swipe. Connect. Own.',
   HOMEPAGE_HIGHLIGHTS_SUBTITLE: 'Real estate, centred around you.',
   HOMEPAGE_HIGHLIGHTS_VIEWALL: 'View all',
 
   // ─── Homepage · Contextual Living (cities) ──────────────────────────────────
-  HOMEPAGE_CITIES_TITLE: 'Understand the vicinity',
+  HOMEPAGE_CITIES_TITLE: 'Understand the Vicinity',
   HOMEPAGE_CITIES_BODY:
     'A new home means new streets, new neighbours, new cafes — a whole new way of living. Discover yours.',
   HOMEPAGE_CITIES_ALLLINK: 'All Neighbourhoods',
