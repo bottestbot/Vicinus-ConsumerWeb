@@ -28,7 +28,7 @@ export interface VibeCheckSubmitResponse {
   matchPercent: number
   reasonChips: string[]
   matchRarityPct: number | null
-  runnerUps: { name: string; matchPercent: number }[]
+  runnerUps: { name: string; city: string; matchPercent: number }[]
   accentColour: 'lime-forest'
 }
 
@@ -120,7 +120,9 @@ export class VibeCheckService {
       matchPercent: top.score,
       reasonChips: this.reasonChips(top.sub),
       matchRarityPct: null,
-      runnerUps: runnersUp.map((n) => ({ name: n.name, matchPercent: n.score })),
+      // Many BC neighbourhoods share a bare name across cities (17 are named
+      // "Downtown" alone) — city is required to tell runner-ups apart on the card.
+      runnerUps: runnersUp.map((n) => ({ name: n.name, city: n.city ?? '', matchPercent: n.score })),
       accentColour: 'lime-forest',
     }
   }
@@ -167,7 +169,14 @@ export class VibeCheckService {
   }
 
   private async rankNeighbourhoods(weights: LivabilityWeights): Promise<RankedNeighbourhood[]> {
+    // PRD §2 non-goals: "not attempting quiz coverage outside BC's 382 seeded
+    // neighbourhoods." The Neighbourhood table carries a handful of non-BC rows
+    // (other product surfaces reference out-of-province neighbourhoods too), so
+    // without this filter a stray out-of-province row can outrank every real
+    // candidate and hand back a match nobody taking a "Metro Vancouver vibe
+    // check" should ever see.
     const rows = await this.prisma.neighbourhood.findMany({
+      where: { province: 'BC' },
       select: {
         id: true,
         name: true,
@@ -279,7 +288,7 @@ export class VibeCheckService {
       runnerUps: orderedRunnerUps.map((n) => {
         const sub = this.toSubScores(n)
         const blended = blendLivability(sub, weights)
-        return { name: n.name, matchPercent: blended == null ? 0 : Math.round(blended) }
+        return { name: n.name, city: n.city ?? '', matchPercent: blended == null ? 0 : Math.round(blended) }
       }),
       accentColour: 'lime-forest',
     }

@@ -192,10 +192,13 @@ export default function VibeCheckResultCard({ result }: Props) {
           <div className="mt-2 flex flex-col gap-2">
             {runnerUps.map((runnerUp) => (
               <div
-                key={runnerUp.name}
+                key={`${runnerUp.name}-${runnerUp.city}`}
                 className="flex items-center justify-between rounded-full border border-[#E8E6E1] px-4 py-2"
               >
-                <span className="text-sm text-[#111111]">{runnerUp.name}</span>
+                <span className="text-sm text-[#111111]">
+                  {runnerUp.name}
+                  {runnerUp.city && <span className="text-[#6B6B6B]">, {runnerUp.city}</span>}
+                </span>
                 <span className="text-sm font-bold text-[#1C3829]">{runnerUp.matchPercent}%</span>
               </div>
             ))}

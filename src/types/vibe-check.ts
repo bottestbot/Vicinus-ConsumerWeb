@@ -11,6 +11,7 @@ export interface VibeCheckMatchedNeighbourhood {
 
 export interface VibeCheckRunnerUp {
   name: string
+  city: string
   matchPercent: number
 }
 
