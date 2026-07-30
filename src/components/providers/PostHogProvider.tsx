@@ -83,7 +83,13 @@ export default function PostHogProvider({ children }: { children: React.ReactNod
       api_host: POSTHOG_HOST,
       person_profiles: 'identified_only',
       opt_out_capturing_by_default: true,
-      capture_pageview: false,
+      // 'history_change' (not `false`) so posthog-js autocaptures its own
+      // $pageview/$pageleave on client-side route changes — PostHog's built-in
+      // Web Analytics product (traffic/sessions/page-report UI) is hardcoded
+      // to those reserved event names and shows nothing without them. Our own
+      // `page_viewed` capture below is a separate, additional custom event for
+      // the analytics taxonomy/dashboards — not a replacement for this.
+      capture_pageview: 'history_change',
     })
 
     // src/lib/analytics/capture.ts (and every existing track()/capture() call
