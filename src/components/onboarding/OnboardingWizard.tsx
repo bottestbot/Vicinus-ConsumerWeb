@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Home, Tag, KeyRound, Compass, Clock, Calendar, CalendarDays, Search,
   GraduationCap, Car, Train, TreePine, UtensilsCrossed, Footprints, VolumeX,
   MoreHorizontal, Building2, LayoutGrid, DoorOpen, Sparkles, CheckCircle2,
-  ChevronLeft, ChevronRight, X, Landmark, UserCheck,
+  ChevronLeft, ChevronRight, X, Landmark, UserCheck, MapPin, Navigation,
 } from 'lucide-react'
 import { updateOnboarding } from '@/lib/api/users'
+import { getAutocomplete } from '@/lib/api/search'
+import type { AutocompleteSuggestion } from '@/types/search'
 import Logo from '@/components/brand/Logo'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -219,47 +221,24 @@ function Step1({
   onChange,
   onNext,
   onSkip,
+  onSaveExit,
 }: {
   data: OnboardingData
   onChange: (d: Partial<OnboardingData>) => void
   onNext: () => void
   onSkip: () => void
+  onSaveExit: () => void
 }) {
   return (
-    <div className="min-h-screen flex">
-      {/* Left panel */}
-      <div className="hidden md:flex w-[420px] shrink-0 bg-[#1C3829] flex-col justify-between p-10">
-        <Logo variant="light" className="text-2xl" />
+    <div className="h-full bg-[#F5F3EE] flex flex-col">
+      <StepNav step={1} total={5} onSaveExit={onSaveExit} />
+
+      <div className="flex-1 overflow-y-auto max-w-3xl mx-auto w-full px-6 py-10 space-y-10">
         <div>
-          <p className="font-heading text-3xl font-bold text-white leading-snug mb-4">
-            An intelligent curator for your real estate journey.
-          </p>
-          <p className="text-[#A8C4B0] text-sm leading-relaxed">
-            We believe the home search should feel like an editorial experience — refined, intentional, and effortless.
-          </p>
-          <div className="flex items-center gap-3 mt-6">
-            <div className="w-8 h-px bg-[#4A7A5A]" />
-            <span className="text-[10px] font-bold tracking-widest text-[#4A7A5A] uppercase">The Intelligent Curator</span>
-          </div>
-        </div>
-        <div />
-      </div>
-
-      {/* Right panel */}
-      <div className="flex-1 bg-[#F5F3EE] flex flex-col">
-        {/* Step indicator */}
-        <div className="px-8 pt-8 pb-0">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold text-[#6B6B6B] uppercase tracking-widest">Step 1 of 5</span>
-            <span className="text-[10px] text-[#9B9B9B]">· The Basics</span>
-          </div>
-          <ProgressBar step={1} total={5} />
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-8 py-8 space-y-10">
-          <h1 className="font-heading text-3xl font-bold text-[#111111] leading-tight">
+          <h1 className="font-heading text-4xl font-bold text-[#111111] mb-2">
             Let&apos;s customize your experience.<br />What are your real estate goals?
           </h1>
+        </div>
 
           {/* Q1 */}
           <div>
@@ -323,11 +302,11 @@ function Step1({
           </button>
         </div>
       </div>
-    </div>
   )
 }
 
 // ─── Step 2: Location & Lifestyle ─────────────────────────────────────────────
+
 
 const LIFESTYLE_OPTIONS = [
   { key: 'schools', label: 'Top Schools', subtitle: 'Excellence in education proximity.', icon: <GraduationCap size={22} /> },
@@ -356,15 +335,64 @@ function Step2({
   onSaveExit: () => void
 }) {
   const [inputVal, setInputVal] = useState('')
+  const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
+  const [isOpen, setIsOpen] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reqIdRef = useRef(0)
+  const areaFieldRef = useRef<HTMLDivElement>(null)
   const hoods = data.neighbourhoods ?? []
   const priorities = data.lifestylePriorities ?? []
-  const MAX_PRIORITIES = 3
+
+  const fetchSuggestions = useCallback((value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!value.trim()) {
+      setSuggestions([])
+      setIsOpen(false)
+      return
+    }
+    const reqId = ++reqIdRef.current
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await getAutocomplete(value)
+        if (reqId !== reqIdRef.current) return
+        const data = ((res.data ?? []) as AutocompleteSuggestion[]).filter(
+          (s) => s.type === 'city' || s.type === 'neighbourhood'
+        )
+        setSuggestions(data)
+        setIsOpen(data.length > 0)
+      } catch {
+        if (reqId !== reqIdRef.current) return
+        setSuggestions([])
+        setIsOpen(false)
+      }
+    }, 180)
+  }, [])
+
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+  }, [])
+
+  // Close the dropdown on outside click.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!areaFieldRef.current?.contains(e.target as Node)) setIsOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  function handleInputChange(value: string) {
+    setInputVal(value)
+    fetchSuggestions(value)
+  }
 
   function addHood(name: string) {
     const trimmed = name.trim()
     if (!trimmed || hoods.includes(trimmed)) return
     onChange({ neighbourhoods: [...hoods, trimmed] })
     setInputVal('')
+    setSuggestions([])
+    setIsOpen(false)
   }
 
   function removeHood(name: string) {
@@ -375,13 +403,13 @@ function Step2({
     if (key === 'more') return
     if (priorities.includes(key)) {
       onChange({ lifestylePriorities: priorities.filter((p) => p !== key) })
-    } else if (priorities.length < MAX_PRIORITIES) {
+    } else {
       onChange({ lifestylePriorities: [...priorities, key] })
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F3EE] flex flex-col">
+    <div className="h-full bg-[#F5F3EE] flex flex-col">
       <StepNav step={2} total={5} onSaveExit={onSaveExit} />
 
       <div className="flex-1 overflow-y-auto max-w-3xl mx-auto w-full px-6 py-10 space-y-10">
@@ -398,37 +426,68 @@ function Step2({
             <span className="w-7 h-7 rounded-full bg-[#1C3829]/10 flex items-center justify-center text-xs font-bold text-[#1C3829]">01</span>
             <p className="font-semibold text-[#111111]">Which neighbourhoods or areas are you most interested in?</p>
           </div>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {hoods.map((h) => (
-              <span key={h} className="flex items-center gap-1.5 bg-white border border-[#D9D6CF] text-sm text-[#111111] px-3 py-1.5 rounded-full">
-                {h}
-                <button onClick={() => removeHood(h)} className="text-[#9B9B9B] hover:text-red-500">
-                  <X size={12} />
-                </button>
-              </span>
-            ))}
-            <div className="flex items-center gap-1.5 border border-dashed border-[#C8C4BC] rounded-full px-3 py-1.5">
-              <input
-                value={inputVal}
-                onChange={(e) => setInputVal(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addHood(inputVal)}
-                placeholder="+ Add Area"
-                className="bg-transparent text-sm text-[#6B6B6B] placeholder:text-[#9B9B9B] outline-none w-28"
-              />
+          <div ref={areaFieldRef} className="relative mb-3">
+            <div className="flex flex-wrap gap-2">
+              {hoods.map((h) => (
+                <span key={h} className="flex items-center gap-1.5 bg-white border border-[#D9D6CF] text-sm text-[#111111] px-3 py-1.5 rounded-full">
+                  {h}
+                  <button onClick={() => removeHood(h)} className="text-[#9B9B9B] hover:text-red-500">
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+              <div className="flex items-center gap-1.5 border border-dashed border-[#C8C4BC] rounded-full px-3 py-1.5">
+                <input
+                  value={inputVal}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onFocus={() => setIsOpen(suggestions.length > 0)}
+                  onKeyDown={(e) => e.key === 'Enter' && addHood(inputVal)}
+                  placeholder="+ Add Area"
+                  role="combobox"
+                  aria-expanded={isOpen}
+                  aria-controls="area-suggestions"
+                  aria-autocomplete="list"
+                  className="bg-transparent text-sm text-[#6B6B6B] placeholder:text-[#9B9B9B] outline-none w-28"
+                />
+              </div>
             </div>
+
+            {isOpen && suggestions.length > 0 && (
+              <div id="area-suggestions" role="listbox" className="absolute z-20 mt-1 w-72 max-w-full bg-white border border-[#E8E6E1] rounded-xl shadow-lg overflow-hidden">
+                {suggestions.map((s) => {
+                  const Icon = s.type === 'city' ? MapPin : Navigation
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => addHood(s.label)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-[#F5F3EE] transition-colors"
+                    >
+                      <Icon size={14} className="text-[#6B6B6B] shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm text-[#111111] truncate">{s.label}</p>
+                        {s.subtitle && <p className="text-xs text-[#9B9B9B] truncate">{s.subtitle}</p>}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
-          {/* Suggestions */}
-          <div className="flex flex-wrap gap-2">
-            {NEIGHBOURHOOD_SUGGESTIONS.filter((s) => !hoods.includes(s)).map((s) => (
-              <button
-                key={s}
-                onClick={() => addHood(s)}
-                className="text-xs text-[#6B6B6B] border border-[#E8E6E1] px-2.5 py-1 rounded-full hover:border-[#1C3829] hover:text-[#1C3829] transition-colors"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+
+          {/* Quick picks — shown while the field is empty */}
+          {!inputVal && (
+            <div className="flex flex-wrap gap-2">
+              {NEIGHBOURHOOD_SUGGESTIONS.filter((s) => !hoods.includes(s)).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => addHood(s)}
+                  className="text-xs text-[#6B6B6B] border border-[#E8E6E1] px-2.5 py-1 rounded-full hover:border-[#1C3829] hover:text-[#1C3829] transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Q2: Open to nearby */}
@@ -457,10 +516,7 @@ function Step2({
         <div>
           <div className="flex items-center gap-3 mb-4">
             <span className="w-7 h-7 rounded-full bg-[#1C3829]/10 flex items-center justify-center text-xs font-bold text-[#1C3829]">03</span>
-            <p className="font-semibold text-[#111111]">
-              What matters most to you?{' '}
-              <span className="text-[#6B6B6B] font-normal">(Pick up to {MAX_PRIORITIES})</span>
-            </p>
+            <p className="font-semibold text-[#111111]">What matters most to you?</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {LIFESTYLE_OPTIONS.map((o) => (
@@ -471,7 +527,7 @@ function Step2({
                 subtitle={o.subtitle}
                 selected={priorities.includes(o.key)}
                 onClick={() => togglePriority(o.key)}
-                disabled={priorities.length >= MAX_PRIORITIES && !priorities.includes(o.key)}
+                disabled={o.key === 'more'}
               />
             ))}
           </div>
@@ -534,7 +590,7 @@ function Step3({
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F3EE] flex flex-col">
+    <div className="h-full bg-[#F5F3EE] flex flex-col">
       <StepNav step={3} total={5} onSaveExit={onSaveExit} />
 
       <div className="flex-1 overflow-y-auto max-w-3xl mx-auto w-full px-6 py-10 space-y-10">
@@ -658,7 +714,7 @@ function Step4({
   onSaveExit: () => void
 }) {
   return (
-    <div className="min-h-screen bg-[#F5F3EE] flex flex-col">
+    <div className="h-full bg-[#F5F3EE] flex flex-col">
       <StepNav step={4} total={5} onSaveExit={onSaveExit} />
 
       <div className="flex-1 overflow-y-auto max-w-5xl mx-auto w-full px-6 py-10">
@@ -758,7 +814,7 @@ function Step4({
 
 function Step5({ onComplete, saving }: { onComplete: () => void; saving: boolean }) {
   return (
-    <div className="min-h-screen bg-[#F5F3EE] flex flex-col items-center justify-center px-6 text-center">
+    <div className="h-full bg-[#F5F3EE] flex flex-col items-center justify-center px-6 text-center">
       <div className="w-16 h-16 rounded-full bg-[#1C3829]/10 flex items-center justify-center mb-6">
         <CheckCircle2 size={32} className="text-[#1C3829]" />
       </div>
@@ -796,11 +852,10 @@ export default function OnboardingWizard({ onComplete, onSkip }: WizardProps) {
     }
   }
 
-  function next(stepData?: Partial<OnboardingData>) {
-    if (stepData) {
-      update(stepData)
-      saveStep(stepData)
-    }
+  function next() {
+    // Persist what's been answered so far — abandoning the wizard mid-way
+    // would otherwise discard the whole session.
+    saveStep(formData)
     setStep((s) => s + 1)
   }
 
@@ -828,7 +883,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: WizardProps) {
     onSkip()
   }
 
-  if (step === 1) return <Step1 data={formData} onChange={update} onNext={() => next()} onSkip={onSkip} />
+  if (step === 1) return <Step1 data={formData} onChange={update} onNext={() => next()} onSkip={onSkip} onSaveExit={handleSaveExit} />
   if (step === 2) return <Step2 data={formData} onChange={update} onNext={() => next()} onBack={() => setStep(1)} onSaveExit={handleSaveExit} />
   if (step === 3) return <Step3 data={formData} onChange={update} onNext={() => next()} onBack={() => setStep(2)} onSaveExit={handleSaveExit} />
   if (step === 4) return <Step4 data={formData} onChange={update} onNext={() => next()} onBack={() => setStep(3)} onSaveExit={handleSaveExit} />

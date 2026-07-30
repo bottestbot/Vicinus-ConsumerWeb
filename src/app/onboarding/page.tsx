@@ -7,9 +7,11 @@ export default function OnboardingPage() {
   const router = useRouter()
 
   return (
-    <OnboardingWizard
-      onComplete={() => router.push('/dashboard')}
-      onSkip={() => router.push('/dashboard')}
-    />
+    <div className="min-h-screen">
+      <OnboardingWizard
+        onComplete={() => router.push('/dashboard')}
+        onSkip={() => router.push('/dashboard')}
+      />
+    </div>
   )
 }

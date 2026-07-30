@@ -74,8 +74,7 @@ export default function OnboardingModal() {
         aria-hidden="true"
       />
 
-      {/* Panel — the wizard uses min-h-screen internally, so cap it to the
-          viewport and let it scroll. */}
+      {/* Panel — capped to the viewport; each wizard step fills it and scrolls its own content. */}
       <div
         ref={panelRef}
         tabIndex={-1}
@@ -89,9 +88,7 @@ export default function OnboardingModal() {
           <X size={18} />
         </button>
 
-        {/* Inner scroll container. The wizard's steps use min-h-screen layouts,
-            so they render at full height and scroll within this capped box. */}
-        <div className="h-full overflow-y-auto">
+        <div className="h-full">
           <OnboardingWizard onComplete={close} onSkip={close} />
         </div>
       </div>
