@@ -93,7 +93,7 @@ function Landing({ onStart, loading }: { onStart: () => void; loading: boolean }
   return (
     <ScreenShell>
       <div className="flex justify-center pt-6">
-        <Logo className="text-2xl" />
+        <Logo href="/" className="text-2xl" />
       </div>
       <div className="mt-14 flex flex-col items-center text-center">
         <span className="rounded-full bg-[#EDF6DD] px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#1C3829]">

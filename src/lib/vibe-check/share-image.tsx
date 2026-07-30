@@ -10,9 +10,23 @@ export function vibeShareImageAlt(result: VibeCheckResult): string {
   return `${result.archetypeName} — ${result.matchPercent}% match with ${result.matchedNeighbourhood.name}, ${result.matchedNeighbourhood.city}`
 }
 
+// Baked directly onto the image (not just the surrounding text/caption) so the
+// link survives platforms — Instagram Stories chief among them — that accept
+// an image from the OS share sheet but silently drop the accompanying text/url.
+const SHARE_LINK_LABEL = 'vicinus.ca/vibe'
+
 export function renderVibeShareImage(result: VibeCheckResult): ImageResponse {
   const { archetypeName, tagline, matchedNeighbourhood, matchPercent, reasonChips } = result
   const [firstWord, ...restWords] = archetypeName.replace(/^The\s+/i, '').split(' ')
+
+  // NOTE: matchedNeighbourhood.photoUrl (a raw Neighbourhood.photos[0] Google
+  // Places CDN URL) is deliberately NOT used as a background here — confirmed
+  // these URLs 403 on any server-side fetch (no browser session), even with a
+  // spoofed browser User-Agent/Referer, so Satori's image fetch always fails
+  // silently. Only the resolved CDN URL is stored, not the photo_reference
+  // needed to mint a fresh one via the Places Photo API, so this needs a real
+  // re-ingestion + photo-proxy fix, not a renderer change — likely affects
+  // NeighbourhoodFlavors.tsx's next/image usage of the same field too.
 
   return new ImageResponse(
     (
@@ -169,6 +183,19 @@ export function renderVibeShareImage(result: VibeCheckResult): ImageResponse {
               Match
             </div>
           </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            fontSize: 15,
+            fontWeight: 600,
+            letterSpacing: 1,
+            color: 'rgba(255,255,255,0.55)',
+            marginTop: 18,
+          }}
+        >
+          {SHARE_LINK_LABEL}
         </div>
       </div>
     ),

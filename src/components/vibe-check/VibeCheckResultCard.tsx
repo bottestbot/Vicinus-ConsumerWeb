@@ -118,7 +118,7 @@ export default function VibeCheckResultCard({ result }: Props) {
   return (
     <div className="w-full max-w-sm rounded-2xl border border-[#E8E6E1] bg-white shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-5 pt-4">
-        <Logo className="text-base" />
+        <Logo href="/" className="text-base" />
         <span className="text-[10px] font-semibold uppercase tracking-widest text-[#6B6B6B]">
           Vibe check
         </span>
