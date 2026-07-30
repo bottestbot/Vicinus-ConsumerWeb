@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { pingSession } from '@/lib/api/users'
 import { useOnboardingStore } from '@/store/onboardingStore'
+import { consumeVibeAuthReturn } from '@/lib/vibeAuthReturn'
 
 // Fires once per page load for signed-in users. Records the login-SESSION on the
 // backend (the ping only bumps loginCount when the Clerk session id changes) and,
@@ -27,8 +28,16 @@ export default function OnboardingGate() {
 
     pinged.current = true
 
+    // One-shot: the vibe quiz's signup CTA sets this right before sending the
+    // user to Clerk so they land back on their result page, not the wizard.
+    // Consumed here (not a path check) so it never fires on a later, unrelated
+    // /vibe visit. Only suppresses the modal — the session ping below still
+    // fires so loginCount/onboarding cadence tracking isn't skipped.
+    const skipModalThisTrip = consumeVibeAuthReturn()
+
     pingSession()
       .then(({ data }) => {
+        if (skipModalThisTrip) return
         // Guard against opening on top of an already-open modal.
         if (data.showOnboarding && !useOnboardingStore.getState().isOpen) {
           open()

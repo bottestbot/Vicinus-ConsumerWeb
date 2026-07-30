@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
+import { Loader2 } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property, MapPinResponse } from '@/types/search'
 import { propertyTypeLabel } from '@/types/search'
@@ -104,8 +105,14 @@ function bboxAround(longitude: number, latitude: number): string {
 }
 
 export default function SearchPageClient({ initial }: { initial?: InitialSearch }) {
-  const { viewMode, filters, query, mapBounds, userCity, userCoords, setQuery, setFilter } =
+  const { viewMode, filters, query, mapBounds, userCity, mapCity, userCoords, setQuery, setFilter } =
     useSearchStore()
+
+  // Wherever the user last panned the map takes priority over their actual
+  // device location, so Feed and the location label stay in sync with the
+  // Map view (panning North Van → Kelowna and switching to Feed should show
+  // Kelowna, not the device's real city).
+  const effectiveCity = mapCity || userCity
 
   // Hydrate the store from URL params (e.g. the home-page hero search) once on
   // mount so a city/price/type from the URL drives the initial results.
@@ -151,7 +158,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     ...queryParams,
     bbox: undefined,
     status: queryParams.status || 'Active',
-    city: query ? undefined : (userCity || 'Vancouver'),
+    city: query ? undefined : (effectiveCity || 'Vancouver'),
   }
 
   // Numbered pagination for the list pane. Reset to page 1 whenever the query
@@ -235,6 +242,19 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
                   `keepPreviousData` shows the prior city's listings, suppress the
                   signal so the map doesn't fly to the wrong (stale) results. */}
               <MapView properties={properties} pins={pins} fitSignal={isPlaceholderData ? '' : query} />
+
+              {/* Same keepPreviousData gap as the fitSignal above: the map keeps
+                  rendering the prior city's pins with nothing showing a new
+                  query is in flight. Surface it so a city switch doesn't look
+                  like it did nothing. */}
+              {isPlaceholderData && (
+                <div className="absolute inset-0 z-20 pointer-events-none flex items-start justify-center pt-6">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur shadow-sm border border-[#E8E6E1]">
+                    <Loader2 size={14} className="text-[#1C3829] animate-spin" />
+                    <span className="text-xs font-medium text-[#1C3829]">Updating results…</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* List pane — hidden on mobile (map + filter bar only). Capped at
@@ -244,7 +264,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
               <ResultsList
                 properties={properties}
                 totalCount={totalCount}
-                locationLabel={query || userCity || 'Vancouver'}
+                locationLabel={query || effectiveCity || 'Vancouver'}
                 isLoading={isLoading || isPlaceholderData}
                 page={page}
                 totalPages={totalPages}

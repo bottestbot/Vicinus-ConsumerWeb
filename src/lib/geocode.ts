@@ -37,6 +37,22 @@ export async function searchAddresses(query: string): Promise<AddressSuggestion[
   }
 }
 
+// Reverse-geocode coords to a city name via Nominatim (no Mapbox token needed).
+// Shared by LocationProvider (one-shot, on app load) and MapView (debounced,
+// on map pan) so both derive "current city" the same way.
+export async function reverseGeocodeCity(latitude: number, longitude: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+      { headers: { 'Accept-Language': 'en', 'User-Agent': 'Vicinus/1.0' } },
+    )
+    const json = await res.json()
+    return json.address?.city || json.address?.town || json.address?.village || json.address?.county || null
+  } catch {
+    return null
+  }
+}
+
 export async function geocodeCity(query: string): Promise<{ longitude: number; latitude: number } | null> {
   if (!query.trim() || !MAPBOX_TOKEN) return null
   try {

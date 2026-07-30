@@ -6,6 +6,7 @@ import type { MapRef, ViewStateChangeEvent } from 'react-map-gl/mapbox'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { useSearchStore } from '@/store/searchStore'
 import type { Property, MapPinResponse } from '@/types/search'
+import { reverseGeocodeCity } from '@/lib/geocode'
 import PricePin from './PricePin'
 import MapListingPopup from './MapListingPopup'
 
@@ -35,6 +36,8 @@ export default function MapView({ properties, pins = [], fitSignal = '' }: MapVi
   const mapRef = useRef<MapRef>(null)
   const lastFitSignal = useRef<string | null>(null)
   const didLocateRef = useRef(false)
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const geocodeReqRef = useRef(0)
   const {
     mapCenter,
     setMapCenter,
@@ -42,11 +45,21 @@ export default function MapView({ properties, pins = [], fitSignal = '' }: MapVi
     geocodedCenter,
     setGeocodedCenter,
     userCoords,
+    query,
+    setQuery,
+    setMapCity,
     hoveredPropertyId,
     setHoveredProperty,
     selectedPropertyId,
     setSelectedProperty,
   } = useSearchStore()
+
+  // Clear any pending debounced geocode on unmount.
+  useEffect(() => {
+    return () => {
+      if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
+    }
+  }, [])
 
   // BUG-03: when geolocation resolves AFTER the map has mounted (and there's no
   // active text search driving the view), recenter to the user's location once.
@@ -125,8 +138,41 @@ export default function MapView({ properties, pins = [], fitSignal = '' }: MapVi
         latitude: e.viewState.latitude,
         zoom: e.viewState.zoom,
       })
+
+      // Only chase genuine user gestures (drag/scroll/pinch). Our own
+      // flyTo/fitBounds calls (the fitSignal auto-fit after a text search,
+      // the geocodedCenter jump) also fire moveend, but mapbox-gl leaves
+      // originalEvent unset for those — without this guard, a fresh search's
+      // own auto-fit would immediately re-geocode and stomp the query that
+      // triggered it.
+      // react-map-gl's ViewStateChangeEvent type doesn't expose originalEvent
+      // (a mismatch with the underlying mapbox-gl event it wraps), so check
+      // it through an unknown cast rather than `as any`.
+      const originalEvent = (e as unknown as { originalEvent?: unknown }).originalEvent
+      if (!originalEvent) return
+
+      // Debounce reverse geocoding so a burst of pans (inertial scroll, quick
+      // back-and-forth) fires one lookup for where the map settles, not one
+      // per moveend. A request-id guard drops a stale response if the user
+      // pans again before an in-flight lookup returns.
+      const { longitude, latitude } = e.viewState
+      if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
+      geocodeTimerRef.current = setTimeout(async () => {
+        const reqId = ++geocodeReqRef.current
+        const city = await reverseGeocodeCity(latitude, longitude)
+        if (reqId !== geocodeReqRef.current) return
+        if (!city) return
+        setMapCity(city)
+        // A text search (e.g. "North Vancouver") pins the list to that city
+        // regardless of bbox — panning away from it would otherwise leave the
+        // list/feed stuck on the old city while the pins (which always follow
+        // bbox) move on. Overriding the query keeps everything in sync with
+        // where the user actually panned to. Pure browsing (no active query)
+        // already follows bbox live, so there's nothing to override there.
+        if (query) setQuery(city)
+      }, 600)
     },
-    [setMapBounds, setMapCenter]
+    [setMapBounds, setMapCenter, setMapCity, query, setQuery]
   )
 
   // BUY-02: seed mapBounds as soon as the map is ready. `onMoveEnd` only fires on
