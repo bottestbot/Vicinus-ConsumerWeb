@@ -83,6 +83,14 @@ export default function VicinusBrief({ fallback }: Props) {
     )
   }
 
+  // A brief that fetched fine but carries nothing means the account has no
+  // saved properties or searches to brief on. Render nothing at all — not an
+  // empty green card, and not a consolation line. The dashboard's own section
+  // empty states ("You haven't saved any properties yet") already tell a new
+  // user what to do next, so anything here is noise asserting we have insight
+  // we don't have.
+  if (brief?.isEmpty && brief.highlights.length === 0) return null
+
   const headline = brief?.headline?.trim()
   const body = brief?.body?.trim()
   const highlights = brief?.highlights ?? []

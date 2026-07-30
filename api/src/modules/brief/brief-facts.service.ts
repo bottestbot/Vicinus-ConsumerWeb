@@ -7,7 +7,6 @@ import {
   localToDashboardProperty,
   type DashboardProperty,
 } from '../users/users.service'
-import { RESIDENTIAL_SUBTYPES } from '../ddf-sync/ddf-query.service'
 import type {
   BriefFacts,
   BriefHighlight,
@@ -127,8 +126,24 @@ export class BriefFactsService {
       open_house: 0,
     }
 
+    // No alerts in the window → nothing actually moved on anything this user
+    // tracks, so there is no brief. This previously fell back to a
+    // "forward-looking" variant (BRIEF-11) that pulled the soonest open houses
+    // and newest listings platform-wide; with no preferred neighbourhoods to
+    // filter on that surfaced rural Alberta to a Vancouver user and presented
+    // it as their own. A brief is a report on real activity — when there is
+    // none, say nothing and let the section empty states do their job.
     if (alerts.length === 0) {
-      return this.buildForwardLooking(user.id, now, since, emptyCounts)
+      return {
+        generatedAt: now.toISOString(),
+        since: since.toISOString(),
+        isEmpty: true,
+        alertCount: 0,
+        counts: emptyCounts,
+        highlights: [],
+        latestAlertId: null,
+        focusNeighbourhoods: [],
+      }
     }
 
     // Context needed to score salience.
@@ -241,99 +256,4 @@ export class BriefFactsService {
       }
     }
   }
-
-  // ─── Forward-looking variant (isEmpty === true) ───────────────────────────
-  // No unread alerts is the common pre-launch case. Rather than an empty box,
-  // surface upcoming open houses and/or new listings in the user's preferred
-  // (profile) neighbourhoods. Still fully deterministic and figure-complete.
-  private async buildForwardLooking(
-    userId: string,
-    now: Date,
-    since: Date,
-    counts: Record<BriefHighlightKind, number>,
-  ): Promise<BriefFacts> {
-    const profile = await this.prisma.userPreferenceProfile.findUnique({
-      where: { userId },
-      include: { preferredNeighbourhoods: { select: { name: true } } },
-    })
-    const focus = (profile?.preferredNeighbourhoods ?? []).map((n) => n.name)
-
-    // Over-fetch, then filter to focus areas in JS (Prisma `in` is
-    // case-sensitive and focus names may be free-text neighbourhoods).
-    const [openHouses, listings] = await Promise.all([
-      this.prisma.openHouse.findMany({
-        where: { openHouseDate: { gte: now }, property: { isNot: null } },
-        include: { property: { select: DASHBOARD_PROPERTY_SELECT } },
-        orderBy: { openHouseDate: 'asc' },
-        take: 20,
-      }),
-      this.prisma.property.findMany({
-        where: {
-          status: 'Active',
-          displayOnInternet: true,
-          propertySubType: { in: RESIDENTIAL_SUBTYPES },
-        },
-        select: { ...DASHBOARD_PROPERTY_SELECT, listedAt: true },
-        orderBy: { listedAt: 'desc' },
-        take: 20,
-      }),
-    ])
-
-    const highlights: BriefHighlight[] = []
-
-    for (const oh of openHouses) {
-      if (highlights.length >= MAX_HIGHLIGHTS) break
-      if (!oh.property) continue
-      const card = localToDashboardProperty(oh.property)
-      if (!matchesFocus(card, focus)) continue
-      const when = formatOpenHouseDate(oh.openHouseDate)
-      highlights.push({
-        id: oh.id,
-        kind: 'open_house',
-        label: when ? `Open house ${when}` : 'Upcoming open house',
-        subLabel: subLabelFor(card, null),
-        href: `/properties/${card.ddfListingKey}`,
-        listingKey: card.ddfListingKey,
-      })
-    }
-
-    for (const p of listings) {
-      if (highlights.length >= MAX_HIGHLIGHTS) break
-      const card = localToDashboardProperty(p)
-      if (highlights.some((h) => h.listingKey === card.ddfListingKey)) continue
-      if (!matchesFocus(card, focus)) continue
-      const price = money(card.price)
-      highlights.push({
-        id: p.id,
-        kind: 'new_listing',
-        label: price ? `New listing at ${price}` : 'New listing',
-        subLabel: subLabelFor(card, null),
-        href: `/properties/${card.ddfListingKey}`,
-        listingKey: card.ddfListingKey,
-      })
-    }
-
-    return {
-      generatedAt: now.toISOString(),
-      since: since.toISOString(),
-      isEmpty: true,
-      alertCount: 0,
-      counts,
-      highlights,
-      latestAlertId: null,
-      focusNeighbourhoods: focus,
-    }
-  }
-}
-
-/** True if the card's city/address ties to one of the focus names (or none given). */
-function matchesFocus(card: DashboardProperty, focus: string[]): boolean {
-  if (focus.length === 0) return true
-  const city = (card.city ?? '').toLowerCase()
-  const street = [card.streetNumber, card.streetName].filter(Boolean).join(' ').toLowerCase()
-  return focus.some((name) => {
-    const n = name.trim().toLowerCase()
-    if (!n) return false
-    return city === n || (city && n.includes(city)) || street.includes(n)
-  })
 }

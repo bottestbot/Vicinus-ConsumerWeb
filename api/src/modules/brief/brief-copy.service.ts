@@ -171,7 +171,13 @@ Tone: editorial, direct, premium — like a sharp analyst briefing a client. Do 
         }
       }
       return {
-        headline: 'Coming up in your areas',
+        // Only claim "your areas" when there actually are some. With no
+        // preferred neighbourhoods the forward-looking highlights are just the
+        // soonest open houses/newest listings platform-wide (Chilliwack and
+        // Alberta for a Vancouver user), so calling them the reader's own areas
+        // asserts a personalization that hasn't happened. The body below and
+        // the no-highlights branch above already branch on `areas` this way.
+        headline: areas.length ? 'Coming up in your areas' : 'Coming up this week',
         body: `${describeHighlights(facts.highlights)}${
           areas.length ? ` in ${joinNames(areas)}` : ''
         }. Tap through to take a closer look.`,
