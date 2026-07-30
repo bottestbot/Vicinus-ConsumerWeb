@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useSearchStore } from '@/store/searchStore'
+import { reverseGeocodeCity } from '@/lib/geocode'
 
 export default function LocationProvider() {
   const { setUserLocation, setMapCenter } = useSearchStore()
@@ -13,22 +14,8 @@ export default function LocationProvider() {
       setMapCenter({ latitude, longitude, zoom: 11 })
       setUserLocation(null, { latitude, longitude })
 
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-          { headers: { 'Accept-Language': 'en', 'User-Agent': 'Vicinus/1.0' } },
-        )
-        const json = await res.json()
-        const city =
-          json.address?.city ||
-          json.address?.town ||
-          json.address?.village ||
-          json.address?.county ||
-          null
-        setUserLocation(city, { latitude, longitude })
-      } catch {
-        // city stays null, coords already set
-      }
+      const city = await reverseGeocodeCity(latitude, longitude)
+      setUserLocation(city, { latitude, longitude })
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

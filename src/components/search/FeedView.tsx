@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { useUser } from '@clerk/nextjs'
 import { Loader2, Maximize2, Smartphone } from 'lucide-react'
 import FeedCard from '@/components/feed/FeedCard'
@@ -141,7 +141,12 @@ export default function FeedView({ params }: FeedViewProps) {
   }
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
-    // Structural key — React Query deep-compares the params object.
+    // Structural key — React Query deep-compares the params object. No
+    // placeholderData here on purpose: a city change should read as a fresh
+    // load (clear the old city's cards, show the spinner, load the new one)
+    // rather than keeping stale cards on screen mid-fetch — simpler than
+    // reconciling scroll position against data that's about to be replaced,
+    // and the empty state has nothing stale left to scroll through.
     queryKey: ['feed', params],
     queryFn: async ({ pageParam }) => {
       const res = await searchProperties({ ...params, page: pageParam, limit: PAGE_SIZE })
@@ -157,10 +162,17 @@ export default function FeedView({ params }: FeedViewProps) {
     getNextPageParam: (lastPage, allPages) =>
       lastPage.rawCount === PAGE_SIZE ? allPages.length + 1 : undefined,
     staleTime: 60_000,
-    placeholderData: keepPreviousData,
   })
 
   const listings: Property[] = data?.pages.flatMap((p) => p.items) ?? []
+
+  // A new city/filter search should start fresh at the top, not leave the
+  // viewer scrolled to wherever they were in the previous city's feed.
+  const paramsKey = JSON.stringify(params)
+  useEffect(() => {
+    setActiveIndex(0)
+    containerRef.current?.scrollTo({ top: 0 })
+  }, [paramsKey])
 
   // Track the active card and drive infinite scroll off it.
   useEffect(() => {

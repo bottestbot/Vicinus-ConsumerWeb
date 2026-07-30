@@ -24,6 +24,11 @@ interface SearchStore {
   mapBounds: MapBounds | null
   mapCenter: { longitude: number; latitude: number; zoom: number }
   geocodedCenter: { longitude: number; latitude: number } | null
+  // City the map is currently panned to (reverse-geocoded, debounced on
+  // moveend). Distinct from userCity — that's the device's real location and
+  // must stay stable — this is "wherever the user is currently browsing" and
+  // takes priority for the Feed/location label so Map↔Feed stays in sync.
+  mapCity: string | null
 
   // UI state
   hoveredPropertyId: string | null
@@ -41,6 +46,7 @@ interface SearchStore {
   setMapCenter: (c: { longitude: number; latitude: number; zoom: number }) => void
   setGeocodedCenter: (c: { longitude: number; latitude: number } | null) => void
   setUserLocation: (city: string | null, coords: { latitude: number; longitude: number } | null) => void
+  setMapCity: (city: string | null) => void
   setHoveredProperty: (id: string | null) => void
   setSelectedProperty: (id: string | null) => void
   saveSearch: (name: string) => Promise<void>
@@ -94,6 +100,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   // when geolocation is unavailable/denied.
   mapCenter: { longitude: -123.1207, latitude: 49.2827, zoom: 11 },
   geocodedCenter: null,
+  mapCity: null,
   hoveredPropertyId: null,
   selectedPropertyId: null,
   savedSearches: [],
@@ -114,6 +121,8 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   setGeocodedCenter: (c) => set({ geocodedCenter: c }),
 
   setUserLocation: (city, coords) => set({ userCity: city, userCoords: coords }),
+
+  setMapCity: (city) => set({ mapCity: city }),
 
   setHoveredProperty: (id) => set({ hoveredPropertyId: id }),
 
