@@ -77,9 +77,22 @@ const MATERIAL_WEIGHT = 0.15
 // Metro Vancouver only) beat Downtown Vancouver on a transit-led quiz for
 // exactly this reason. So in ranking, a candidate missing a dimension the user
 // actually weights is not a candidate at all.
-function missesMaterialDimension(scores: VibeScores, weights: VibeWeights): boolean {
+//
+// But that exclusion is only fair when the data gap is real — some
+// neighbourhoods have the dimension, others don't. If the whole launch pool is
+// missing it (e.g. the vibe-metrics backfill hasn't run against a given
+// environment's Neighbourhood rows yet, so green/bikeLane are null for
+// literally everyone), excluding on it eliminates every candidate and a quiz
+// that leans on that dimension throws instead of matching anyone. `coverage`
+// is which dimensions have data for at least one candidate in the pool; only
+// those are eligible for exclusion.
+function missesMaterialDimension(
+  scores: VibeScores,
+  weights: VibeWeights,
+  coverage: ReadonlySet<VibeDimension>,
+): boolean {
   return (Object.keys(weights) as VibeDimension[]).some(
-    (dim) => scores[dim] == null && weights[dim] >= MATERIAL_WEIGHT,
+    (dim) => scores[dim] == null && weights[dim] >= MATERIAL_WEIGHT && coverage.has(dim),
   )
 }
 
@@ -223,16 +236,28 @@ export class VibeCheckService {
       },
     })
 
+    const allScores = rows.map((row) =>
+      toVibeScores(
+        {
+          walkability: row.walkabilityScore,
+          schools: row.schoolsScore,
+          amenities: row.amenitiesScore,
+          transit: row.transitSubScore,
+        },
+        row,
+      ),
+    )
+    const coverage = new Set<VibeDimension>(
+      (Object.keys(weights) as VibeDimension[]).filter((dim) =>
+        allScores.some((s) => s[dim] != null),
+      ),
+    )
+
     const ranked: RankedNeighbourhood[] = []
-    for (const row of rows) {
-      const sub: SubScores = {
-        walkability: row.walkabilityScore,
-        schools: row.schoolsScore,
-        amenities: row.amenitiesScore,
-        transit: row.transitSubScore,
-      }
-      const scores = toVibeScores(sub, row)
-      if (missesMaterialDimension(scores, weights)) continue
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
+      const scores = allScores[i]
+      if (missesMaterialDimension(scores, weights, coverage)) continue
       const blended = blendVibe(scores, weights)
       if (blended == null) continue
       ranked.push({
