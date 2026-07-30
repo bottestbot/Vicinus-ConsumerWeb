@@ -86,6 +86,13 @@ export default function PostHogProvider({ children }: { children: React.ReactNod
       capture_pageview: false,
     })
 
+    // src/lib/analytics/capture.ts (and every existing track()/capture() call
+    // site) reads the global `window.posthog`, not the posthog-js module
+    // import — that global is only auto-set by the <script>-snippet loader,
+    // not by `import posthog from 'posthog-js'`. Expose it explicitly so
+    // those call sites actually fire instead of silently no-op-ing.
+    ;(window as unknown as { posthog?: typeof posthog }).posthog = posthog
+
     const status = useConsentStore.getState().status
     if (status === 'accepted') {
       posthog.opt_in_capturing()
