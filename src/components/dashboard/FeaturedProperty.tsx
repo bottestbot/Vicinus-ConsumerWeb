@@ -1,6 +1,11 @@
+'use client'
+
+import Link from 'next/link'
 import Image from 'next/image'
-import { CalendarPlus } from 'lucide-react'
-import type { DashboardProperty } from '@/types/dashboard'
+import { ArrowRight } from 'lucide-react'
+import type { DashboardProperty, OpenHouseVisit, OpenHouseVisitGroup } from '@/types/dashboard'
+import { useOpenHouseVisits } from '@/hooks/useOpenHouseVisits'
+import { formatOpenHouseTimeRange } from '@/lib/format'
 
 function buildAddress(p: DashboardProperty): string {
   const parts = [
@@ -11,11 +16,43 @@ function buildAddress(p: DashboardProperty): string {
   return parts.join(', ') || 'Address not available'
 }
 
-interface Props {
-  property: DashboardProperty
+function formatOpenHouseDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-CA', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
 }
 
-export default function FeaturedProperty({ property }: Props) {
+// Soonest PLANNED visit that hasn't happened yet — the same source of truth
+// as "My Open House Schedule" below it, so the hero can never drift from what
+// the user actually put on their calendar.
+function pickNextVisit(groups: OpenHouseVisitGroup[] | undefined): OpenHouseVisit | null {
+  const now = new Date()
+  const upcoming = (groups ?? [])
+    .flatMap((g) => g.visits)
+    .filter((v) => v.status === 'PLANNED' && v.property && v.openHouseDate && new Date(v.openHouseDate) >= now)
+    .sort((a, b) => new Date(a.openHouseDate!).getTime() - new Date(b.openHouseDate!).getTime())
+  return upcoming[0] ?? null
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-[#E8E6E1] bg-white flex items-center justify-center h-72 text-sm text-[#6B6B6B] text-center px-6">
+      No upcoming open houses on your calendar yet — add one from a property page.
+    </div>
+  )
+}
+
+export default function FeaturedProperty() {
+  const { data: groups, isLoading } = useOpenHouseVisits()
+
+  if (isLoading) return null
+
+  const visit = pickNextVisit(groups)
+  if (!visit || !visit.property) return <EmptyState />
+
+  const property = visit.property
   const imageUrl =
     property.primaryPhotoUrl ||
     'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=80'
@@ -26,14 +63,17 @@ export default function FeaturedProperty({ property }: Props) {
       : buildAddress(property)
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-[#E8E6E1] shadow-sm">
+    <Link
+      href={`/properties/${property.id}`}
+      className="block rounded-2xl overflow-hidden border border-[#E8E6E1] shadow-sm group"
+    >
       <div className="relative h-72 sm:h-80">
         <Image
           src={imageUrl}
           alt={propertyName}
           fill
           sizes="(max-width: 768px) 100vw, 800px"
-          className="object-cover object-left-top"
+          className="object-cover object-left-top group-hover:scale-105 transition-transform duration-500"
           priority
         />
 
@@ -53,19 +93,24 @@ export default function FeaturedProperty({ property }: Props) {
             <p className="font-heading text-2xl sm:text-3xl font-semibold text-white mb-1.5 leading-tight">
               {propertyName}
             </p>
-            <div className="flex flex-wrap items-center gap-3 text-white/80 text-xs">
-              <span>📅 Saturday, Oct 12</span>
-              <span>🕑 2:00 PM – 4:30 PM</span>
-            </div>
+            {visit.openHouseDate && (
+              <div className="flex flex-wrap items-center gap-3 text-white/80 text-xs">
+                <span>📅 {formatOpenHouseDate(visit.openHouseDate)}</span>
+                {(visit.openHouseStartTime || visit.openHouseEndTime) && (
+                  <span>
+                    🕑 {formatOpenHouseTimeRange(visit.openHouseStartTime, visit.openHouseEndTime)}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Add to Calendar button */}
-          <button className="shrink-0 flex items-center gap-1.5 bg-[#1C3829] text-white text-[11px] font-bold px-3 py-2 rounded-xl uppercase tracking-wide hover:bg-[#2D5A3D] transition-colors whitespace-nowrap">
-            <CalendarPlus size={12} />
-            Add to Calendar
-          </button>
+          <span className="shrink-0 flex items-center gap-1.5 bg-[#1C3829] text-white text-[11px] font-bold px-3 py-2 rounded-xl uppercase tracking-wide group-hover:bg-[#2D5A3D] transition-colors whitespace-nowrap">
+            View Listing
+            <ArrowRight size={12} />
+          </span>
         </div>
       </div>
-    </div>
+    </Link>
   )
 }

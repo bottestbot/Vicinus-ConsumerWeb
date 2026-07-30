@@ -44,6 +44,13 @@ export interface DashboardProperty {
   // badge. Without it PropertyCell falls back to the REALTOR.ca homepage,
   // which does not satisfy the DDF attribution requirement.
   realtorUrl: string | null
+  // Earliest upcoming open house on this listing, if any — lets the FE offer
+  // "Add to Calendar" instead of the generic "Schedule Tour" CTA, and render a
+  // real "Next Open House" hero instead of placeholder copy.
+  nextOpenHouseKey: string | null
+  nextOpenHouseDate: string | null
+  nextOpenHouseStartTime: string | null
+  nextOpenHouseEndTime: string | null
 }
 
 // Fields pulled from the local Property table to build a dashboard card.
@@ -71,6 +78,11 @@ export const DASHBOARD_PROPERTY_SELECT = {
 
 export type LocalPropertyRow = Prisma.PropertyGetPayload<{ select: typeof DASHBOARD_PROPERTY_SELECT }>
 
+// nextOpenHouse* fields start null here and are filled in by
+// enrichWithOpenHouses() below — the locally-synced `Property.openHouses`
+// table lags the live DDF feed (that's the whole reason getListingOpenHouses
+// falls back to a live call on the property page), so a saved/visited listing
+// with a real upcoming open house could otherwise show no CTA at all.
 export function localToDashboardProperty(p: LocalPropertyRow): DashboardProperty {
   return {
     id: p.ddfListingKey, // FE links to /properties/:id by ListingKey
@@ -90,6 +102,10 @@ export function localToDashboardProperty(p: LocalPropertyRow): DashboardProperty
     brokerageName: p.office?.name ?? null,
     mlsNumber: p.ddfListingId ?? p.ddfListingKey,
     realtorUrl: p.realtorUrl ?? null,
+    nextOpenHouseKey: null,
+    nextOpenHouseDate: null,
+    nextOpenHouseStartTime: null,
+    nextOpenHouseEndTime: null,
   }
 }
 
@@ -115,6 +131,11 @@ function ddfToDashboardProperty(d: Record<string, unknown>): DashboardProperty {
     brokerageName: office?.name ?? null,
     mlsNumber: (d.ddfListingId as string | null) ?? key,
     realtorUrl: (d.realtorUrl as string | null) ?? null,
+    // Filled in by enrichWithOpenHouses() below.
+    nextOpenHouseKey: null,
+    nextOpenHouseDate: null,
+    nextOpenHouseStartTime: null,
+    nextOpenHouseEndTime: null,
   }
 }
 
@@ -167,7 +188,34 @@ export class UsersService {
       this.logger.warn(`resolveProperties: could not resolve ${unresolved.length} key(s): ${unresolved.join(', ')}`)
     }
 
+    await this.enrichWithOpenHouses(map)
+
     return map
+  }
+
+  // The locally-synced `OpenHouse` table lags the live DDF feed, so it can't
+  // be trusted to answer "does this listing have an upcoming open house" —
+  // same reason the property page's own open-house section falls back to a
+  // live DDF call. Fetch live, in parallel, per resolved listing.
+  private async enrichWithOpenHouses(map: Map<string, DashboardProperty>): Promise<void> {
+    const entries = [...map.entries()]
+    if (entries.length === 0) return
+
+    const results = await Promise.all(
+      entries.map(([key]) => this.ddfQuery.getOpenHousesByKey(key).catch(() => [])),
+    )
+
+    entries.forEach(([key, property], i) => {
+      const next = results[i][0]
+      if (!next) return
+      map.set(key, {
+        ...property,
+        nextOpenHouseKey: next.id,
+        nextOpenHouseDate: next.date,
+        nextOpenHouseStartTime: next.startTime,
+        nextOpenHouseEndTime: next.endTime,
+      })
+    })
   }
 
   async findByClerkId(clerkId: string) {

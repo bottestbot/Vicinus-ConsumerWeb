@@ -3,11 +3,15 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Heart, ChevronLeft, ChevronRight, Bookmark, Calendar } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useUser } from '@clerk/nextjs'
+import { Heart, ChevronLeft, ChevronRight, Bookmark, CalendarPlus, MessageCircle } from 'lucide-react'
 import type { SavedPropertyRecord } from '@/types/dashboard'
 import PropertyCell from '@/components/property/PropertyCell'
 // CREA-05: reports the DDF `Click` event on card → detail navigation.
 import ListingLink from '@/components/property/ListingLink'
+import { useAddOpenHouseVisit, useOpenHouseVisits } from '@/hooks/useOpenHouseVisits'
+import { useLeadInquiry } from '@/components/providers/LeadInquiryProvider'
 
 const CARDS_PER_PAGE = 3
 
@@ -26,6 +30,46 @@ function PropertyCard({ record }: CardProps) {
   const imageUrl =
     property.primaryPhotoUrl ||
     'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80'
+
+  const router = useRouter()
+  const { isSignedIn } = useUser()
+  const { data: groups } = useOpenHouseVisits()
+  const addVisit = useAddOpenHouseVisit()
+  const { openInquiry } = useLeadInquiry()
+
+  // A PLANNED visit already tied to this property is the strongest signal —
+  // it means the user scheduled *some* open house on this listing, even if
+  // the live DDF lookup above no longer returns that exact slot (rescheduled,
+  // or this listing has multiple slots and nextOpenHouseKey picked a
+  // different one). Trust it over nextOpenHouseKey so a listing with a
+  // confirmed visit never silently loses its "Contact Agent" CTA.
+  const scheduledVisit = (groups ?? [])
+    .flatMap((g) => g.visits)
+    .find((v) => v.status === 'PLANNED' && v.property?.id === property.id)
+
+  const isScheduled = !!scheduledVisit
+  const openHouseKey = scheduledVisit?.ddfOpenHouseKey ?? property.nextOpenHouseKey
+
+  function handleAddToCalendar(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isSignedIn) {
+      router.push(`/sign-in?redirect=/properties/${property.id}`)
+      return
+    }
+    if (!openHouseKey || isScheduled) return
+    addVisit.mutate(openHouseKey)
+  }
+
+  function handleContactAgent(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    openInquiry({
+      listingKey: property.id,
+      propertyAddress: buildAddress(property),
+      agentName: property.agentName ?? undefined,
+    })
+  }
 
   return (
     <div className="group bg-white rounded-xl overflow-hidden border border-[#E8E6E1] hover:border-[#1C3829]/40 hover:shadow-md transition-all duration-200 flex flex-col">
@@ -66,13 +110,30 @@ function PropertyCard({ record }: CardProps) {
         </div>
       </ListingLink>
 
-      {/* Schedule Tour CTA */}
-      <div className="px-3.5 pb-3.5">
-        <button className="w-full bg-[#1C3829] text-white text-[11px] font-bold py-2.5 rounded-xl uppercase tracking-widest hover:bg-[#2D5A3D] transition-colors flex items-center justify-center gap-1.5">
-          <Calendar size={12} />
-          Schedule Tour
-        </button>
-      </div>
+      {/* Add to Calendar / Contact Agent CTA — only shown when the listing
+          actually has an open house; no generic "Schedule Tour" fallback. */}
+      {openHouseKey && (
+        <div className="px-3.5 pb-3.5">
+          {isScheduled ? (
+            <button
+              onClick={handleContactAgent}
+              className="w-full bg-[#1C3829] text-white text-[11px] font-bold py-2.5 rounded-xl uppercase tracking-widest hover:bg-[#2D5A3D] transition-colors flex items-center justify-center gap-1.5"
+            >
+              <MessageCircle size={12} />
+              Contact Agent
+            </button>
+          ) : (
+            <button
+              onClick={handleAddToCalendar}
+              disabled={addVisit.isPending}
+              className="w-full bg-[#1C3829] text-white text-[11px] font-bold py-2.5 rounded-xl uppercase tracking-widest hover:bg-[#2D5A3D] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <CalendarPlus size={12} />
+              Add to Calendar
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

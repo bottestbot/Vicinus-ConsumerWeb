@@ -28,6 +28,11 @@ export interface DashboardProperty {
   mlsNumber: string | null
   /** DDF ListingURL — deep-links the "Powered by REALTOR.ca" badge. */
   realtorUrl?: string | null
+  /** Earliest upcoming open house on this listing, if any. */
+  nextOpenHouseKey: string | null
+  nextOpenHouseDate: string | null
+  nextOpenHouseStartTime: string | null
+  nextOpenHouseEndTime: string | null
 }
 
 export interface SavedPropertyRecord {

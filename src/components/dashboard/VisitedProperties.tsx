@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Clock, ChevronLeft, ChevronRight, Heart, MessageCircle } from 'lucide-react'
 import type { VisitedPropertyRecord } from '@/types/dashboard'
 import PropertyCell from '@/components/property/PropertyCell'
+import { useSaveListing } from '@/lib/hooks/useSaveListing'
+import { useLeadInquiry } from '@/components/providers/LeadInquiryProvider'
 
 const CARDS_PER_PAGE = 2
 
@@ -21,16 +23,15 @@ function formatVisitDate(visitedAt: string): string {
   return `VISITED ${month} ${day}`
 }
 
-// Mock status tags (alternating for demo)
-const STATUS_OPTIONS: Array<'OFFER PENDING' | 'FAVORITE'> = ['OFFER PENDING', 'FAVORITE']
-
-function VisitedCard({ record, index }: { record: VisitedPropertyRecord; index: number }) {
+function VisitedCard({ record }: { record: VisitedPropertyRecord }) {
   const { property } = record
   const imageUrl =
     property.primaryPhotoUrl ||
     'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=400&q=80'
-  const status = STATUS_OPTIONS[index % STATUS_OPTIONS.length]
   const visitLabel = formatVisitDate(record.visitedAt)
+  const address = buildAddress(property)
+  const { isSaved, saving, handleSave } = useSaveListing(property.id)
+  const { openInquiry } = useLeadInquiry()
 
   return (
     <div className="group bg-white rounded-xl overflow-hidden border border-[#E8E6E1] hover:border-[#1C3829]/40 hover:shadow-md transition-all duration-200 flex h-44">
@@ -38,7 +39,7 @@ function VisitedCard({ record, index }: { record: VisitedPropertyRecord; index: 
       <div className="relative w-2/5 shrink-0 overflow-hidden bg-[#F2F0EB]">
         <Image
           src={imageUrl}
-          alt={buildAddress(property)}
+          alt={address}
           fill
           sizes="200px"
           className="object-cover object-left-top group-hover:scale-105 transition-transform duration-500"
@@ -60,31 +61,40 @@ function VisitedCard({ record, index }: { record: VisitedPropertyRecord; index: 
             showAttribution={false}
             data={{
               price: property.price,
-              address: buildAddress(property),
+              address,
               beds: property.beds,
               baths: property.baths,
               sqft: property.sqft,
             }}
           />
-
-          {/* Status tag */}
-          <span className="inline-block text-[10px] font-semibold text-[#6B6B6B] border border-[#E8E6E1] px-2 py-0.5 rounded-full uppercase tracking-wide mt-2">
-            {status}
-          </span>
         </div>
 
         {/* Action buttons */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {(['SHORTLIST', 'DOCS'] as const).map((action) => (
-            <button
-              key={action}
-              className="text-[10px] font-bold text-[#6B6B6B] border border-[#E8E6E1] px-2.5 py-1 rounded-lg uppercase tracking-wide hover:border-[#1C3829] hover:text-[#1C3829] transition-colors"
-            >
-              {action}
-            </button>
-          ))}
-          <button className="text-[10px] font-bold text-white bg-[#1C3829] px-2.5 py-1 rounded-lg uppercase tracking-wide hover:bg-[#2D5A3D] transition-colors">
-            OFFER
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              isSaved
+                ? 'border-[#1C3829] text-[#1C3829] bg-[#1C3829]/5'
+                : 'border-[#E8E6E1] text-[#6B6B6B] hover:border-[#1C3829] hover:text-[#1C3829]'
+            }`}
+          >
+            <Heart size={11} className={isSaved ? 'fill-[#1C3829]' : ''} />
+            {isSaved ? 'Saved' : 'Save Property'}
+          </button>
+          <button
+            onClick={() =>
+              openInquiry({
+                listingKey: property.id,
+                propertyAddress: address,
+                agentName: property.agentName ?? undefined,
+              })
+            }
+            className="flex items-center gap-1 text-[10px] font-bold text-white bg-[#1C3829] px-2.5 py-1 rounded-lg uppercase tracking-wide hover:bg-[#2D5A3D] transition-colors"
+          >
+            <MessageCircle size={11} />
+            Contact Agent
           </button>
         </div>
       </div>
@@ -148,8 +158,8 @@ export default function VisitedProperties({ visited }: Props) {
         <EmptyState />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {visible.map((record, i) => (
-            <VisitedCard key={record.id} record={record} index={page * CARDS_PER_PAGE + i} />
+          {visible.map((record) => (
+            <VisitedCard key={record.id} record={record} />
           ))}
         </div>
       )}

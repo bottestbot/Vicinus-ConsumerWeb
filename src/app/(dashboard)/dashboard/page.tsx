@@ -59,9 +59,6 @@ export default async function DashboardPage() {
     editorial: [],
   }
 
-  const featuredProperty =
-    safeData.saved[0]?.property ?? safeData.visited[0]?.property ?? null
-
   return (
     <div className="min-h-screen bg-[#FAF9F6]">
       {/* Dashboard-specific navbar (no main site nav) */}
@@ -85,15 +82,9 @@ export default async function DashboardPage() {
             {/* Search block ("FIND YOUR HOME" + Smart/Classic toggle + recent) */}
             <SearchPanel />
 
-            {/* Next open house hero — reuses the FeaturedProperty card in this slot
-                (DASH-05 builds the real open-house-sourced hero later). */}
-            {featuredProperty ? (
-              <FeaturedProperty property={featuredProperty} />
-            ) : (
-              <div className="rounded-2xl border border-[#E8E6E1] bg-white flex items-center justify-center h-72 text-sm text-[#6B6B6B]">
-                No featured property yet — save a listing to get started.
-              </div>
-            )}
+            {/* Next open house hero — self-fetches from the user's own open-house
+                schedule (useOpenHouseVisits), same source as the schedule below. */}
+            <FeaturedProperty />
 
             {/* Saved properties carousel */}
             <div className="border-t border-[#E8E6E1] pt-8">
