@@ -1,6 +1,16 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
-import { blendLivability, LivabilityWeights, SubScores } from '../neighbourhoods/scoring/blend'
+import { SubScores } from '../neighbourhoods/scoring/blend'
+import {
+  blendVibe,
+  expressedDimensions,
+  toVibeScores,
+  toVibeWeights,
+  VibeDimension,
+  VibeScores,
+  VibeWeights,
+} from './vibe-dimensions'
+import { buildReasonChips } from './reason-chips'
 import { UsersService } from '../users/users.service'
 import { parseOnboardingBlob } from '../brief/preference-profile.util'
 import { QUIZ_QUESTIONS } from './quiz-questions.data'
@@ -36,18 +46,6 @@ const SHORT_ID_LENGTH = 7
 const REFERRAL_CODE_LENGTH = 10
 const MAX_ID_ATTEMPTS = 5
 
-// Same STRONG/GOOD language as personalization.service.ts's reasonChips, kept
-// in sync deliberately — a neighbourhood shouldn't read as "excellent
-// walkability" on one surface and merely "good" on another.
-const STRONG = 70
-const GOOD = 55
-const DIMENSION_LABEL: Record<keyof SubScores, string> = {
-  walkability: 'walkability',
-  schools: 'school access',
-  amenities: 'local amenities',
-  transit: 'transit access',
-}
-
 // The launch pool: the 10 Metro Vancouver municipalities covered by the
 // TransLink GTFS feed, which is the only region where all four sub-scores are
 // actually computed (122 neighbourhoods as of launch). Deliberately an explicit
@@ -71,17 +69,17 @@ const LAUNCH_CITIES = [
 // quiz says they actually care about.
 const MATERIAL_WEIGHT = 0.15
 
-// blendLivability drops a null dimension and redistributes its weight across
-// the rest. That's right on a neighbourhood's own page — score it honestly with
-// the data we have — but in a *ranked* comparison it's backwards: a missing
-// score is never penalised, it just hands its weight to whatever the candidate
-// happens to be good at. Harris Green, Victoria (no transit score, since the
-// GTFS feed is Metro Vancouver only) beat Downtown Vancouver on a transit-led
-// quiz for exactly this reason. So in ranking, a candidate missing a dimension
-// the user actually weights is not a candidate at all.
-function missesMaterialDimension(sub: SubScores, weights: LivabilityWeights): boolean {
-  return (Object.keys(weights) as (keyof SubScores)[]).some(
-    (dim) => sub[dim] == null && weights[dim] >= MATERIAL_WEIGHT,
+// A null dimension must not be a free pass. The blend drops nulls and spreads
+// their weight over what's left — right for scoring one place honestly on its
+// own page, backwards in a ranked comparison, where the missing score is never
+// penalised and simply hands its weight to whatever the candidate happens to be
+// good at. Harris Green, Victoria (no transit score, since the GTFS feed is
+// Metro Vancouver only) beat Downtown Vancouver on a transit-led quiz for
+// exactly this reason. So in ranking, a candidate missing a dimension the user
+// actually weights is not a candidate at all.
+function missesMaterialDimension(scores: VibeScores, weights: VibeWeights): boolean {
+  return (Object.keys(weights) as VibeDimension[]).some(
+    (dim) => scores[dim] == null && weights[dim] >= MATERIAL_WEIGHT,
   )
 }
 
@@ -89,7 +87,7 @@ interface RankedNeighbourhood {
   id: string
   name: string
   city: string | null
-  sub: SubScores
+  scores: VibeScores
   score: number
 }
 
@@ -111,8 +109,10 @@ export class VibeCheckService {
 
   async submit(dto: SubmitVibeCheckDto): Promise<VibeCheckSubmitResponse> {
     const { weights, flavors } = scoreQuizAnswers(dto.answerIds)
+    const vibeWeights = toVibeWeights(weights, flavors)
+    const expressed = expressedDimensions(weights, flavors)
 
-    const ranked = await this.rankNeighbourhoods(weights)
+    const ranked = await this.rankNeighbourhoods(vibeWeights)
     if (ranked.length === 0) {
       // Every neighbourhood is missing all four sub-scores — shouldn't happen
       // outside a broken seed, but fail loudly rather than persist garbage.
@@ -155,7 +155,7 @@ export class VibeCheckService {
       tagline: archetype.tagline,
       matchedNeighbourhood: { name: top.name, city: top.city ?? '' },
       matchPercent: top.score,
-      reasonChips: this.reasonChips(top.sub),
+      reasonChips: buildReasonChips(top.scores, vibeWeights, expressed),
       matchRarityPct: null,
       // Many BC neighbourhoods share a bare name across cities (17 are named
       // "Downtown" alone) — city is required to tell runner-ups apart on the card.
@@ -205,7 +205,7 @@ export class VibeCheckService {
     return { claimed: unclaimed.length }
   }
 
-  private async rankNeighbourhoods(weights: LivabilityWeights): Promise<RankedNeighbourhood[]> {
+  private async rankNeighbourhoods(weights: VibeWeights): Promise<RankedNeighbourhood[]> {
     const rows = await this.prisma.neighbourhood.findMany({
       where: { province: 'BC', city: { in: [...LAUNCH_CITIES] } },
       select: {
@@ -216,6 +216,10 @@ export class VibeCheckService {
         schoolsScore: true,
         amenitiesScore: true,
         transitSubScore: true,
+        greenCoverPct: true,
+        bikeLaneKm: true,
+        nearestMajorRoadM: true,
+        nearestRailM: true,
       },
     })
 
@@ -227,10 +231,17 @@ export class VibeCheckService {
         amenities: row.amenitiesScore,
         transit: row.transitSubScore,
       }
-      if (missesMaterialDimension(sub, weights)) continue
-      const blended = blendLivability(sub, weights)
+      const scores = toVibeScores(sub, row)
+      if (missesMaterialDimension(scores, weights)) continue
+      const blended = blendVibe(scores, weights)
       if (blended == null) continue
-      ranked.push({ id: row.id, name: row.name, city: row.city, sub, score: Math.round(blended) })
+      ranked.push({
+        id: row.id,
+        name: row.name,
+        city: row.city,
+        scores,
+        score: Math.round(blended),
+      })
     }
 
     // Descending by score; stable tie-break on name so re-runs against the
@@ -239,28 +250,10 @@ export class VibeCheckService {
     return ranked
   }
 
-  private reasonChips(sub: SubScores): string[] {
-    const dims: { dim: keyof SubScores; score: number | null }[] = [
-      { dim: 'walkability', score: sub.walkability },
-      { dim: 'schools', score: sub.schools },
-      { dim: 'amenities', score: sub.amenities },
-      { dim: 'transit', score: sub.transit },
-    ]
-    return dims
-      .filter((d) => d.score != null && d.score >= GOOD)
-      .sort((a, b) => (b.score as number) - (a.score as number))
-      .slice(0, 4)
-      .map((d) => {
-        const qualifier = (d.score as number) >= STRONG ? 'Excellent' : 'Good'
-        return `${qualifier} ${DIMENSION_LABEL[d.dim]}`
-      })
-  }
-
   // Reconstructs the same response shape `submit` returns, from a persisted
   // row — recomputing weights/percentages from the stored `answers` rather
-  // than persisting them redundantly, since scoreQuizAnswers/blendLivability
-  // are pure functions of (answers, neighbourhood sub-scores) and will
-  // reproduce the original numbers exactly.
+  // than persisting them redundantly, since the scoring path is a pure function
+  // of (answers, neighbourhood metrics) and reproduces the original numbers.
   async getResultByShortId(shortId: string): Promise<VibeCheckSubmitResponse | null> {
     const row = await this.prisma.vibeCheckResult.findUnique({
       where: { shortId },
@@ -273,6 +266,10 @@ export class VibeCheckService {
             schoolsScore: true,
             amenitiesScore: true,
             transitSubScore: true,
+            greenCoverPct: true,
+            bikeLaneKm: true,
+            nearestMajorRoadM: true,
+            nearestRailM: true,
           },
         },
       },
@@ -291,6 +288,10 @@ export class VibeCheckService {
             schoolsScore: true,
             amenitiesScore: true,
             transitSubScore: true,
+            greenCoverPct: true,
+            bikeLaneKm: true,
+            nearestMajorRoadM: true,
+            nearestRailM: true,
           },
         })
       : []
@@ -300,9 +301,11 @@ export class VibeCheckService {
       .filter((r): r is (typeof runnerUpRows)[number] => r != null)
 
     const answerIds = Array.isArray(row.answers) ? (row.answers as string[]) : []
-    const { weights } = scoreQuizAnswers(answerIds)
+    const { weights, flavors } = scoreQuizAnswers(answerIds)
+    const vibeWeights = toVibeWeights(weights, flavors)
+    const expressed = expressedDimensions(weights, flavors)
     const archetype = VIBE_ARCHETYPES[row.archetypeKey as ArchetypeKey]
-    const matchedSub = this.toSubScores(row.matchedNeighbourhood)
+    const matchedScores = this.toVibe(row.matchedNeighbourhood)
 
     return {
       shortId: row.shortId,
@@ -311,29 +314,33 @@ export class VibeCheckService {
       tagline: archetype.tagline,
       matchedNeighbourhood: { name: row.matchedNeighbourhood.name, city: row.matchedNeighbourhood.city ?? '' },
       matchPercent: row.matchPercent,
-      reasonChips: this.reasonChips(matchedSub),
+      reasonChips: buildReasonChips(matchedScores, vibeWeights, expressed),
       matchRarityPct: row.matchRarityPct,
       runnerUps: orderedRunnerUps.map((n) => {
-        const sub = this.toSubScores(n)
-        const blended = blendLivability(sub, weights)
+        const blended = blendVibe(this.toVibe(n), vibeWeights)
         return { name: n.name, city: n.city ?? '', matchPercent: blended == null ? 0 : Math.round(blended) }
       }),
       accentColour: 'lime-forest',
     }
   }
 
-  private toSubScores(n: {
+  private toVibe(n: {
     walkabilityScore: number | null
     schoolsScore: number | null
     amenitiesScore: number | null
     transitSubScore: number | null
-  }): SubScores {
-    return {
+    greenCoverPct: number | null
+    bikeLaneKm: number | null
+    nearestMajorRoadM: number | null
+    nearestRailM: number | null
+  }): VibeScores {
+    const sub: SubScores = {
       walkability: n.walkabilityScore,
       schools: n.schoolsScore,
       amenities: n.amenitiesScore,
       transit: n.transitSubScore,
     }
+    return toVibeScores(sub, n)
   }
 
   private async resolveReferrer(referredByShortId?: string): Promise<string | null> {
