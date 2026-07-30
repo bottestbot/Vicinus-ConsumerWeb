@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Search, X, MapPin, Building2, Home, Navigation } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { getAutocomplete } from '@/lib/api/search'
-import { geocodeCity } from '@/lib/geocode'
+import { geocodeCity, geocodeAddress, parseAddress } from '@/lib/geocode'
 import type { AutocompleteSuggestion } from '@/types/search'
 import { glass, type GlassTheme } from './glassTheme'
 
@@ -28,7 +28,7 @@ export default function SearchBar({
   className = '',
   theme = 'dark',
 }: SearchBarProps) {
-  const { query, setQuery, setGeocodedCenter } = useSearchStore()
+  const { query, setQuery, setGeocodedCenter, setViewMode } = useSearchStore()
   const t = glass(theme)
   const [inputValue, setInputValue] = useState(query)
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
@@ -76,6 +76,26 @@ export default function SearchBar({
     fetchSuggestions(v)
   }
 
+  // Two-step zoom for a raw typed query: fly to the city instantly (fast,
+  // cached lookup), then refine to the exact address once Mapbox resolves it.
+  // Autocomplete only ever suggests cities/neighbourhoods (never street
+  // addresses — see search.service.ts), so this only fires for a query the
+  // user typed and submitted directly, not a picked suggestion.
+  const flyToQuery = (value: string) => {
+    if (parseAddress(value).isFullAddress) {
+      // A street address only has anywhere to zoom in the Map split-pane — the
+      // Feed (this page's default view) has no map at all — so force it.
+      setViewMode('both')
+      // geocodeCity fuzzy-matches the city out of the raw string on its own
+      // (Mapbox tokenizes it), so it's the instant coarse zoom; geocodeAddress
+      // refines to the exact pin once it resolves.
+      geocodeCity(value).then((coords) => { if (coords) setGeocodedCenter(coords) })
+      geocodeAddress(value).then((coords) => { if (coords) setGeocodedCenter({ ...coords, zoom: 16 }) })
+    } else {
+      geocodeCity(value).then((coords) => { if (coords) setGeocodedCenter(coords) })
+    }
+  }
+
   const handleSelect = (s: AutocompleteSuggestion) => {
     setInputValue(s.label)
     setQuery(s.label)
@@ -84,7 +104,7 @@ export default function SearchBar({
     onSearch?.(s.label)
     inputRef.current?.blur()
     // Geocode immediately so the map flies before DDF responds
-    geocodeCity(s.label).then((coords) => { if (coords) setGeocodedCenter(coords) })
+    flyToQuery(s.label)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -106,7 +126,7 @@ export default function SearchBar({
           setQuery(inputValue)
           setIsOpen(false)
           onSearch?.(inputValue)
-          geocodeCity(inputValue).then((coords) => { if (coords) setGeocodedCenter(coords) })
+          flyToQuery(inputValue)
         }
         break
       case 'Escape':

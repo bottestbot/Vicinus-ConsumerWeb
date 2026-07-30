@@ -9,6 +9,7 @@ import type { Property, MapPinResponse } from '@/types/search'
 import { propertyTypeLabel } from '@/types/search'
 import { searchProperties, getMapPins, type SearchParams } from '@/lib/api/search'
 import { filtersToSearchParams } from '@/lib/searchFilters'
+import { geocodeCity, geocodeAddress, parseAddress } from '@/lib/geocode'
 import FilterPanel from '@/components/search/FilterPanel'
 import ResultsList from '@/components/search/ResultsList'
 import FeedView from '@/components/search/FeedView'
@@ -110,8 +111,19 @@ function bboxAround(longitude: number, latitude: number): string {
 }
 
 export default function SearchPageClient({ initial }: { initial?: InitialSearch }) {
-  const { viewMode, filters, query, mapBounds, userCity, mapCity, userCoords, setQuery, setFilter } =
-    useSearchStore()
+  const {
+    viewMode,
+    filters,
+    query,
+    mapBounds,
+    userCity,
+    mapCity,
+    userCoords,
+    setQuery,
+    setFilter,
+    setViewMode,
+    setGeocodedCenter,
+  } = useSearchStore()
 
   // Wherever the user last panned the map takes priority over their actual
   // device location, so Feed and the location label stay in sync with the
@@ -131,7 +143,17 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     if (initial.beds !== null) setFilter('beds', initial.beds)
     if (initial.baths !== null) setFilter('baths', initial.baths)
     if (initial.propertyType.length > 0) setFilter('propertyType', initial.propertyType)
-  }, [initial, setQuery, setFilter])
+
+    // A full street address (e.g. arriving from the homepage hero search bar)
+    // only means anything in the Map split-pane — force it, and fly to the
+    // city instantly, then the exact address once Mapbox resolves it. Mirrors
+    // SearchBar's flyToQuery for the in-page typed case.
+    if (initial.query && parseAddress(initial.query).isFullAddress) {
+      setViewMode('both')
+      geocodeCity(initial.query).then((c) => { if (c) setGeocodedCenter(c) })
+      geocodeAddress(initial.query).then((c) => { if (c) setGeocodedCenter({ ...c, zoom: 16 }) })
+    }
+  }, [initial, setQuery, setFilter, setViewMode, setGeocodedCenter])
 
   // NBHDCTA-02: a neighbourhood's "Explore Listings" CTA arrives with a locked
   // bbox around that neighbourhood's centroid (computed server-side in
@@ -155,13 +177,24 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
       ? bboxAround(userCoords.longitude, userCoords.latitude)
       : bboxAround(VANCOUVER.longitude, VANCOUVER.latitude))
 
+  // A full street address ("8760 No 5 Rd, Richmond, BC V6Y 2V4") will never
+  // substring-match a DDF listing's UnparsedAddress/City/PostalCode field, so
+  // the normal text-search path (`q`, no bbox) always returns zero results for
+  // one. Treat it like browsing at that location instead: drop `q` and scope
+  // by the (address-centred, once the map flies there) bbox so nearby active
+  // listings show up.
+  const isAddressQuery = query ? parseAddress(query).isFullAddress : false
+
+  const baseParams = filtersToSearchParams(filters, query)
   const queryParams = {
-    ...filtersToSearchParams(filters, query),
-    // Only constrain by area when the user is browsing (no text query). A text
-    // search should return that city's listings regardless of where the map
-    // currently sits, then the map flies to them. When browsing, fall back to
-    // the device location / Vancouver box so results are never global.
-    bbox: !query ? defaultBbox : undefined,
+    ...baseParams,
+    q: isAddressQuery ? undefined : baseParams.q,
+    // Only constrain by area when the user is browsing (no text query) or the
+    // query is a street address. A city/neighbourhood text search should
+    // return that city's listings regardless of where the map currently sits,
+    // then the map flies to them. When browsing, fall back to the device
+    // location / Vancouver box so results are never global.
+    bbox: !query || isAddressQuery ? defaultBbox : undefined,
   }
 
   // Params for the Feed view. Normally city-scoped rather than bbox-bound (the
@@ -173,9 +206,9 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   // keeps the query.
   const feedParams: SearchParams = {
     ...queryParams,
-    bbox: !query && lockedBbox ? lockedBbox : undefined,
+    bbox: isAddressQuery ? queryParams.bbox : (!query && lockedBbox ? lockedBbox : undefined),
     status: queryParams.status || 'Active',
-    city: query || lockedBbox ? undefined : (effectiveCity || 'Vancouver'),
+    city: (query && !isAddressQuery) || lockedBbox ? undefined : (effectiveCity || 'Vancouver'),
   }
 
   // Numbered pagination for the list pane. Reset to page 1 whenever the query

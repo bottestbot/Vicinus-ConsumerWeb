@@ -23,7 +23,8 @@ interface SearchStore {
   // Map state
   mapBounds: MapBounds | null
   mapCenter: { longitude: number; latitude: number; zoom: number }
-  geocodedCenter: { longitude: number; latitude: number } | null
+  // `zoom` lets a full street-address geocode zoom in tighter than a city-level one.
+  geocodedCenter: { longitude: number; latitude: number; zoom?: number } | null
   // City the map is currently panned to (reverse-geocoded, debounced on
   // moveend). Distinct from userCity — that's the device's real location and
   // must stay stable — this is "wherever the user is currently browsing" and
@@ -44,7 +45,7 @@ interface SearchStore {
   setViewMode: (m: ViewMode) => void
   setMapBounds: (b: MapBounds) => void
   setMapCenter: (c: { longitude: number; latitude: number; zoom: number }) => void
-  setGeocodedCenter: (c: { longitude: number; latitude: number } | null) => void
+  setGeocodedCenter: (c: { longitude: number; latitude: number; zoom?: number } | null) => void
   setUserLocation: (city: string | null, coords: { latitude: number; longitude: number } | null) => void
   setMapCity: (city: string | null) => void
   setHoveredProperty: (id: string | null) => void

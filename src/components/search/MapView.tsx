@@ -77,7 +77,7 @@ export default function MapView({ properties, pins = [], fitSignal = '' }: MapVi
     if (!geocodedCenter) return
     const map = mapRef.current
     if (!map) return
-    map.flyTo({ center: [geocodedCenter.longitude, geocodedCenter.latitude], zoom: 12, duration: 800 })
+    map.flyTo({ center: [geocodedCenter.longitude, geocodedCenter.latitude], zoom: geocodedCenter.zoom ?? 12, duration: 800 })
     setGeocodedCenter(null)
   }, [geocodedCenter, setGeocodedCenter])
 
