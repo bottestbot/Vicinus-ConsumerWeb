@@ -5,6 +5,7 @@ import { Search, X, MapPin, Building2, Home, Navigation } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { getAutocomplete } from '@/lib/api/search'
 import { geocodeCity, geocodeAddress, parseAddress } from '@/lib/geocode'
+import { track } from '@/lib/analytics/capture'
 import type { AutocompleteSuggestion } from '@/types/search'
 import { glass, type GlassTheme } from './glassTheme'
 
@@ -88,12 +89,40 @@ export default function SearchBar({
       setViewMode('both')
       // geocodeCity fuzzy-matches the city out of the raw string on its own
       // (Mapbox tokenizes it), so it's the instant coarse zoom; geocodeAddress
-      // refines to the exact pin once it resolves.
-      geocodeCity(value).then((coords) => { if (coords) setGeocodedCenter(coords) })
-      geocodeAddress(value).then((coords) => { if (coords) setGeocodedCenter({ ...coords, zoom: 16 }) })
+      // refines to the exact pin once it resolves. Both requests fire
+      // concurrently, so the network can return either one first — a late
+      // city response must never clobber an address zoom that already landed,
+      // so gate it behind this flag rather than relying on request order.
+      let addressResolved = false
+      geocodeAddress(value).then((coords) => {
+        if (!coords) return
+        addressResolved = true
+        setGeocodedCenter({ ...coords, zoom: 16 })
+      })
+      geocodeCity(value).then((coords) => {
+        if (coords && !addressResolved) setGeocodedCenter(coords)
+      })
     } else {
+      // A city/neighbourhood search belongs in the Feed, not the Map — and
+      // must explicitly say so, since a prior address search in this session
+      // may have left viewMode on 'both' with nothing to switch it back.
+      setViewMode('list')
       geocodeCity(value).then((coords) => { if (coords) setGeocodedCenter(coords) })
     }
+  }
+
+  // Shared by the explicit search button and the Enter key (below) — typing a
+  // full address and expecting a suggestion to tap doesn't work (autocomplete
+  // never suggests street addresses), so there needs to be an unambiguous way
+  // to submit the raw typed text, not just Enter (unreliable from mobile
+  // on-screen "search" keys on a bare input with no wrapping <form>).
+  const handleSubmit = () => {
+    setQuery(inputValue)
+    setIsOpen(false)
+    onSearch?.(inputValue)
+    flyToQuery(inputValue)
+    inputRef.current?.blur()
+    track('search_performed', { query: inputValue })
   }
 
   const handleSelect = (s: AutocompleteSuggestion) => {
@@ -105,9 +134,23 @@ export default function SearchBar({
     inputRef.current?.blur()
     // Geocode immediately so the map flies before DDF responds
     flyToQuery(s.label)
+    track('autocomplete_selected', { query: inputValue, selection: s.label })
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Enter must submit whether or not a dropdown is showing — a typed
+    // address with no matching suggestion (autocomplete never suggests street
+    // addresses) leaves isOpen false, so this can't be gated on it like the
+    // arrow-key/Escape dropdown navigation below is.
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (isOpen && activeIndex >= 0) {
+        handleSelect(suggestions[activeIndex])
+      } else {
+        handleSubmit()
+      }
+      return
+    }
     if (!isOpen) return
     switch (e.key) {
       case 'ArrowDown':
@@ -117,17 +160,6 @@ export default function SearchBar({
       case 'ArrowUp':
         e.preventDefault()
         setActiveIndex((i) => Math.max(i - 1, -1))
-        break
-      case 'Enter':
-        e.preventDefault()
-        if (activeIndex >= 0) {
-          handleSelect(suggestions[activeIndex])
-        } else {
-          setQuery(inputValue)
-          setIsOpen(false)
-          onSearch?.(inputValue)
-          flyToQuery(inputValue)
-        }
         break
       case 'Escape':
         setIsOpen(false)
@@ -166,10 +198,14 @@ export default function SearchBar({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <div className="relative flex items-center">
-        <Search
-          size={15}
-          className={`absolute left-3 pointer-events-none ${t.icon}`}
-        />
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className={`absolute left-2.5 p-0.5 transition-colors ${t.icon} ${t.iconHover}`}
+          aria-label="Search"
+        >
+          <Search size={15} />
+        </button>
         <input
           ref={inputRef}
           type="text"

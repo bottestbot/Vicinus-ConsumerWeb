@@ -147,11 +147,28 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     // A full street address (e.g. arriving from the homepage hero search bar)
     // only means anything in the Map split-pane — force it, and fly to the
     // city instantly, then the exact address once Mapbox resolves it. Mirrors
-    // SearchBar's flyToQuery for the in-page typed case.
-    if (initial.query && parseAddress(initial.query).isFullAddress) {
-      setViewMode('both')
-      geocodeCity(initial.query).then((c) => { if (c) setGeocodedCenter(c) })
-      geocodeAddress(initial.query).then((c) => { if (c) setGeocodedCenter({ ...c, zoom: 16 }) })
+    // SearchBar's flyToQuery for the in-page typed case — including the
+    // addressResolved guard so a late city response can't clobber an address
+    // zoom that already landed (the two requests race independently).
+    if (initial.query) {
+      if (parseAddress(initial.query).isFullAddress) {
+        setViewMode('both')
+        let addressResolved = false
+        geocodeAddress(initial.query).then((c) => {
+          if (!c) return
+          addressResolved = true
+          setGeocodedCenter({ ...c, zoom: 16 })
+        })
+        geocodeCity(initial.query).then((c) => {
+          if (c && !addressResolved) setGeocodedCenter(c)
+        })
+      } else {
+        // A city/neighbourhood search from the homepage hero bar belongs in
+        // the Feed. Explicit, not just "leave the default" — the store is a
+        // singleton that can still be sitting on 'both' from an address
+        // search earlier in the session.
+        setViewMode('list')
+      }
     }
   }, [initial, setQuery, setFilter, setViewMode, setGeocodedCenter])
 
@@ -185,6 +202,16 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   // listings show up.
   const isAddressQuery = query ? parseAddress(query).isFullAddress : false
 
+  // For an address query, scope strictly to the real (address-centred) map
+  // bounds once the flyTo lands — NEVER fall back to userCoords/Vancouver like
+  // `defaultBbox` does for plain browsing. Falling back to the user's own
+  // location here was the actual bug: on the first fetch (before mapBounds
+  // catches up with the flyTo), it would briefly search/fit near the user's
+  // real location instead of the searched address, reading as "search snaps
+  // back to my location". `enabled` below withholds the fetch entirely until
+  // mapBoundsStr reflects the real target, so there's nothing to snap from.
+  const addressBbox = isAddressQuery ? mapBoundsStr : null
+
   const baseParams = filtersToSearchParams(filters, query)
   const queryParams = {
     ...baseParams,
@@ -194,7 +221,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     // return that city's listings regardless of where the map currently sits,
     // then the map flies to them. When browsing, fall back to the device
     // location / Vancouver box so results are never global.
-    bbox: !query || isAddressQuery ? defaultBbox : undefined,
+    bbox: !query ? defaultBbox : (isAddressQuery ? addressBbox ?? undefined : undefined),
   }
 
   // Params for the Feed view. Normally city-scoped rather than bbox-bound (the
@@ -206,7 +233,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   // keeps the query.
   const feedParams: SearchParams = {
     ...queryParams,
-    bbox: isAddressQuery ? queryParams.bbox : (!query && lockedBbox ? lockedBbox : undefined),
+    bbox: isAddressQuery ? addressBbox ?? undefined : (!query && lockedBbox ? lockedBbox : undefined),
     status: queryParams.status || 'Active',
     city: (query && !isAddressQuery) || lockedBbox ? undefined : (effectiveCity || 'Vancouver'),
   }
@@ -224,8 +251,10 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     queryFn: () =>
       searchProperties({ ...queryParams, page, limit: PAGE_SIZE }).then((r) => r.data as SearchResponse),
     // The list only renders in the Map (split-pane) view; skip the fetch on the
-    // Feed, which loads its own data via FeedView.
-    enabled: viewMode === 'both',
+    // Feed, which loads its own data via FeedView. For an address query, also
+    // withhold the fetch until the real map bounds land (see addressBbox) —
+    // otherwise there's a brief window with no bbox to scope by at all.
+    enabled: viewMode === 'both' && (!isAddressQuery || !!addressBbox),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   })
@@ -240,8 +269,11 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   // meaningful latency to the feed response, so there's no need to defer it;
   // firing both immediately keeps pins warm for an instant Feed→Map switch
   // (BUY-04). Any first-load slowness is API cold-start, not pin contention.
-  const bbox = mapBoundsStr ?? defaultBbox
-  const pinParams = { ...queryParams, bbox }
+  // Same rule as queryParams above: an address query must never fall back to
+  // defaultBbox's userCoords/Vancouver chain, or pins would briefly show the
+  // user's own area instead of nothing while waiting for the real address bbox.
+  const bbox = isAddressQuery ? addressBbox : (mapBoundsStr ?? defaultBbox)
+  const pinParams = { ...queryParams, bbox: bbox ?? undefined }
   const { data: pinsData } = useQuery({
     queryKey: ['map-pins', pinParams],
     queryFn: () => getMapPins(pinParams).then((r) => r.data as MapPinResponse[]),
