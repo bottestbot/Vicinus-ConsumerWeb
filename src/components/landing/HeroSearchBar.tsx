@@ -35,6 +35,12 @@ export default function HeroSearchBar({
     ? 'bg-white border border-[#E8E6E1]'
     : 'bg-white/95 backdrop-blur-sm shadow-lg'
   const [inputValue, setInputValue] = useState('')
+  // The picked suggestion's DDF-queryable municipality (e.g. "Surrey" for
+  // "South Surrey") — forwarded to /search as `city` so a sub-area label
+  // isn't left to substring-match DDF's City field, or re-geocoded bare and
+  // risk resolving to a same-named place elsewhere in Canada. Cleared
+  // whenever the field no longer reflects that exact pick (free typing).
+  const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -72,6 +78,7 @@ export default function HeroSearchBar({
     // Only fill the field with the picked location — do NOT navigate.
     // Navigation to /search happens exclusively on Discover (form submit).
     setInputValue(s.label)
+    setSelectedCity(s.city ?? null)
     setSuggestions([])
     setIsOpen(false)
     inputRef.current?.focus()
@@ -82,6 +89,7 @@ export default function HeroSearchBar({
     setIsOpen(false)
     const params = new URLSearchParams()
     if (inputValue) params.set('q', inputValue)
+    if (selectedCity) params.set('city', selectedCity)
     if (priceRange) params.set('priceRange', priceRange)
     router.push(`/search?${params}`)
   }
@@ -127,7 +135,7 @@ export default function HeroSearchBar({
           <input
             ref={inputRef}
             value={inputValue}
-            onChange={(e) => { setInputValue(e.target.value); fetchSuggestions(e.target.value) }}
+            onChange={(e) => { setInputValue(e.target.value); setSelectedCity(null); fetchSuggestions(e.target.value) }}
             onKeyDown={handleKeyDown}
             onFocus={() => inputValue && fetchSuggestions(inputValue)}
             type="text"

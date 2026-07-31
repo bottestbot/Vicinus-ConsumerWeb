@@ -76,6 +76,10 @@ export default async function SearchPage({
     propertyType: type ? type.split(',').map((t) => t.trim()).filter(Boolean) : [],
     bbox: neighbourhoodBbox,
     locationLabel: neighbourhoodName,
+    // The homepage hero bar forwards the picked suggestion's DDF-queryable
+    // municipality here (see HeroSearchBar) — RecentSearches also sends `city`
+    // directly since it's already an exact DDF city, not a sub-area label.
+    city: first(sp.city),
   }
 
   return <SearchPageClient initial={initial} />

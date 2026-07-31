@@ -29,7 +29,7 @@ export default function SearchBar({
   className = '',
   theme = 'dark',
 }: SearchBarProps) {
-  const { query, setQuery, setGeocodedCenter, setViewMode } = useSearchStore()
+  const { query, setQuery, setSelectedCity, setGeocodedCenter, setViewMode, viewMode } = useSearchStore()
   const t = glass(theme)
   const [inputValue, setInputValue] = useState(query)
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
@@ -74,6 +74,10 @@ export default function SearchBar({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value
     setInputValue(v)
+    // Typing after a suggestion was picked means the user is no longer
+    // searching that exact suggestion — drop its resolved city so a stale
+    // selection doesn't silently override the new free-text query.
+    setSelectedCity(null)
     fetchSuggestions(v)
   }
 
@@ -82,7 +86,11 @@ export default function SearchBar({
   // Autocomplete only ever suggests cities/neighbourhoods (never street
   // addresses — see search.service.ts), so this only fires for a query the
   // user typed and submitted directly, not a picked suggestion.
-  const flyToQuery = (value: string) => {
+  // `geocodeQuery` disambiguates same-named places (e.g. "Ambleside" exists in
+  // both West Vancouver and Calgary) — it's `value` qualified with the
+  // suggestion's own city/province context. Mapbox is only ever queried with
+  // this qualified string; `value` alone stays the display label.
+  const flyToQuery = (value: string, geocodeQuery: string = value) => {
     if (parseAddress(value).isFullAddress) {
       // A street address only has anywhere to zoom in the Map split-pane — the
       // Feed (this page's default view) has no map at all — so force it.
@@ -94,20 +102,19 @@ export default function SearchBar({
       // city response must never clobber an address zoom that already landed,
       // so gate it behind this flag rather than relying on request order.
       let addressResolved = false
-      geocodeAddress(value).then((coords) => {
+      geocodeAddress(geocodeQuery).then((coords) => {
         if (!coords) return
         addressResolved = true
         setGeocodedCenter({ ...coords, zoom: 16 })
       })
-      geocodeCity(value).then((coords) => {
+      geocodeCity(geocodeQuery).then((coords) => {
         if (coords && !addressResolved) setGeocodedCenter(coords)
       })
     } else {
-      // A city/neighbourhood search belongs in the Feed, not the Map — and
-      // must explicitly say so, since a prior address search in this session
-      // may have left viewMode on 'both' with nothing to switch it back.
-      setViewMode('list')
-      geocodeCity(value).then((coords) => { if (coords) setGeocodedCenter(coords) })
+      // A city/neighbourhood search defaults to the Feed — but if the user is
+      // already on the Map, leave them there instead of yanking them to Feed.
+      if (viewMode !== 'both') setViewMode('list')
+      geocodeCity(geocodeQuery).then((coords) => { if (coords) setGeocodedCenter(coords) })
     }
   }
 
@@ -128,12 +135,24 @@ export default function SearchBar({
   const handleSelect = (s: AutocompleteSuggestion) => {
     setInputValue(s.label)
     setQuery(s.label)
+    // A city/neighbourhood suggestion's own city (e.g. "Surrey" for "South
+    // Surrey") is what DDF can actually filter on — the display label often
+    // isn't (a sub-area name, or a "Name / City, Province" compound string).
+    setSelectedCity(s.city ?? null)
     setSuggestions([])
     setIsOpen(false)
     onSearch?.(s.label)
     inputRef.current?.blur()
-    // Geocode immediately so the map flies before DDF responds
-    flyToQuery(s.label)
+    // Geocode immediately so the map flies before DDF responds. Qualify with
+    // the suggestion's own city/subtitle so Mapbox doesn't resolve a bare
+    // neighbourhood name (e.g. "Ambleside") to a same-named place in another
+    // province — the label alone is ambiguous nationally, this isn't.
+    const geocodeQuery = s.city
+      ? `${s.label}, ${s.city}`
+      : s.subtitle
+      ? `${s.label}, ${s.subtitle}`
+      : s.label
+    flyToQuery(s.label, geocodeQuery)
     track('autocomplete_selected', { query: inputValue, selection: s.label })
   }
 
@@ -172,6 +191,7 @@ export default function SearchBar({
   const handleClear = () => {
     setInputValue('')
     setQuery('')
+    setSelectedCity(null)
     setSuggestions([])
     setIsOpen(false)
     inputRef.current?.focus()

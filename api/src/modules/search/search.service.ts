@@ -171,7 +171,7 @@ export class SearchService {
    */
   async autocomplete(
     q: string,
-  ): Promise<{ id: string; label: string; type: string; subtitle: string }[]> {
+  ): Promise<{ id: string; label: string; type: string; subtitle: string; city: string }[]> {
     const query = (q ?? '').trim()
     if (query.length < 1) return []
     const lower = query.toLowerCase()
@@ -195,8 +195,8 @@ export class SearchService {
 
     // Partition into municipalities (name === city) and sub-areas, collapsing
     // duplicate city rows (e.g. several Vancouver neighbourhoods share a city).
-    const dbCities: { id: string; label: string; type: string; subtitle: string }[] = []
-    const neighbourhoods: { id: string; label: string; type: string; subtitle: string }[] = []
+    const dbCities: { id: string; label: string; type: string; subtitle: string; city: string }[] = []
+    const neighbourhoods: { id: string; label: string; type: string; subtitle: string; city: string }[] = []
     const seenCity = new Set<string>()
     const seenHood = new Set<string>()
 
@@ -211,6 +211,7 @@ export class SearchService {
           label: n.name,
           type: 'city',
           subtitle: provinceLabel(n.province),
+          city: n.name,
         })
       } else {
         if (seenHood.has(key)) continue
@@ -219,7 +220,11 @@ export class SearchService {
           id: `n-${n.slug}`,
           label: n.name,
           type: 'neighbourhood',
+          // A neighbourhood/community name isn't a DDF `City` value — carry the
+          // parent municipality separately (below) so search can filter on it
+          // instead of substring-matching this compound display string.
           subtitle: [n.city, provinceLabel(n.province)].filter(Boolean).join(', '),
+          city: n.city ?? n.name,
         })
       }
     }
@@ -229,7 +234,7 @@ export class SearchService {
       (c) =>
         c.label.toLowerCase().includes(lower) &&
         !seenCity.has(c.label.toLowerCase()),
-    )
+    ).map((c) => ({ ...c, city: c.label }))
 
     // Rank cities prefix-first, then sub-area neighbourhoods.
     const prefixFirst = (

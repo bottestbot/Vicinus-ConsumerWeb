@@ -97,6 +97,14 @@ export interface InitialSearch {
   // header (a neighbourhood name isn't a searchable city/address `q`).
   bbox?: string | null
   locationLabel?: string
+  // The DDF-queryable municipality behind `query`, when it came from picking a
+  // homepage-hero autocomplete suggestion rather than typed free text — mirrors
+  // SearchBar's own selectedCity (see AutocompleteSuggestion.city). Without
+  // this, a sub-area/neighbourhood label like "South Surrey" or "Ambleside"
+  // never substring-matches DDF's City field, and re-geocoding the bare label
+  // (no city/province qualifier) can resolve to a same-named place elsewhere
+  // in Canada.
+  city?: string
 }
 
 // Vancouver fallback (BUG-03 / BUY-03): used to scope default results when no
@@ -115,14 +123,17 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     viewMode,
     filters,
     query,
+    selectedCity,
     mapBounds,
     userCity,
     mapCity,
     userCoords,
+    geocodedCenter,
     setQuery,
     setFilter,
     setViewMode,
     setGeocodedCenter,
+    setSelectedCity,
   } = useSearchStore()
 
   // Wherever the user last panned the map takes priority over their actual
@@ -138,6 +149,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     if (hydrated.current || !initial) return
     hydrated.current = true
     if (initial.query) setQuery(initial.query)
+    if (initial.city) setSelectedCity(initial.city)
     if (initial.minPrice !== null) setFilter('minPrice', initial.minPrice)
     if (initial.maxPrice !== null) setFilter('maxPrice', initial.maxPrice)
     if (initial.beds !== null) setFilter('beds', initial.beds)
@@ -168,9 +180,15 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
         // singleton that can still be sitting on 'both' from an address
         // search earlier in the session.
         setViewMode('list')
+        // Qualify with initial.city (same disambiguation SearchBar's
+        // flyToQuery does) so switching to Map doesn't rely on a bare
+        // neighbourhood name that can resolve to a same-named place in
+        // another province (e.g. "Ambleside" in Calgary vs. West Vancouver).
+        const geocodeQuery = initial.city ? `${initial.query}, ${initial.city}` : initial.query
+        geocodeCity(geocodeQuery).then((c) => { if (c) setGeocodedCenter(c) })
       }
     }
-  }, [initial, setQuery, setFilter, setViewMode, setGeocodedCenter])
+  }, [initial, setQuery, setFilter, setViewMode, setGeocodedCenter, setSelectedCity])
 
   // NBHDCTA-02: a neighbourhood's "Explore Listings" CTA arrives with a locked
   // bbox around that neighbourhood's centroid (computed server-side in
@@ -202,6 +220,24 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   // listings show up.
   const isAddressQuery = query ? parseAddress(query).isFullAddress : false
 
+  // Set when the query came from picking an autocomplete suggestion rather
+  // than typing free text — its `city` is DDF-queryable (e.g. "Surrey" for
+  // "South Surrey"), whereas the display label often isn't: a sub-area name,
+  // or a "Name / City, Province" compound string, never substring-matches a
+  // DDF listing's City field. Filter by that exact city instead of `q`.
+  const isCitySelection = !!selectedCity && !isAddressQuery
+
+  // True when the picked suggestion is a sub-area of its DDF city rather than
+  // the city itself (e.g. "South Surrey" → city "Surrey") — `city` alone would
+  // then return the *whole* city, not just the sub-area the user searched.
+  // Map already narrows correctly because it flies to the geocoded center and
+  // scopes by live mapBounds; Feed has no map/bounds of its own, so it needs
+  // the same geocoded center turned into a bbox here.
+  const isSubAreaSelection =
+    isCitySelection && query.trim().toLowerCase() !== (selectedCity ?? '').trim().toLowerCase()
+  const subAreaBbox =
+    isSubAreaSelection && geocodedCenter ? bboxAround(geocodedCenter.longitude, geocodedCenter.latitude) : null
+
   // For an address query, scope strictly to the real (address-centred) map
   // bounds once the flyTo lands — NEVER fall back to userCoords/Vancouver like
   // `defaultBbox` does for plain browsing. Falling back to the user's own
@@ -215,7 +251,10 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   const baseParams = filtersToSearchParams(filters, query)
   const queryParams = {
     ...baseParams,
-    q: isAddressQuery ? undefined : baseParams.q,
+    // A picked suggestion's resolved city replaces the free-text `q` filter —
+    // see isCitySelection above.
+    q: isAddressQuery || isCitySelection ? undefined : baseParams.q,
+    city: isCitySelection ? selectedCity ?? undefined : undefined,
     // Only constrain by area when the user is browsing (no text query) or the
     // query is a street address. A city/neighbourhood text search should
     // return that city's listings regardless of where the map currently sits,
@@ -233,9 +272,15 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   // keeps the query.
   const feedParams: SearchParams = {
     ...queryParams,
-    bbox: isAddressQuery ? addressBbox ?? undefined : (!query && lockedBbox ? lockedBbox : undefined),
+    bbox: isAddressQuery
+      ? addressBbox ?? undefined
+      : subAreaBbox ?? (!query && lockedBbox ? lockedBbox : undefined),
     status: queryParams.status || 'Active',
-    city: (query && !isAddressQuery) || lockedBbox ? undefined : (effectiveCity || 'Vancouver'),
+    city: isCitySelection
+      ? selectedCity ?? undefined
+      : (query && !isAddressQuery) || lockedBbox
+        ? undefined
+        : (effectiveCity || 'Vancouver'),
   }
 
   // Numbered pagination for the list pane. Reset to page 1 whenever the query

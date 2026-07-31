@@ -13,6 +13,11 @@ interface MapBounds {
 interface SearchStore {
   // Query & filters
   query: string
+  // Set only when `query` came from picking an autocomplete suggestion — the
+  // suggestion's real DDF-queryable city (e.g. "Surrey" for "South Surrey"),
+  // since a neighbourhood/community name never matches DDF's `City` field on
+  // its own. Cleared whenever the user types free text instead of selecting.
+  selectedCity: string | null
   filters: SearchFiltersExtended
   viewMode: ViewMode
 
@@ -40,6 +45,7 @@ interface SearchStore {
 
   // Actions
   setQuery: (q: string) => void
+  setSelectedCity: (city: string | null) => void
   setFilter: <K extends keyof SearchFiltersExtended>(key: K, value: SearchFiltersExtended[K]) => void
   resetFilters: () => void
   setViewMode: (m: ViewMode) => void
@@ -91,6 +97,7 @@ const defaultFilters: SearchFiltersExtended = {
 
 export const useSearchStore = create<SearchStore>((set, get) => ({
   query: '',
+  selectedCity: null,
   filters: defaultFilters,
   viewMode: 'list', // Buy opens on the Feed by default; 'both' = Map (split-pane).
   userCity: null,
@@ -107,6 +114,8 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   savedSearches: [],
 
   setQuery: (q) => set({ query: q }),
+
+  setSelectedCity: (city) => set({ selectedCity: city }),
 
   setFilter: (key, value) =>
     set((s) => ({ filters: { ...s.filters, [key]: value } })),

@@ -92,6 +92,11 @@ export interface AutocompleteSuggestion {
   label: string
   type: 'city' | 'neighbourhood' | 'address' | 'postal'
   subtitle?: string
+  /** The DDF-queryable municipality this suggestion resolves to (e.g. "Surrey"
+   *  for the "South Surrey" sub-area) — a neighbourhood/community name on its
+   *  own never matches DDF's `City` field, so search must filter on this
+   *  instead of the display label. */
+  city?: string
 }
 
 export interface MapPin {
