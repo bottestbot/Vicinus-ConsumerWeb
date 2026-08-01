@@ -1,8 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { AxiosError } from 'axios'
 import { ArrowRight, Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import { submitRealtorWaitlist } from '@/lib/api/waitlist'
+import { bookDiscoveryCall } from '@/lib/api/booking'
 import { track } from '@/lib/analytics/capture'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -180,7 +182,10 @@ function DiscoveryCallCard() {
   const [monthOffset, setMonthOffset] = useState(0)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
-  const [confirmed, setConfirmed] = useState(false)
+  const [contactName, setContactName] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [status, setStatus] = useState<Status>('idle')
+  const [error, setError] = useState<string | null>(null)
 
   const { label, weeks, year, month } = useMemo(() => {
     const base = new Date()
@@ -216,13 +221,39 @@ function DiscoveryCallCard() {
     return d < t
   }
 
-  function handleConfirm() {
-    // No scheduling backend exists yet — this books nothing server-side, it
-    // just reflects the selection back to the realtor until that lands.
-    setConfirmed(true)
+  async function handleConfirm() {
+    if (!selectedDay || !selectedTime) return
+    if (!contactName.trim()) return setError('Please enter your name.')
+    if (!EMAIL_RE.test(contactEmail)) return setError('Please enter a valid email address.')
+
+    setError(null)
+    setStatus('submitting')
+    try {
+      const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
+      await bookDiscoveryCall({
+        fullName: contactName.trim(),
+        email: contactEmail.trim(),
+        date,
+        timeSlot: selectedTime,
+      })
+      setStatus('success')
+    } catch (err) {
+      setStatus('error')
+      if (err instanceof AxiosError && err.response?.status === 409) {
+        setError('That time slot was just booked — please pick another.')
+        setSelectedTime(null)
+      } else {
+        setError('Something went wrong. Please try again.')
+      }
+    }
   }
 
-  if (confirmed && selectedDay && selectedTime) {
+  if (status === 'success' && selectedDay && selectedTime) {
+    const formattedDate = new Date(year, month, selectedDay).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
     return (
       <div className="rounded-2xl bg-white p-6 text-center shadow-xl sm:p-8">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#1C3829]">
@@ -232,7 +263,7 @@ function DiscoveryCallCard() {
           Call requested.
         </h3>
         <p className="mt-2 text-sm text-[#6B6B6B]">
-          Tom will confirm your {label} {selectedDay} slot at {selectedTime} by email shortly.
+          Tom will confirm your {formattedDate} slot at {selectedTime} by email shortly.
         </p>
       </div>
     )
@@ -321,13 +352,36 @@ function DiscoveryCallCard() {
         </div>
       </div>
 
+      {selectedDay && selectedTime && (
+        <div className="mt-6 space-y-3 border-t border-[#E8E6E1] pt-6">
+          <input
+            type="text"
+            autoComplete="name"
+            placeholder="Your name"
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+            className="w-full rounded-lg border border-[#E8E6E1] bg-[#FAF9F6] px-4 py-2.5 text-sm text-[#111111] placeholder-[#9A9A9A] outline-none transition-colors focus:border-[#1C3829] focus:bg-white"
+          />
+          <input
+            type="email"
+            autoComplete="email"
+            placeholder="Your email"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            className="w-full rounded-lg border border-[#E8E6E1] bg-[#FAF9F6] px-4 py-2.5 text-sm text-[#111111] placeholder-[#9A9A9A] outline-none transition-colors focus:border-[#1C3829] focus:bg-white"
+          />
+        </div>
+      )}
+
+      {error && <p className="mt-3 text-sm text-[#C0392B]">{error}</p>}
+
       <button
         type="button"
-        disabled={!selectedDay || !selectedTime}
+        disabled={!selectedDay || !selectedTime || status === 'submitting'}
         onClick={handleConfirm}
         className="mt-6 w-full rounded-lg bg-[#111111] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1C3829] disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Confirm Booking
+        {status === 'submitting' ? 'Booking…' : 'Confirm Booking'}
       </button>
     </div>
   )

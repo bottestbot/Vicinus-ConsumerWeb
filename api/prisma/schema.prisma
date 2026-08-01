@@ -453,6 +453,20 @@ model RealtorWaitlist {
   createdAt  DateTime @default(now())
 }
 
+// Realtor Hub landing page — 15-minute founder discovery-call requests.
+// Unique on (scheduledDate, timeSlot) so two Realtors can't book the same slot.
+model DiscoveryCallBooking {
+  id            String   @id @default(uuid())
+  fullName      String
+  email         String
+  scheduledDate DateTime
+  timeSlot      String
+  source        String?
+  createdAt     DateTime @default(now())
+
+  @@unique([scheduledDate, timeSlot])
+}
+
 model DdfSyncLog {
   id                    String    @id @default(uuid())
   entity                String
