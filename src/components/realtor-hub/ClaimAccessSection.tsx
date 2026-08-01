@@ -9,6 +9,29 @@ import { track } from '@/lib/analytics/capture'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+/**
+ * Turn a request failure into something diagnosable from the UI alone.
+ *
+ * A bare "something went wrong" makes every cause look identical — a missing
+ * route, an unmigrated database, a blocked origin, an unreachable host — which
+ * is unusable when the only signal is a user's screenshot. Surface the server's
+ * own message when it sends one, and always carry the status code.
+ */
+function failureMessage(err: unknown, fallback: string): string {
+  if (!(err instanceof AxiosError)) return fallback
+
+  // No response at all: DNS, TLS, a blocked CORS preflight, or a down host.
+  if (!err.response) {
+    return 'Could not reach the server. Please check your connection and try again.'
+  }
+
+  const { status, data } = err.response
+  const raw = (data as { message?: string | string[] } | undefined)?.message
+  const detail = Array.isArray(raw) ? raw[0] : raw
+
+  return detail ? `${detail} (error ${status})` : `${fallback} (error ${status})`
+}
+
 const NEIGHBOURHOODS = [
   'Kitsilano',
   'Point Grey',
@@ -58,9 +81,9 @@ function ReserveForm() {
       })
       track('realtor_waitlist_submitted', { cityMarket: neighbourhood })
       setStatus('success')
-    } catch {
+    } catch (err) {
       setStatus('error')
-      setError('Something went wrong. Please try again.')
+      setError(failureMessage(err, 'Something went wrong. Please try again.'))
     }
   }
 
@@ -243,7 +266,7 @@ function DiscoveryCallCard() {
         setError('That time slot was just booked — please pick another.')
         setSelectedTime(null)
       } else {
-        setError('Something went wrong. Please try again.')
+        setError(failureMessage(err, 'Something went wrong. Please try again.'))
       }
     }
   }
