@@ -44,11 +44,19 @@ export default function RealtorHubHero() {
           </p>
         </div>
 
-        {/* Right image */}
-        <div className="relative aspect-[4/3] overflow-hidden rounded-2xl lg:aspect-[5/4]">
+        {/* Right image. The wrapper carries a dusk-toned gradient of its own so
+            the hero still reads as a deliberate panel — not an empty box — while
+            the photo loads, or if it fails to load entirely. */}
+        <div
+          className="relative aspect-[4/3] overflow-hidden rounded-2xl ring-1 ring-white/10 lg:aspect-[5/4]"
+          style={{
+            background:
+              'linear-gradient(160deg, #2E4A54 0%, #1F3630 45%, #16241A 100%)',
+          }}
+        >
           <Image
             src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=80"
-            alt="Modern Vancouver-area home exterior"
+            alt="Modern Vancouver-area home exterior at dusk"
             fill
             sizes="(max-width: 1024px) 100vw, 50vw"
             className="object-cover"
