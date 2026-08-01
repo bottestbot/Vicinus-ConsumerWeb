@@ -1,30 +1,31 @@
-import { Module } from '@nestjs/common'
-import { APP_GUARD } from '@nestjs/core'
-import { ConfigModule } from '@nestjs/config'
-import { ScheduleModule } from '@nestjs/schedule'
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
-import { PrismaModule } from './prisma/prisma.module'
-import { RedisModule } from './common/redis/redis.module'
-import { DdfSyncModule } from './modules/ddf-sync/ddf-sync.module'
-import { PropertiesModule } from './modules/properties/properties.module'
-import { SearchModule } from './modules/search/search.module'
-import { AnalyticsModule } from './modules/analytics/analytics.module'
-import { UsersModule } from './modules/users/users.module'
-import { AlertsModule } from './modules/alerts/alerts.module'
-import { OpenHouseVisitsModule } from './modules/open-house-visits/open-house-visits.module'
-import { NeighbourhoodsModule } from './modules/neighbourhoods/neighbourhoods.module'
-import { AgentsModule } from './modules/agents/agents.module'
-import { EditorialModule } from './modules/editorial/editorial.module'
-import { AuthModule } from './modules/auth/auth.module'
-import { AiModule } from './modules/ai/ai.module'
-import { SellModule } from './modules/sell/sell.module'
-import { WaitlistModule } from './modules/waitlist/waitlist.module'
-import { LeadModule } from './modules/lead/lead.module'
-import { ContactModule } from './modules/contact/contact.module'
-import { MortgageModule } from './modules/mortgage/mortgage.module'
-import { HealthModule } from './modules/health/health.module'
-import { BriefModule } from './modules/brief/brief.module'
-import { VibeCheckModule } from './modules/vibe-check/vibe-check.module'
+import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { PrismaModule } from './prisma/prisma.module';
+import { RedisModule } from './common/redis/redis.module';
+import { DdfSyncModule } from './modules/ddf-sync/ddf-sync.module';
+import { PropertiesModule } from './modules/properties/properties.module';
+import { SearchModule } from './modules/search/search.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { UsersModule } from './modules/users/users.module';
+import { AlertsModule } from './modules/alerts/alerts.module';
+import { OpenHouseVisitsModule } from './modules/open-house-visits/open-house-visits.module';
+import { NeighbourhoodsModule } from './modules/neighbourhoods/neighbourhoods.module';
+import { AgentsModule } from './modules/agents/agents.module';
+import { EditorialModule } from './modules/editorial/editorial.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { AiModule } from './modules/ai/ai.module';
+import { SellModule } from './modules/sell/sell.module';
+import { WaitlistModule } from './modules/waitlist/waitlist.module';
+import { BookingModule } from './modules/booking/booking.module';
+import { LeadModule } from './modules/lead/lead.module';
+import { ContactModule } from './modules/contact/contact.module';
+import { MortgageModule } from './modules/mortgage/mortgage.module';
+import { HealthModule } from './modules/health/health.module';
+import { BriefModule } from './modules/brief/brief.module';
+import { VibeCheckModule } from './modules/vibe-check/vibe-check.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { VibeCheckModule } from './modules/vibe-check/vibe-check.module'
     AiModule,
     SellModule,
     WaitlistModule,
+    BookingModule,
     LeadModule,
     ContactModule,
     MortgageModule,

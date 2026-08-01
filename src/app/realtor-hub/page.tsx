@@ -2,13 +2,18 @@ import type { Metadata } from 'next'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import RealtorHubHero from '@/components/realtor-hub/RealtorHubHero'
-import RealtorHubFeatures from '@/components/realtor-hub/RealtorHubFeatures'
-import WaitlistForm from '@/components/realtor-hub/WaitlistForm'
+import RealtorHubListings from '@/components/realtor-hub/RealtorHubListings'
+import RealtorHubShowcase from '@/components/realtor-hub/RealtorHubShowcase'
+import RealtorHubTabs from '@/components/realtor-hub/RealtorHubTabs'
+import RealtorHubHowItWorks from '@/components/realtor-hub/RealtorHubHowItWorks'
+import RealtorHubBanner from '@/components/realtor-hub/RealtorHubBanner'
+import RealtorHubFAQ from '@/components/realtor-hub/RealtorHubFAQ'
+import ClaimAccessSection from '@/components/realtor-hub/ClaimAccessSection'
 
 export const metadata: Metadata = {
-  title: 'REALTOR® Hub | Coming Soon',
+  title: 'REALTOR® Hub | Founding Access',
   description:
-    'Vicinus is coming for real estate professionals — the new intelligence layer for modern REALTORS®. Join the waitlist for founding-member early access.',
+    'Vicinus is coming to Greater Vancouver Realtors. Claim your Founding Access spot for 10 days early on your neighbourhood before public launch.',
 }
 
 export default function RealtorHubPage() {
@@ -17,20 +22,13 @@ export default function RealtorHubPage() {
       <Navbar overHero />
 
       <RealtorHubHero />
-      <RealtorHubFeatures />
-
-      {/* ── Join the Waitlist ─────────────────────────────────────────────── */}
-      <section id="waitlist" className="scroll-mt-24 bg-[#FAF9F6] px-6 pb-24">
-        <div className="mx-auto max-w-2xl">
-          <div className="mb-8 text-center">
-            <h2 className="font-heading text-4xl font-bold text-[#111111]">Join the Waitlist</h2>
-            <p className="mt-3 text-sm text-[#6B6B6B]">
-              Secure your spot in the next era of real estate intelligence.
-            </p>
-          </div>
-          <WaitlistForm />
-        </div>
-      </section>
+      <RealtorHubListings />
+      <RealtorHubShowcase />
+      <RealtorHubTabs />
+      <RealtorHubHowItWorks />
+      <RealtorHubBanner />
+      <RealtorHubFAQ />
+      <ClaimAccessSection />
 
       <Footer />
     </main>
