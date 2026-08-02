@@ -20,7 +20,12 @@ export interface SearchParams {
   minSqft?: number
   maxSqft?: number
   yearBuiltMin?: number
+  yearBuiltMax?: number
   parkingMin?: number
+  /** true = has a basement, false = explicitly none. Omit for no constraint. */
+  basement?: boolean
+  /** Listed within the last N days. */
+  maxDaysListed?: number
   bbox?: string
   page?: number
   limit?: number

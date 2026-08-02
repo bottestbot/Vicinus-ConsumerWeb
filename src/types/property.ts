@@ -1,5 +1,7 @@
 // ─── Property Detail Types ────────────────────────────────────────────────────
 
+import type { OpenHouseSummary } from './search'
+
 export interface AssessmentRecord {
   year: number
   assessedValue: number
@@ -170,6 +172,9 @@ export interface PropertyDetail {
   salesHistory?: SaleRecord[]
   nearbyListings?: NearbyListing[]
   nearbyOpenHouses?: OpenHouseProperty[]
+  /** This listing's soonest upcoming open house — the card/header tag. The full
+   *  schedule is fetched separately (see OpenHouseSchedule). */
+  openHouse?: OpenHouseSummary | null
   // Facts & features (live DDF only; mock data lacks it)
   details?: PropertyFactsDetails
   // Media (live DDF only) — branded/unbranded virtual tour + YouTube video tour

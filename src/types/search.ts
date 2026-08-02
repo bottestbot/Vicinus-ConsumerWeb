@@ -2,6 +2,21 @@
 
 import type { SearchParams } from '@/lib/api/search'
 
+/**
+ * A listing's soonest upcoming open house — the payload behind the "Open House"
+ * tag on cards. The full schedule (all slots, remarks, livestream link) lives on
+ * the detail page and is a different shape; this is only ever "when is the next
+ * one". Matches the API's `openHouse` field on search/detail listings.
+ */
+export interface OpenHouseSummary {
+  /** DDF OpenHouseKey — lets a card add this slot straight to the user's schedule. */
+  openHouseKey: string
+  /** DDF OpenHouseDate, "YYYY-MM-DD". */
+  date: string
+  startTime: string | null
+  endTime: string | null
+}
+
 export interface Property {
   id: string
   address: string
@@ -40,6 +55,8 @@ export interface Property {
   features?: string[]
   virtualTourUrl?: string | null
   youtubeUrl?: string | null
+  /** Soonest upcoming open house, when the listing has one. */
+  openHouse?: OpenHouseSummary | null
 }
 
 export interface SearchFiltersExtended {
@@ -60,16 +77,16 @@ export interface SearchFiltersExtended {
   // Advanced
   minYearBuilt: number | null
   maxYearBuilt: number | null
+  /** true = has a basement, false = explicitly none, null = no constraint. */
   basement: boolean | null
-  minStories: number | null
   parking: number | null
   // Listing status
   maxDaysListed: number | null
+  // No DDF query behind these two yet — see FilterPanel. They're kept in the
+  // store so the toggles hold their state, but they never reach the API and are
+  // excluded from the Filter badge.
   hasOpenHouse: boolean
   comingSoon: boolean
-  // Financial
-  maxMonthlyPayment: number | null
-  maxHoaFee: number | null
   // Rental
   petFriendly: boolean
   laundry: boolean

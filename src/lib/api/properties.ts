@@ -1,6 +1,7 @@
 import apiClient from './client'
 import type { OpenHouseProperty, PropertyDetail, PropertyFactsDetails } from '@/types/property'
 import { propertyTypeLabel } from '@/types/search'
+import type { OpenHouseSummary } from '@/types/search'
 
 export const getProperty = (id: string) => apiClient.get(`/properties/${id}`)
 export const getProperties = (params?: Record<string, unknown>) => apiClient.get('/properties', { params })
@@ -70,6 +71,7 @@ interface ApiListing {
   agent?: { fullName?: string | null } | null
   office?: { name?: string | null } | null
   details?: PropertyFactsDetails | null
+  openHouse?: OpenHouseSummary | null
 }
 
 function mapImages(images: ApiListingImage[] | null | undefined): string[] {
@@ -143,6 +145,7 @@ function toPropertyDetail(l: ApiListing): PropertyDetail {
     details: l.details ?? undefined,
     virtualTourUrl: l.virtualTourUrl ?? undefined,
     youtubeUrl: l.youtubeUrl ?? undefined,
+    openHouse: l.openHouse ?? null,
   }
 }
 
@@ -205,6 +208,8 @@ export interface FeaturedProperty {
   agentName?: string | null
   brokerageName?: string | null
   mlsNumber?: string | null
+  /** Soonest upcoming open house — renders the shared "Open House" tag. */
+  openHouse?: OpenHouseSummary | null
 }
 
 /** Real curated highlight listings for the landing page. Returns [] on miss. */

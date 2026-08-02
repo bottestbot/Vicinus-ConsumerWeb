@@ -578,6 +578,14 @@ export class NeighbourhoodsService {
       take: 6,
     })
 
+    // Soonest upcoming open house per listing, for the card's "Open House" tag.
+    // Read from the locally-synced OpenHouse table rather than live DDF: these
+    // cards are already built from local Property rows, so a local join keeps
+    // the whole block consistent instead of mixing two freshness horizons.
+    const openHouses = await this.nextOpenHouses(
+      properties.map((p) => p.ddfListingKey),
+    )
+
     return properties.map((p) => ({
       // JUL21FIX-01/02: expose the DDF ListingKey as `id`, never the local cuid.
       // The FE routes /properties/:id and reports CREA events by ListingKey, so
@@ -601,7 +609,50 @@ export class NeighbourhoodsService {
       agentName: p.agent?.fullName ?? null,
       brokerageName: p.office?.name ?? null,
       mlsNumber: p.ddfListingKey,
+      openHouse: openHouses.get(p.ddfListingKey) ?? null,
     }))
+  }
+
+  /** Soonest Active, future-dated open house per ListingKey, from the synced table. */
+  private async nextOpenHouses(
+    listingKeys: string[],
+  ): Promise<Map<string, NonNullable<PropertySummary['openHouse']>>> {
+    const result = new Map<string, NonNullable<PropertySummary['openHouse']>>()
+    const keys = listingKeys.filter(Boolean)
+    if (keys.length === 0) return result
+
+    // Compare on date only — a slot later today is still upcoming.
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const rows = await this.prisma.openHouse.findMany({
+      where: {
+        ddfListingKey: { in: keys },
+        status: 'Active',
+        openHouseDate: { gte: today },
+      },
+      select: {
+        ddfOpenHouseKey: true,
+        ddfListingKey: true,
+        openHouseDate: true,
+        startTime: true,
+        endTime: true,
+      },
+      orderBy: [{ openHouseDate: 'asc' }, { startTime: 'asc' }],
+    })
+
+    for (const oh of rows) {
+      if (!oh.ddfListingKey || !oh.openHouseDate) continue
+      // Ordered soonest-first, so the first row per listing wins.
+      if (result.has(oh.ddfListingKey)) continue
+      result.set(oh.ddfListingKey, {
+        openHouseKey: oh.ddfOpenHouseKey,
+        date: oh.openHouseDate.toISOString().slice(0, 10),
+        startTime: oh.startTime,
+        endTime: oh.endTime,
+      })
+    }
+    return result
   }
 
   private async getLocalEssentials(
@@ -813,6 +864,13 @@ export interface PropertySummary {
   agentName?: string | null
   brokerageName?: string | null
   mlsNumber?: string | null
+  /** Soonest upcoming open house — powers the "Open House" tag on the card. */
+  openHouse?: {
+    openHouseKey: string
+    date: string
+    startTime: string | null
+    endTime: string | null
+  } | null
 }
 
 /** GeoJSON Polygon/MultiPolygon as stored in `Neighbourhood.boundary`. Only a

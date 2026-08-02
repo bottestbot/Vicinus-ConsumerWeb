@@ -10,7 +10,7 @@ import { searchProperties, type SearchParams } from '@/lib/api/search'
 import { saveProperty, unsaveProperty } from '@/lib/api/users'
 import { useUserStore } from '@/store/userStore'
 import { track } from '@/lib/analytics/capture'
-import type { Property } from '@/types/search'
+import type { Property, OpenHouseSummary } from '@/types/search'
 
 const PAGE_SIZE = 10
 
@@ -39,6 +39,7 @@ interface RawListing {
   youtubeUrl?: string | null
   leaseAmount?: number | null
   leaseFrequency?: string | null
+  openHouse?: OpenHouseSummary | null
 }
 
 function mapListing(l: RawListing): Property {
@@ -84,6 +85,7 @@ function mapListing(l: RawListing): Property {
     description: l.description ?? undefined,
     virtualTourUrl: l.virtualTourUrl ?? null,
     youtubeUrl: l.youtubeUrl ?? null,
+    openHouse: l.openHouse ?? null,
   }
 }
 

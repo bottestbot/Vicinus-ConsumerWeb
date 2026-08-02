@@ -6,6 +6,7 @@ import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { HOME_TYPES, type SearchFiltersExtended } from '@/types/search'
 import { searchProperties, type SearchParams } from '@/lib/api/search'
+import { filtersToSearchParams } from '@/lib/searchFilters'
 import { formatNumber } from '@/lib/format'
 import { track } from '@/lib/analytics/capture'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
@@ -95,20 +96,9 @@ function useResultCount(): number | null {
   const { filters, query, userCity } = useSearchStore()
 
   const params: SearchParams = {
-    q: query || undefined,
-    minPrice: filters.minPrice ?? undefined,
-    maxPrice: filters.maxPrice ?? undefined,
-    beds: filters.beds ?? undefined,
-    baths: filters.baths ?? undefined,
-    exactBedsBaths:
-      filters.bedsBathsExact && (filters.beds !== null || filters.baths !== null) ? true : undefined,
-    structureType: filters.structureType.length > 0 ? filters.structureType.join(',') : undefined,
+    // Same mapping as the live search — shared so the two can't drift.
+    ...filtersToSearchParams(filters, query),
     status: filters.status || 'Active',
-    listingType: filters.listingType || undefined,
-    minSqft: filters.minSqft ?? undefined,
-    maxSqft: filters.maxSqft ?? undefined,
-    parkingMin: filters.parking ?? undefined,
-    yearBuiltMin: filters.minYearBuilt ?? undefined,
     city: query ? undefined : userCity || 'Vancouver',
     limit: 1,
     page: 1,
@@ -232,10 +222,7 @@ function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () =>
 
         {/* ── Advanced ─────────────────────────────────────────────────────── */}
         <div className={`border-t ${t.borderSoft} pt-4`}>
-          <p className={`text-xs font-semibold ${t.textFaint} uppercase tracking-widest mb-1`}>Advanced filters</p>
-          <p className={`text-[11px] ${t.textFaint} mb-4 leading-snug`}>
-            Year built and parking filter live results. Other options below are coming soon.
-          </p>
+          <p className={`text-xs font-semibold ${t.textFaint} uppercase tracking-widest mb-4`}>Advanced filters</p>
 
           {/* Year built */}
           <div className="mb-4">
@@ -268,19 +255,9 @@ function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () =>
             />
           </div>
 
-          {/* Stories */}
-          <div className="mb-4">
-            <SectionLabel theme={theme}>Stories</SectionLabel>
-            <Segmented
-              theme={theme}
-              options={[null, 1, 2, 3]}
-              value={filters.minStories}
-              onChange={(v) => setFilter('minStories', v)}
-              render={(v) => (v === null ? 'Any' : `${v}+`)}
-            />
-          </div>
-
-          {/* Basement */}
+          {/* Basement — tri-state. DDF publishes Basement on a minority of
+              listings, so "Yes"/"No" narrow to listings that actually declare
+              one either way (see BASEMENT_PRESENT_VALUES on the API side). */}
           <div className="mb-4">
             <SectionLabel theme={theme}>Basement</SectionLabel>
             <Segmented
@@ -299,28 +276,23 @@ function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () =>
               placeholder="Days on market (max)"
               value={filters.maxDaysListed ?? ''}
               onChange={(e) => setFilter('maxDaysListed', e.target.value ? Number(e.target.value) : null)}
+              min={1}
               className={`w-full mb-1.5 rounded-lg px-2.5 py-2 text-sm ${t.input}`}
             />
-            <ToggleRow theme={theme} label="Has open house" value={filters.hasOpenHouse} onToggle={() => setFilter('hasOpenHouse', !filters.hasOpenHouse)} />
-            <ToggleRow theme={theme} label="Coming soon" value={filters.comingSoon} onToggle={() => setFilter('comingSoon', !filters.comingSoon)} />
-          </div>
+            {/* "Has open house" is hidden rather than shown-as-coming-soon: the
+                badge on result cards already advertises open houses, so an
+                inert toggle sitting next to it reads as broken rather than
+                unfinished. The `hasOpenHouse` store field and its default stay
+                put — the filter is designed (index-driven intersection against
+                the DDF OpenHouse resource; see the open-house filter plan) and
+                this is a UI-only hide, so restoring it is a one-line revert.
 
-          <div className={`border-t ${t.borderSoft} pt-4`}>
-            <SectionLabel theme={theme}>Financial</SectionLabel>
-            <input
-              type="number"
-              placeholder="Max monthly payment ($)"
-              value={filters.maxMonthlyPayment ?? ''}
-              onChange={(e) => setFilter('maxMonthlyPayment', e.target.value ? Number(e.target.value) : null)}
-              className={`w-full mb-2 rounded-lg px-2.5 py-2 text-sm ${t.input}`}
-            />
-            <input
-              type="number"
-              placeholder="Max HOA fee ($/month)"
-              value={filters.maxHoaFee ?? ''}
-              onChange={(e) => setFilter('maxHoaFee', e.target.value ? Number(e.target.value) : null)}
-              className={`w-full rounded-lg px-2.5 py-2 text-sm ${t.input}`}
-            />
+                "Coming soon" cannot be queried at all: CREA made StandardStatus
+                non-filterable in 2026-07 and the Property feed is active-only.
+                Left visible but clearly marked, and excluded from the Filter
+                badge below so it can never claim a filter that isn't applied. */}
+            <p className={`text-[11px] ${t.textFaint} mt-2 mb-1 leading-snug`}>Coming soon — this doesn&apos;t narrow results yet</p>
+            <ToggleRow theme={theme} label="Coming soon" value={filters.comingSoon} onToggle={() => setFilter('comingSoon', !filters.comingSoon)} />
           </div>
         </div>
       </div>
@@ -354,16 +326,19 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
 
   // Count of active filter *groups* — drives the button badge + highlight.
   // Price has its own pill/popover now, so it's intentionally excluded here.
+  //
+  // Only filters that actually reach the API are counted. `hasOpenHouse` and
+  // `comingSoon` are deliberately absent: they have no DDF query behind them
+  // (see the dropdown), and counting them made the badge claim a filter was
+  // narrowing results when nothing had changed.
   const activeCount =
     (filters.beds !== null || filters.baths !== null ? 1 : 0) +
     (filters.structureType.length > 0 ? 1 : 0) +
     (filters.minSqft !== null || filters.maxSqft !== null ? 1 : 0) +
     (filters.minYearBuilt !== null || filters.maxYearBuilt !== null ? 1 : 0) +
     (filters.parking !== null ? 1 : 0) +
-    (filters.minStories !== null ? 1 : 0) +
     (filters.basement !== null ? 1 : 0) +
-    (filters.maxDaysListed !== null || filters.hasOpenHouse || filters.comingSoon ? 1 : 0) +
-    (filters.maxMonthlyPayment !== null || filters.maxHoaFee !== null ? 1 : 0)
+    (filters.maxDaysListed !== null ? 1 : 0)
   const hasAnyFilter = activeCount > 0
 
   return (

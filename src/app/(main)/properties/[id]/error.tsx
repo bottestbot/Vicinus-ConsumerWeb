@@ -8,6 +8,8 @@ import { RotateCw } from 'lucide-react'
 // the route and lets the user recover in place. `unstable_retry` (Next.js 16)
 // re-fetches and re-renders the segment — including the Server Component data —
 // which is what a manual reload did before.
+// Renders inside the panel (see layout.tsx), so it sizes to the card rather
+// than the viewport — same shell as the intercepted overlay's boundary.
 export default function PropertyDetailError({
   error,
   unstable_retry,
@@ -20,7 +22,7 @@ export default function PropertyDetailError({
   }, [error])
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-32 font-ui flex items-center justify-center">
+    <div className="flex min-h-[60vh] items-center justify-center bg-[#FAF9F6] font-ui">
       <div className="max-w-md mx-auto px-6 text-center">
         <h2 className="font-heading text-2xl font-semibold text-[#111111] mb-2">
           This listing couldn&apos;t load

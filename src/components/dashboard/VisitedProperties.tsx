@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Clock, ChevronLeft, ChevronRight, Heart, MessageCircle } from 'lucide-react'
 import type { VisitedPropertyRecord } from '@/types/dashboard'
 import PropertyCell from '@/components/property/PropertyCell'
+import { toOpenHouseSummary } from '@/lib/openHouse'
 import { useSaveListing } from '@/lib/hooks/useSaveListing'
 import { useLeadInquiry } from '@/components/providers/LeadInquiryProvider'
 
@@ -65,6 +66,7 @@ function VisitedCard({ record }: { record: VisitedPropertyRecord }) {
               beds: property.beds,
               baths: property.baths,
               sqft: property.sqft,
+              openHouse: toOpenHouseSummary(property),
             }}
           />
         </div>

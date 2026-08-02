@@ -16,6 +16,7 @@ import { formatNumber, formatPrice as formatPriceCA, formatLeaseFrequency, realt
 import { logListingClick } from '@/lib/api/analytics'
 import { track } from '@/lib/analytics/capture'
 import { useLeadInquiry } from '@/components/providers/LeadInquiryProvider'
+import OpenHouseTag from '@/components/property/OpenHouseTag'
 import { STRINGS } from '@/lib/strings'
 
 interface Props {
@@ -459,6 +460,11 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             otherwise win hit-testing and swallow Save/Share taps. Only the
             actual interactive children opt back in. */}
         <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-5 pr-16 pointer-events-none">
+          {/* Open house — deliberately OUTSIDE the collapsible block. The feed
+              collapses to just the address, and an upcoming open house is the
+              one detail worth surfacing before the card is expanded. */}
+          <OpenHouseTag openHouse={property.openHouse} theme="dark" className="mb-1.5" />
+
           {/* Price — revealed on expand */}
           <div
             className={`overflow-hidden transition-all duration-300 ${

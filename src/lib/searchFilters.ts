@@ -24,5 +24,9 @@ export function filtersToSearchParams(filters: SearchFiltersExtended, query: str
     maxSqft: filters.maxSqft ?? undefined,
     parkingMin: filters.parking ?? undefined,
     yearBuiltMin: filters.minYearBuilt ?? undefined,
+    yearBuiltMax: filters.maxYearBuilt ?? undefined,
+    // Tri-state: null means "no constraint", so it must not collapse to false.
+    basement: filters.basement ?? undefined,
+    maxDaysListed: filters.maxDaysListed ?? undefined,
   }
 }

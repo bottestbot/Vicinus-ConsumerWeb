@@ -79,6 +79,7 @@ function ListingCard({ listing }: { listing: PropertySummary }) {
               beds: listing.beds,
               baths: listing.baths,
               sqft: listing.sqft,
+              openHouse: listing.openHouse,
               agentName: listing.agentName,
               brokerageName: listing.brokerageName,
               mlsNumber: listing.mlsNumber,

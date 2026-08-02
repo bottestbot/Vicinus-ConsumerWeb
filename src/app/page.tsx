@@ -11,6 +11,7 @@ import Footer from '@/components/layout/Footer'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
 import { getFeaturedProperties, type FeaturedProperty } from '@/lib/api/properties'
 import { ListingAttribution } from '@/components/property/PropertyCell'
+import OpenHouseTag from '@/components/property/OpenHouseTag'
 // CREA-05: reports the DDF `Click` event on card → detail navigation.
 import ListingLink from '@/components/property/ListingLink'
 import { formatPrice } from '@/types/search'
@@ -70,6 +71,7 @@ function PropertyCard({ p }: { p: FeaturedProperty }) {
             )}
           </div>
           <p className="text-[#6B6B6B] text-xs mb-3">{p.location}</p>
+          <OpenHouseTag openHouse={p.openHouse} compact className="mb-2" />
           <div className="flex items-center gap-3 text-xs text-[#6B6B6B]">
             <span className="flex items-center gap-1">
               <Bed size={12} /> {p.beds ?? '—'} Beds

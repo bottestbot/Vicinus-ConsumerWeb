@@ -1,4 +1,8 @@
 import type { Property } from '@prisma/client';
+import {
+  BASEMENT_ABSENT_VALUES,
+  BASEMENT_PRESENT_VALUES,
+} from '../ddf-sync/ddf-query.service';
 
 /**
  * Translates a `SavedSearch.filters` JSON blob (shape matches `SearchQueryDto`)
@@ -92,10 +96,41 @@ export function matchesSavedSearch(
       return false;
   }
 
+  const yearBuiltMax = filters.yearBuiltMax as number | undefined;
+  if (yearBuiltMax !== undefined && yearBuiltMax !== null) {
+    if (property.yearBuilt === null || property.yearBuilt > yearBuiltMax)
+      return false;
+  }
+
   const parkingMin = filters.parkingMin as number | undefined;
   if (parkingMin !== undefined && parkingMin !== null) {
     if (property.parkingTotal === null || property.parkingTotal < parkingMin)
       return false;
+  }
+
+  // Mirrors the live search's basement handling (ddf-query.service.ts): the
+  // synced `basement` column is DDF's raw string collection, and a listing that
+  // publishes no basement value — or only "Unknown"/"Crawl space" — matches
+  // neither true nor false.
+  const basement = filters.basement as boolean | undefined;
+  if (basement !== undefined && basement !== null) {
+    const values = Array.isArray(property.basement)
+      ? (property.basement as unknown[]).filter(
+          (v): v is string => typeof v === 'string',
+        )
+      : [];
+    const wanted = basement
+      ? BASEMENT_PRESENT_VALUES
+      : BASEMENT_ABSENT_VALUES;
+    if (!values.some((v) => wanted.includes(v))) return false;
+  }
+
+  const maxDaysListed = filters.maxDaysListed as number | undefined;
+  if (maxDaysListed !== undefined && maxDaysListed !== null) {
+    if (property.listedAt === null) return false;
+    const ageDays =
+      (Date.now() - property.listedAt.getTime()) / 86_400_000;
+    if (ageDays > maxDaysListed) return false;
   }
 
   return true;

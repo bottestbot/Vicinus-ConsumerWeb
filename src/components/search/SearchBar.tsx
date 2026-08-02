@@ -29,7 +29,7 @@ export default function SearchBar({
   className = '',
   theme = 'dark',
 }: SearchBarProps) {
-  const { query, setQuery, setSelectedCity, setGeocodedCenter, setViewMode, viewMode } = useSearchStore()
+  const { query, setQuery, setSelectedCity, setGeocodedCenter, setViewMode } = useSearchStore()
   const t = glass(theme)
   const [inputValue, setInputValue] = useState(query)
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
@@ -93,7 +93,7 @@ export default function SearchBar({
   const flyToQuery = (value: string, geocodeQuery: string = value) => {
     if (parseAddress(value).isFullAddress) {
       // A street address only has anywhere to zoom in the Map split-pane — the
-      // Feed (this page's default view) has no map at all — so force it.
+      // Feed has no map at all — so force it even if the user switched away.
       setViewMode('both')
       // geocodeCity fuzzy-matches the city out of the raw string on its own
       // (Mapbox tokenizes it), so it's the instant coarse zoom; geocodeAddress
@@ -111,9 +111,8 @@ export default function SearchBar({
         if (coords && !addressResolved) setGeocodedCenter(coords)
       })
     } else {
-      // A city/neighbourhood search defaults to the Feed — but if the user is
-      // already on the Map, leave them there instead of yanking them to Feed.
-      if (viewMode !== 'both') setViewMode('list')
+      // A city/neighbourhood search works in either view, so leave the user
+      // wherever they are — Map (the default) or Feed if they switched.
       geocodeCity(geocodeQuery).then((coords) => { if (coords) setGeocodedCenter(coords) })
     }
   }

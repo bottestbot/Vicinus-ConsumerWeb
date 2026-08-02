@@ -5,7 +5,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import { Loader2 } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
-import type { Property, MapPinResponse } from '@/types/search'
+import type { Property, MapPinResponse, OpenHouseSummary } from '@/types/search'
 import { propertyTypeLabel } from '@/types/search'
 import { searchProperties, getMapPins, type SearchParams } from '@/lib/api/search'
 import { filtersToSearchParams } from '@/lib/searchFilters'
@@ -82,6 +82,9 @@ function toFrontendProperty(p: ApiProperty): Property {
     parking: (p.parkingTotal as number | null) ?? undefined,
     stories: (p.stories as number | null) ?? undefined,
     description: (p.description as string | null) ?? undefined,
+    // Soonest upcoming open house, joined onto every search result by the API
+    // — drives the "Open House" tag on the result and map cards.
+    openHouse: (p.openHouse as OpenHouseSummary | null) ?? null,
   }
 }
 
@@ -156,15 +159,19 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
     if (initial.baths !== null) setFilter('baths', initial.baths)
     if (initial.propertyType.length > 0) setFilter('propertyType', initial.propertyType)
 
-    // A full street address (e.g. arriving from the homepage hero search bar)
-    // only means anything in the Map split-pane — force it, and fly to the
-    // city instantly, then the exact address once Mapbox resolves it. Mirrors
-    // SearchBar's flyToQuery for the in-page typed case — including the
-    // addressResolved guard so a late city response can't clobber an address
-    // zoom that already landed (the two requests race independently).
     if (initial.query) {
+      // A search arriving from the homepage hero bar lands on the Map, same as
+      // the page's default view. Explicit, not just "leave the default" — the
+      // store is a singleton that can still be sitting on 'list' from the user
+      // switching to the Feed earlier in the session.
+      setViewMode('both')
+
       if (parseAddress(initial.query).isFullAddress) {
-        setViewMode('both')
+        // Fly to the city instantly, then to the exact address once Mapbox
+        // resolves it. Mirrors SearchBar's flyToQuery for the in-page typed
+        // case — including the addressResolved guard so a late city response
+        // can't clobber an address zoom that already landed (the two requests
+        // race independently).
         let addressResolved = false
         geocodeAddress(initial.query).then((c) => {
           if (!c) return
@@ -175,15 +182,10 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
           if (c && !addressResolved) setGeocodedCenter(c)
         })
       } else {
-        // A city/neighbourhood search from the homepage hero bar belongs in
-        // the Feed. Explicit, not just "leave the default" — the store is a
-        // singleton that can still be sitting on 'both' from an address
-        // search earlier in the session.
-        setViewMode('list')
         // Qualify with initial.city (same disambiguation SearchBar's
-        // flyToQuery does) so switching to Map doesn't rely on a bare
-        // neighbourhood name that can resolve to a same-named place in
-        // another province (e.g. "Ambleside" in Calgary vs. West Vancouver).
+        // flyToQuery does) so the map doesn't fly off a bare neighbourhood
+        // name that can resolve to a same-named place in another province
+        // (e.g. "Ambleside" in Calgary vs. West Vancouver).
         const geocodeQuery = initial.city ? `${initial.query}, ${initial.city}` : initial.query
         geocodeCity(geocodeQuery).then((c) => { if (c) setGeocodedCenter(c) })
       }
@@ -333,7 +335,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
       {/* ── Shared Navbar ─────────────────────────────────────────────────── */}
       <Navbar />
 
-      {/* ── Main body: Feed (default) or Map (split-pane), with the floating
+      {/* ── Main body: Map split-pane (default) or Feed, with the floating
           glass filter bar overlaid on top ──────────────────────────────── */}
       <div className="relative flex-1 flex overflow-hidden">
         {/* Floating translucent filter bar — overlays the Feed/Map instead of

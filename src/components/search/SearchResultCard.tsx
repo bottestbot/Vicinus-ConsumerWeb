@@ -90,6 +90,7 @@ export default function SearchResultCard({ property }: SearchResultCardProps) {
               baths: property.baths,
               sqft: property.sqft,
               propertyType: property.propertyType,
+              openHouse: property.openHouse,
               agentName: property.agentName,
               brokerageName: property.brokerageName,
               mlsNumber: property.mlsNumber,

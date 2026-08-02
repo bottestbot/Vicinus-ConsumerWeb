@@ -167,6 +167,7 @@ export default function MapListingPopup({ listingKey, longitude, latitude, onClo
                 baths: data.baths,
                 sqft: data.sqft,
                 propertyType: data.propertyType,
+                openHouse: data.openHouse,
                 brokerageName: data.brokerageName,
                 mlsNumber: data.mlsNumber,
                 realtorUrl: data.realtorUrl,

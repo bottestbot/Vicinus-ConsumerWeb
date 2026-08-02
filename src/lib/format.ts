@@ -80,6 +80,30 @@ export function formatOpenHouseTimeRange(
   return s || e
 }
 
+/**
+ * Short day label for the "Open House" tag on listing cards: "Today",
+ * "Tomorrow", a weekday inside the coming week, then a date. Cards have room
+ * for a few characters, so the nearer the open house the more human the label.
+ *
+ * `date` is a DDF OpenHouseDate ("2026-08-08") — parsed as local midnight, not
+ * UTC, so an evening visitor west of Greenwich isn't told tomorrow's open house
+ * is today.
+ */
+export function formatOpenHouseDay(date: string | null | undefined): string {
+  if (!date) return ''
+  const d = new Date(`${date.slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return ''
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = Math.round((d.getTime() - today.getTime()) / 86_400_000)
+
+  if (days <= 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  if (days < 7) return d.toLocaleDateString(LOCALE, { weekday: 'long' })
+  return d.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })
+}
+
 /** REALTOR.ca homepage — the fallback when a listing has no deep-link. */
 export const REALTOR_HOMEPAGE = 'https://www.realtor.ca'
 

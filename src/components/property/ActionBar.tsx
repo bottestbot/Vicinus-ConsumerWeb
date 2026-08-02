@@ -13,6 +13,13 @@ interface ActionBarProps {
   agentPhone?: string
   brokerageName: string
   mlsNumber: string
+  /**
+   * `fixed` pins the bar to the viewport (standalone detail page). `sticky`
+   * pins it to the bottom of its own scroll container instead — required in
+   * the property overlay, where a viewport-fixed bar would hang outside the
+   * modal panel and stay visible behind it.
+   */
+  position?: 'fixed' | 'sticky'
 }
 
 export default function ActionBar({
@@ -22,6 +29,7 @@ export default function ActionBar({
   agentPhone: _agentPhone,
   brokerageName,
   mlsNumber,
+  position = 'fixed',
 }: ActionBarProps) {
   const [shareOpen, setShareOpen] = useState(false)
   const { isSaved, saving, saveError, handleSave } = useSaveListing(propertyId)
@@ -39,7 +47,12 @@ export default function ActionBar({
       {shareOpen && <ShareModal url={url} onClose={() => setShareOpen(false)} />}
 
       <div
-        className="fixed bottom-0 left-0 right-0 z-[100] py-4 px-5 sm:px-8"
+        className={[
+          'py-4 px-5 sm:px-8',
+          position === 'fixed'
+            ? 'fixed bottom-0 left-0 right-0 z-[100]'
+            : 'sticky bottom-0 z-[20]',
+        ].join(' ')}
         style={{ background: '#1C3829' }}
       >
         <div className="max-w-5xl mx-auto flex items-center gap-3">

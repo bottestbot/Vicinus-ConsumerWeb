@@ -86,6 +86,7 @@ export default function CuratorChoiceCard({ property }: CuratorChoiceCardProps) 
             baths: property.baths,
             sqft: property.sqft,
             propertyType: property.propertyType,
+            openHouse: property.openHouse,
           }}
         />
 

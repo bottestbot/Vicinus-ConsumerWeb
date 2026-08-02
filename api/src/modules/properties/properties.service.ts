@@ -193,6 +193,9 @@ export class PropertiesService {
           agentName: (p['agent'] as { fullName?: string } | null)?.fullName ?? null,
           brokerageName: (p['office'] as { name?: string } | null)?.name ?? null,
           mlsNumber: (p['ddfListingId'] as string | null) ?? key,
+          // Soonest upcoming open house (joined by searchProperties) — powers
+          // the "Open House" tag these cards share with every other surface.
+          openHouse: p['openHouse'] ?? null,
           badge: 'Featured',
           href: `/properties/${key}`,
         }

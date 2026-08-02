@@ -33,6 +33,19 @@ export interface OpenHouseSlot {
   livestreamUrl: string | null;
 }
 
+/**
+ * The soonest upcoming open house on a listing — the payload behind the
+ * "Open House" tag every card surface renders. Deliberately smaller than
+ * `OpenHouseSlot`: a card only needs "when", never the remarks/livestream.
+ */
+export interface OpenHouseSummary {
+  /** DDF OpenHouseKey — lets a card add the slot straight to the user's schedule. */
+  openHouseKey: string;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+}
+
 /** A nearby listing that has an upcoming open house. Matches the FE `OpenHouseProperty` type. */
 export interface NearbyOpenHouse {
   id: string;
@@ -83,6 +96,30 @@ const KNOWN_STRUCTURE_TYPES = [
   'Recreational',
   'Other',
 ];
+
+/**
+ * DDF `Basement` is a collection of free-text descriptors, not a boolean. These
+ * are the values actually present in the live BC feed (1,500-row scan,
+ * 2026-08-01), split into "this listing has a basement" and "it explicitly has
+ * none".
+ *
+ * Two values are deliberately in neither list: `Unknown` (the single most
+ * common value — the agent filed the field without answering it) and
+ * `Crawl space` (a crawl space is not a basement in the sense a buyer filtering
+ * for one means). Along with the ~82% of listings that publish no Basement
+ * value at all, those listings match neither Yes nor No — the same trade-off
+ * every sparse DDF field carries (cf. YearBuilt, ParkingTotal).
+ */
+export const BASEMENT_PRESENT_VALUES = [
+  'Full',
+  'Finished',
+  'Partial',
+  'Partially finished',
+  'Unfinished',
+  'Cellar',
+  'Separate entrance',
+];
+export const BASEMENT_ABSENT_VALUES = ['None', 'N/A'];
 
 @Injectable()
 export class DdfQueryService {
@@ -167,8 +204,35 @@ export class DdfQueryService {
       filterParts.push(`LivingArea le ${dto.maxSqft}`);
     if (dto.yearBuiltMin !== undefined)
       filterParts.push(`YearBuilt ge ${dto.yearBuiltMin}`);
+    if (dto.yearBuiltMax !== undefined)
+      filterParts.push(`YearBuilt le ${dto.yearBuiltMax}`);
     if (dto.parkingMin !== undefined)
       filterParts.push(`ParkingTotal ge ${dto.parkingMin}`);
+
+    // Basement — a collection field, so it needs the `any()` lambda. A bare
+    // `Basement/any()` (the obvious "has any value" form) returns HTTP 500 from
+    // the DDF gateway, so both branches enumerate the whitelisted values
+    // instead. See BASEMENT_PRESENT_VALUES for which values land where.
+    if (dto.basement !== undefined) {
+      const values = dto.basement
+        ? BASEMENT_PRESENT_VALUES
+        : BASEMENT_ABSENT_VALUES;
+      const clause = values
+        .map((v) => `b eq '${this.sanitize(v)}'`)
+        .join(' or ');
+      filterParts.push(`Basement/any(b:${clause})`);
+    }
+
+    // Days on market. DDF exposes no DaysOnMarket/OnMarketDate field (both 400),
+    // but OriginalEntryTimestamp is populated on 100% of the BC feed and is
+    // already what `listedAt` maps to below — so "listed within N days" is the
+    // same number the cards show, derived from the same field.
+    if (dto.maxDaysListed !== undefined) {
+      const cutoff = new Date(
+        Date.now() - dto.maxDaysListed * 86_400_000,
+      ).toISOString();
+      filterParts.push(`OriginalEntryTimestamp ge ${cutoff}`);
+    }
 
     // Restrict to residential stock. When the user has picked explicit
     // sub-types, intersect their choice with the residential whitelist;
@@ -262,7 +326,11 @@ export class DdfQueryService {
       const data = properties.map((p) => this.mapProperty(p));
       // Most live records carry only ListAgentKey / ListOfficeKey, so fill in
       // the realtor names from the synced Member / Office tables (cheap, batched).
-      await this.enrichRealtorNamesBatch(properties, data);
+      // The open-house join is a separate DDF resource, so it runs alongside.
+      await Promise.all([
+        this.enrichRealtorNamesBatch(properties, data),
+        this.enrichOpenHousesBatch(data),
+      ]);
 
       return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
     } catch (err) {
@@ -408,7 +476,21 @@ export class DdfQueryService {
       const mapped = this.mapPropertyDetail(rows[0]);
       // The flat record usually names the realtor only by ListAgentKey /
       // ListOfficeKey; resolve those to real names (DB first, then live DDF).
-      await this.enrichRealtorNames(rows[0], mapped);
+      // The open-house join carries the "Open House" tag onto the surfaces fed
+      // by this endpoint (the map popup card, the detail header).
+      const [openHouses] = await Promise.all([
+        this.getOpenHousesByKey(listingKey),
+        this.enrichRealtorNames(rows[0], mapped),
+      ]);
+      const next = openHouses[0];
+      mapped.openHouse = next
+        ? ({
+            openHouseKey: next.id,
+            date: next.date as string,
+            startTime: next.startTime,
+            endTime: next.endTime,
+          } satisfies OpenHouseSummary)
+        : null;
       return mapped;
     } catch (err) {
       const body = (err as { response?: { data?: unknown } }).response?.data;
@@ -574,7 +656,30 @@ export class DdfQueryService {
         : null,
       agent: agentName ? { fullName: agentName } : null,
       office: officeName ? { name: officeName } : null,
+      // Soonest upcoming open house, filled in by enrichOpenHousesBatch (the
+      // OpenHouse resource is a separate DDF entity — it isn't on the Property
+      // record). Declared here so the field always exists on the payload, even
+      // when the join fails, rather than appearing only some of the time.
+      openHouse: null as OpenHouseSummary | null,
     };
+  }
+
+  /**
+   * Attach each listing's soonest upcoming open house to a mapped search page,
+   * powering the "Open House" tag on cards. One batched OpenHouse query for the
+   * whole page; never throws (see getSoonestOpenHouses).
+   */
+  private async enrichOpenHousesBatch(
+    mapped: Record<string, unknown>[],
+  ): Promise<void> {
+    if (mapped.length === 0) return;
+    const soonest = await this.getSoonestOpenHouses(
+      mapped.map((m) => String(m.id)),
+    );
+    if (soonest.size === 0) return;
+    for (const listing of mapped) {
+      listing.openHouse = soonest.get(String(listing.id)) ?? null;
+    }
   }
 
   /**
@@ -894,6 +999,88 @@ export class DdfQueryService {
   }
 
   /**
+   * Soonest upcoming open house for each of many listings, in one batched pass.
+   *
+   * This is the join behind the "Open House" tag on cards: a per-listing
+   * `getOpenHousesByKey` call would mean one DDF request per card, so keys are
+   * batched into `ListingKey in (...)` filters (the DDF feed accepts `in`; see
+   * the OData notes on getNearbyOpenHousesByKey) and run a few at a time.
+   *
+   * Failures are swallowed per batch: a missing tag is a far better outcome
+   * than an empty results page, so this must never break its caller.
+   */
+  async getSoonestOpenHouses(
+    listingKeys: string[],
+  ): Promise<Map<string, OpenHouseSummary>> {
+    const BATCH_SIZE = 40;
+    const MAX_CONCURRENT_BATCHES = 3;
+
+    const soonest = new Map<string, OpenHouseSummary>();
+    const keys = [...new Set(listingKeys.filter(Boolean))];
+    if (keys.length === 0) return soonest;
+
+    const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const batches: string[][] = [];
+    for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+      batches.push(keys.slice(i, i + BATCH_SIZE));
+    }
+
+    const runBatch = async (batch: string[]): Promise<void> => {
+      const keyList = batch.map((k) => `'${this.sanitize(k)}'`).join(',');
+      const filter = `OpenHouseStatus eq 'Active' and ListingKey in (${keyList})`;
+      const url =
+        `${baseUrl}/OpenHouse` +
+        `?$filter=${encodeURIComponent(filter)}&$top=100`;
+      try {
+        const token = await this.auth.getToken();
+        const resp = await firstValueFrom(
+          this.http.get(url, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json',
+            },
+          }),
+        );
+        const rows = (resp.data.value as Record<string, unknown>[]) ?? [];
+        for (const oh of rows) {
+          const k = String(oh['ListingKey']);
+          const date = (oh['OpenHouseDate'] as string | null) ?? null;
+          // Past slots would tag a listing with an open house that already
+          // happened — drop them here rather than at every call site.
+          if (date === null || date < todayStr) continue;
+          const startTime = (oh['OpenHouseStartTime'] as string | null) ?? null;
+          const endTime = (oh['OpenHouseEndTime'] as string | null) ?? null;
+          const openHouseKey = String(oh['OpenHouseKey']);
+          const existing = soonest.get(k);
+          if (
+            !existing ||
+            date < existing.date ||
+            (date === existing.date &&
+              (startTime ?? '') < (existing.startTime ?? ''))
+          ) {
+            soonest.set(k, { openHouseKey, date, startTime, endTime });
+          }
+        }
+      } catch (err) {
+        const body = (err as { response?: { data?: unknown } }).response?.data;
+        this.logger.error(
+          `DDF open-house batch failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
+        );
+        // swallow — partial results
+      }
+    };
+
+    for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
+      const slice = batches.slice(i, i + MAX_CONCURRENT_BATCHES);
+      await Promise.all(slice.map((b) => runBatch(b)));
+    }
+
+    return soonest;
+  }
+
+  /**
    * Nearby listings that have an upcoming open house, for the detail page.
    *
    * OData NOTES (verified live against the DDF feed):
@@ -976,67 +1163,7 @@ export class DdfQueryService {
       if (candidates.length === 0) return [];
 
       // 5. OpenHouse join — batch candidate keys, bounded concurrency
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const batches: string[][] = [];
-      for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
-        batches.push(candidates.slice(i, i + BATCH_SIZE));
-      }
-
-      // soonest upcoming slot per ListingKey
-      const soonest = new Map<
-        string,
-        { date: string; startTime: string | null; endTime: string | null; openHouseKey: string }
-      >();
-
-      const runBatch = async (keys: string[]): Promise<void> => {
-        const keyList = keys.map((k) => `'${this.sanitize(k)}'`).join(',');
-        const filter = `OpenHouseStatus eq 'Active' and ListingKey in (${keyList})`;
-        const url =
-          `${baseUrl}/OpenHouse` +
-          `?$filter=${encodeURIComponent(filter)}&$top=100`;
-        try {
-          const t = await this.auth.getToken();
-          const resp = await firstValueFrom(
-            this.http.get(url, {
-              headers: {
-                Authorization: `Bearer ${t}`,
-                Accept: 'application/json',
-              },
-            }),
-          );
-          const rows = (resp.data.value as Record<string, unknown>[]) ?? [];
-          for (const oh of rows) {
-            const k = String(oh['ListingKey']);
-            const date = (oh['OpenHouseDate'] as string | null) ?? null;
-            if (date === null || date < todayStr) continue;
-            const startTime =
-              (oh['OpenHouseStartTime'] as string | null) ?? null;
-            const endTime = (oh['OpenHouseEndTime'] as string | null) ?? null;
-            const openHouseKey = String(oh['OpenHouseKey']);
-            const existing = soonest.get(k);
-            if (
-              !existing ||
-              date < existing.date ||
-              (date === existing.date &&
-                (startTime ?? '') < (existing.startTime ?? ''))
-            ) {
-              soonest.set(k, { date, startTime, endTime, openHouseKey });
-            }
-          }
-        } catch (err) {
-          const body = (err as { response?: { data?: unknown } }).response
-            ?.data;
-          this.logger.error(
-            `DDF nearby open-house batch failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
-          );
-          // swallow — partial results
-        }
-      };
-
-      for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
-        const slice = batches.slice(i, i + MAX_CONCURRENT_BATCHES);
-        await Promise.all(slice.map((b) => runBatch(b)));
-      }
+      const soonest = await this.getSoonestOpenHouses(candidates);
 
       const keysWithOH = [...soonest.keys()];
       if (keysWithOH.length === 0) return [];

@@ -12,6 +12,8 @@ import { Fragment, type ComponentType } from 'react'
 import { Bed, Bath, Maximize2 } from 'lucide-react'
 import { formatPrice, formatNumber, formatLeaseFrequency } from '@/lib/format'
 import { STRINGS } from '@/lib/strings'
+import OpenHouseTag from './OpenHouseTag'
+import type { OpenHouseSummary } from '@/types/search'
 
 export interface PropertyCellData {
   price?: number | null
@@ -25,6 +27,12 @@ export interface PropertyCellData {
   baths?: number | null
   sqft?: number | null
   propertyType?: string | null
+  /**
+   * Soonest upcoming open house. Renders the shared tag above the price —
+   * pass it wherever the surface has the data and the cell handles the rest
+   * (nothing renders when it's null or already past).
+   */
+  openHouse?: OpenHouseSummary | null
   agentName?: string | null
   brokerageName?: string | null
   mlsNumber?: string | null
@@ -145,7 +153,7 @@ export default function PropertyCell({
   className = '',
 }: PropertyCellProps) {
   const t = TONE[theme]
-  const { price, address, location, beds, baths, sqft, propertyType, leaseFrequency } = data
+  const { price, address, location, beds, baths, sqft, propertyType, leaseFrequency, openHouse } = data
 
   const hasPrice = price != null && price > 0
   const priceLabel = hasPrice ? formatPrice(price) : STRINGS.SEARCH_CARD_PRICE_ON_REQUEST
@@ -173,6 +181,16 @@ export default function PropertyCell({
 
   return (
     <div className={className}>
+      {/* Sits above the price: an upcoming open house is the most time-sensitive
+          thing on the card, and it reads as part of the listing rather than as
+          an image-overlay status badge. */}
+      <OpenHouseTag
+        openHouse={openHouse}
+        theme={theme}
+        compact={compact}
+        className="mb-1.5"
+      />
+
       <p
         className={`font-heading font-semibold leading-tight ${t.price} ${
           compact ? 'text-lg' : 'text-xl'

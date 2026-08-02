@@ -8,6 +8,7 @@ import { useUser } from '@clerk/nextjs'
 import { Heart, ChevronLeft, ChevronRight, Bookmark, CalendarPlus, MessageCircle } from 'lucide-react'
 import type { SavedPropertyRecord } from '@/types/dashboard'
 import PropertyCell from '@/components/property/PropertyCell'
+import { toOpenHouseSummary } from '@/lib/openHouse'
 // CREA-05: reports the DDF `Click` event on card → detail navigation.
 import ListingLink from '@/components/property/ListingLink'
 import { useAddOpenHouseVisit, useOpenHouseVisits } from '@/hooks/useOpenHouseVisits'
@@ -100,6 +101,7 @@ function PropertyCard({ record }: CardProps) {
               beds: property.beds,
               baths: property.baths,
               sqft: property.sqft,
+              openHouse: toOpenHouseSummary(property),
               agentName: property.agentName,
               brokerageName: property.brokerageName,
               mlsNumber: property.mlsNumber,

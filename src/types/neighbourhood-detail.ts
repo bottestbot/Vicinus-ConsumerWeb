@@ -3,6 +3,8 @@
 // shape via `getNeighbourhoodDetail` (src/lib/api/neighbourhoods.ts), which
 // falls back to composing today's live endpoints until `/detail` ships.
 
+import type { OpenHouseSummary } from './search'
+
 /** GeoJSON geometry stored for a neighbourhood boundary (map overlay). */
 export interface BoundaryGeometry {
   type: 'Polygon' | 'MultiPolygon'
@@ -40,6 +42,8 @@ export interface PropertySummary {
   /** True when this listing matches the signed-in user's priorities — renders
    *  the lime "For you" flag. Set by the personalization layer (NBHD-08). */
   isMatch?: boolean
+  /** Soonest upcoming open house — renders the shared "Open House" tag. */
+  openHouse?: OpenHouseSummary | null
 }
 
 export interface NeighbourhoodDetailResponse {

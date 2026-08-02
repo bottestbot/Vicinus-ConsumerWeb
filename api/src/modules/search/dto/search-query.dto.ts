@@ -56,7 +56,34 @@ export class SearchQueryDto {
   @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsInt() maxSqft?: number
 
   @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsInt() yearBuiltMin?: number
+  @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsInt() yearBuiltMax?: number
   @ApiPropertyOptional({ type: Number }) @IsOptional() @Type(() => Number) @IsInt() parkingMin?: number
+
+  /**
+   * true = listing publishes a basement, false = publishes "None"/"N/A".
+   * Omitted = no basement constraint.
+   *
+   * The `undefined` guard is load-bearing, unlike on `exactBedsBaths` above:
+   * class-transformer runs @Transform even for absent properties, so the bare
+   * `value === 'true'` form would turn every unfiltered search into
+   * `basement=false` and silently restrict results to listings that explicitly
+   * declare no basement.
+   */
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === undefined ? undefined : value === true || value === 'true' || value === '1',
+  )
+  @IsBoolean()
+  basement?: boolean
+
+  /** Listed within the last N days (OriginalEntryTimestamp). */
+  @ApiPropertyOptional({ type: Number })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  maxDaysListed?: number
 
   /**
    * Map viewport bounding box — triggers PostGIS spatial filter.

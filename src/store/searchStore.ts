@@ -78,15 +78,11 @@ const defaultFilters: SearchFiltersExtended = {
   minYearBuilt: null,
   maxYearBuilt: null,
   basement: null,
-  minStories: null,
   parking: null,
   // Listing status
   maxDaysListed: null,
   hasOpenHouse: false,
   comingSoon: false,
-  // Financial
-  maxMonthlyPayment: null,
-  maxHoaFee: null,
   // Rental
   petFriendly: false,
   laundry: false,
@@ -99,7 +95,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   query: '',
   selectedCity: null,
   filters: defaultFilters,
-  viewMode: 'list', // Buy opens on the Feed by default; 'both' = Map (split-pane).
+  viewMode: 'both', // Search opens on the Map (split-pane) by default; 'list' = Feed.
   userCity: null,
   userCoords: null,
   mapBounds: null,
