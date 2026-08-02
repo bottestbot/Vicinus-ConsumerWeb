@@ -1,10 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AxiosError } from 'axios'
-import { ArrowRight, Check, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowRight, Check, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { submitRealtorWaitlist } from '@/lib/api/waitlist'
 import { bookDiscoveryCall } from '@/lib/api/booking'
+import { getAutocomplete } from '@/lib/api/search'
+import type { AutocompleteSuggestion } from '@/types/search'
 import { track } from '@/lib/analytics/capture'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -32,25 +34,146 @@ function failureMessage(err: unknown, fallback: string): string {
   return detail ? `${detail} (error ${status})` : `${fallback} (error ${status})`
 }
 
-const NEIGHBOURHOODS = [
-  'Kitsilano',
-  'Point Grey',
-  'Dunbar-Southlands',
-  'Mount Pleasant',
-  'Kerrisdale',
-  'Shaughnessy',
-  'West End',
-  'Yaletown',
-  'North Vancouver',
-  'West Vancouver',
-  'Burnaby',
-  'Richmond',
-  'Surrey',
-  'New Westminster',
-  'Coquitlam',
-]
-
 const TIME_SLOTS = ['9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM']
+
+/**
+ * Primary-neighbourhood picker backed by the same `/search/autocomplete`
+ * endpoint the homepage hero bar uses, rather than a hardcoded list — that list
+ * covered 15 areas while the hub itself advertises 112, so most agents had no
+ * accurate option. Addresses and postal codes are filtered out: a territory is
+ * a city or a neighbourhood, never a street address.
+ */
+function NeighbourhoodField({
+  value,
+  onChange,
+  inputCls,
+  labelCls,
+}: {
+  value: string
+  onChange: (v: string) => void
+  inputCls: string
+  labelCls: string
+}) {
+  const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reqIdRef = useRef(0)
+
+  const fetchSuggestions = useCallback((q: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!q.trim()) {
+      setSuggestions([])
+      setIsOpen(false)
+      return
+    }
+    // Request-id guard: responses can land out of order, and a stale one
+    // would overwrite the list the user is currently looking at.
+    const reqId = ++reqIdRef.current
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await getAutocomplete(q)
+        if (reqId !== reqIdRef.current) return
+        const data = ((res.data ?? []) as AutocompleteSuggestion[]).filter(
+          (s) => s.type === 'city' || s.type === 'neighbourhood',
+        )
+        setSuggestions(data)
+        setIsOpen(data.length > 0)
+        setActiveIndex(-1)
+      } catch {
+        if (reqId !== reqIdRef.current) return
+        setSuggestions([])
+        setIsOpen(false)
+      }
+    }, 180)
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setIsOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const select = (s: AutocompleteSuggestion) => {
+    onChange(s.label)
+    setSuggestions([])
+    setIsOpen(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1))
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.max(i - 1, -1))
+    }
+    // Enter must not submit the surrounding form while a suggestion is highlighted.
+    if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault()
+      select(suggestions[activeIndex])
+    }
+    if (e.key === 'Escape') {
+      setIsOpen(false)
+      setActiveIndex(-1)
+    }
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <label htmlFor="ca-neighbourhood" className={labelCls}>
+        Primary Neighbourhood
+      </label>
+      <input
+        id="ca-neighbourhood"
+        type="text"
+        autoComplete="off"
+        placeholder="Search a city or neighbourhood..."
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value)
+          fetchSuggestions(e.target.value)
+        }}
+        onKeyDown={handleKeyDown}
+        onFocus={() => value && fetchSuggestions(value)}
+        className={inputCls}
+      />
+
+      {isOpen && suggestions.length > 0 && (
+        <ul className="absolute top-full z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-lg border border-white/15 bg-[#16261D] shadow-2xl">
+          {suggestions.map((s, i) => (
+            <li
+              key={s.id}
+              onMouseDown={() => select(s)}
+              onMouseEnter={() => setActiveIndex(i)}
+              className={`flex cursor-pointer items-center gap-2.5 px-4 py-2.5 text-sm ${
+                i === activeIndex ? 'bg-white/10' : 'hover:bg-white/10'
+              }`}
+            >
+              <MapPin size={13} className="shrink-0 text-white/40" />
+              <span className="text-white">{s.label}</span>
+              {s.subtitle && (
+                <span className="ml-auto shrink-0 text-xs text-white/40">{s.subtitle}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -153,26 +276,12 @@ function ReserveForm() {
           className={inputCls}
         />
       </div>
-      <div>
-        <label htmlFor="ca-neighbourhood" className={labelCls}>
-          Primary Neighbourhood
-        </label>
-        <select
-          id="ca-neighbourhood"
-          value={neighbourhood}
-          onChange={(e) => setNeighbourhood(e.target.value)}
-          className={`${inputCls} appearance-none`}
-        >
-          <option value="" className="text-[#111111]">
-            Select a Greater Vancouver area...
-          </option>
-          {NEIGHBOURHOODS.map((n) => (
-            <option key={n} value={n} className="text-[#111111]">
-              {n}
-            </option>
-          ))}
-        </select>
-      </div>
+      <NeighbourhoodField
+        value={neighbourhood}
+        onChange={setNeighbourhood}
+        inputCls={inputCls}
+        labelCls={labelCls}
+      />
 
       {/* Honeypot — hidden from humans, tempting to bots. Never render visibly. */}
       <div aria-hidden="true" className="absolute left-[-9999px] h-0 w-0 overflow-hidden">

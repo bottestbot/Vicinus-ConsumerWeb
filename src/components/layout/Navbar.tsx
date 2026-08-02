@@ -31,7 +31,9 @@ interface NavLink {
 
 const CENTER_LINKS: NavLink[] = [
   { label: 'Home', href: '/', match: '/' },
-  { label: 'Buy', href: '/search?listingType=For+Sale', match: '/search' },
+  // Reads "Search" until the Buy/Rent split ships — the screen currently covers
+  // both, and `listingType` is chosen on the filter bar, not here.
+  { label: 'Search', href: '/search?listingType=For+Sale', match: '/search' },
   // Sell is hidden for this launch — restore this entry when the flow ships.
   // { label: 'Sell', href: '/sell', match: '/sell' },
   { label: 'Neighbourhoods', href: '/neighbourhoods', match: '/neighbourhoods' },

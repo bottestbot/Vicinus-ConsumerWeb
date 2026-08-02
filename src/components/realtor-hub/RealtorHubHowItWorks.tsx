@@ -1,18 +1,18 @@
 const STEPS = [
   {
     number: '1',
-    title: 'Request access today.',
-    body: 'Fill out the form below to register your interest before the cap is reached.',
+    title: 'Pre-register your access today',
+    body: 'Jump the line and secure your spot as a founding agent.',
   },
   {
     number: '2',
-    title: 'Claim your neighbourhood and listings on launch day.',
-    body: 'Get first 10 days of access to verify your listings and lock down your primary territory.',
+    title: 'Claim your neighbourhood territory',
+    body: 'Grab 1 of the 5 exclusive spots in your market before someone else does.',
   },
   {
     number: '3',
-    title: 'Start connecting with serious buyers before anyone else.',
-    body: 'Launch with an established profile and active leads while everyone else is just signing up.',
+    title: 'Watch qualified leads roll in',
+    body: 'Get instant, direct inquiries sent straight to your Vicinus account and email.',
   },
 ]
 

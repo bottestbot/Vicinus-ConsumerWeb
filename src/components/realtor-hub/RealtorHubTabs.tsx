@@ -1,12 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { TrendingUp } from 'lucide-react'
 
+// Real product screenshots per tab. `image: null` falls back to the built-in
+// stats mock — Leads has no capture yet.
 const TABS = [
   {
     key: 'dashboard',
     label: 'Dashboard',
+    image: '/realtor-hub/dashboard.png',
+    alt: 'REALTOR® Hub dashboard showing market pulse and activity',
     heading: 'Here’s your market pulse for Q2',
     stats: [
       { label: 'Active Leads', value: '42' },
@@ -16,19 +21,10 @@ const TABS = [
     ],
   },
   {
-    key: 'leads',
-    label: 'Leads',
-    heading: 'New buyer intent this week',
-    stats: [
-      { label: 'New Leads', value: '86' },
-      { label: 'Hot Leads', value: '14' },
-      { label: 'Avg. Response', value: '4m' },
-      { label: 'Converted', value: '9' },
-    ],
-  },
-  {
     key: 'listings',
     label: 'Listings',
+    image: '/realtor-hub/listings.png',
+    alt: 'Listings management view showing the agent’s active inventory',
     heading: 'Your active inventory',
     stats: [
       { label: 'Live Listings', value: '23' },
@@ -38,8 +34,36 @@ const TABS = [
     ],
   },
   {
+    key: 'leads',
+    label: 'Leads',
+    image: '/realtor-hub/leads.png',
+    alt: 'Leads view showing new buyer intent and lead activity',
+    heading: 'New buyer intent this week',
+    stats: [
+      { label: 'New Leads', value: '86' },
+      { label: 'Hot Leads', value: '14' },
+      { label: 'Avg. Response', value: '4m' },
+      { label: 'Converted', value: '9' },
+    ],
+  },
+  {
+    key: 'clients',
+    label: 'Clients',
+    image: '/realtor-hub/clients.png',
+    alt: 'Client detail view with Vicinus IQ intent score, search parameters, and showings',
+    heading: 'Know every client’s intent',
+    stats: [
+      { label: 'Active Clients', value: '38' },
+      { label: 'High Intent', value: '11' },
+      { label: 'Showings Booked', value: '24' },
+      { label: 'Avg. Close Prob.', value: '68%' },
+    ],
+  },
+  {
     key: 'amplify',
     label: 'Amplify',
+    image: '/realtor-hub/amplify.png',
+    alt: 'Amplify view showing listing reach and promotion performance',
     heading: 'Reach beyond your network',
     stats: [
       { label: 'Boosted Listings', value: '6' },
@@ -49,8 +73,10 @@ const TABS = [
     ],
   },
   {
-    key: 'results',
-    label: 'Results',
+    key: 'analytics',
+    label: 'Analytics',
+    image: '/realtor-hub/analytics.png',
+    alt: 'Analytics view showing buyer views, enquiries, and engagement over time',
     heading: 'Know exactly what’s working',
     stats: [
       { label: 'Buyer Views', value: '45.6K' },
@@ -61,7 +87,10 @@ const TABS = [
   },
 ]
 
-function AnalyticsPreview({ tab }: { tab: (typeof TABS)[number] }) {
+type Tab = (typeof TABS)[number]
+
+// Fallback for any tab without a screenshot yet.
+function StatsPreview({ tab }: { tab: Tab }) {
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
       <div className="flex items-center gap-1.5 border-b border-[#E8E6E1] bg-[#F2F0EB] px-4 py-2.5">
@@ -73,7 +102,7 @@ function AnalyticsPreview({ tab }: { tab: (typeof TABS)[number] }) {
 
       <div className="p-5">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-[#6B6B6B]">
-          Analytics
+          {tab.label}
         </p>
         <p className="mb-4 text-sm font-semibold text-[#111111]">{tab.heading}</p>
 
@@ -111,7 +140,7 @@ function AnalyticsPreview({ tab }: { tab: (typeof TABS)[number] }) {
 }
 
 export default function RealtorHubTabs() {
-  const [active, setActive] = useState(TABS[TABS.length - 1].key)
+  const [active, setActive] = useState(TABS[0].key)
   const activeTab = TABS.find((t) => t.key === active) ?? TABS[0]
 
   return (
@@ -127,6 +156,7 @@ export default function RealtorHubTabs() {
               key={t.key}
               type="button"
               onClick={() => setActive(t.key)}
+              aria-pressed={active === t.key}
               className={[
                 'font-semibold capitalize transition-colors',
                 active === t.key ? 'text-[#A3E635]' : 'text-white/50 hover:text-white/80',
@@ -138,7 +168,26 @@ export default function RealtorHubTabs() {
         </nav>
 
         <div className="mt-10 text-left">
-          <AnalyticsPreview tab={activeTab} />
+          {activeTab.image ? (
+            // object-contain, not cover: the screenshots are ~1.72 wide while
+            // Clients is ~1.31, so cover cropped the edges off — cutting the
+            // left column of labels clean off ("...y Listings"). The fixed
+            // aspect keeps every tab the same height so switching doesn't
+            // shift the page; the white letterbox is invisible against the
+            // screenshots' own white chrome.
+            <div className="relative aspect-[16/10] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
+              <Image
+                key={activeTab.key}
+                src={activeTab.image}
+                alt={activeTab.alt}
+                fill
+                sizes="(min-width: 1024px) 64rem, 100vw"
+                className="object-contain"
+              />
+            </div>
+          ) : (
+            <StatsPreview tab={activeTab} />
+          )}
         </div>
 
         <a

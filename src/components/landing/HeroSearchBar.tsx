@@ -44,7 +44,6 @@ export default function HeroSearchBar({
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
-  const [priceRange, setPriceRange] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -90,7 +89,8 @@ export default function HeroSearchBar({
     const params = new URLSearchParams()
     if (inputValue) params.set('q', inputValue)
     if (selectedCity) params.set('city', selectedCity)
-    if (priceRange) params.set('priceRange', priceRange)
+    // Price is set on the search screen's filter bar, not here — the hero is
+    // location-only. `priceRange` is still parsed by /search for older links.
     router.push(`/search?${params}`)
   }
 
@@ -171,22 +171,6 @@ export default function HeroSearchBar({
           </ul>
         )}
       </div>
-
-      <select
-        value={priceRange}
-        onChange={(e) => setPriceRange(e.target.value)}
-        aria-label="Price range"
-        className={`sm:w-40 px-4 py-4 rounded-xl text-sm focus:outline-none cursor-pointer ${fieldSurface} ${
-          priceRange ? 'text-[#111111]' : 'text-[#6B6B6B]'
-        }`}
-      >
-        {/* Empty value doubles as the "clear price" option. */}
-        <option value="">Price Range</option>
-        <option value="0-1000000">Under $1M</option>
-        <option value="1000000-2000000">$1M – $2M</option>
-        <option value="2000000-5000000">$2M – $5M</option>
-        <option value="5000000-">$5M+</option>
-      </select>
 
       <button
         type="submit"

@@ -4,7 +4,7 @@ import { Clock, MapPinned, Link2 } from 'lucide-react'
 const PILLARS = [
   {
     icon: Clock,
-    title: '10 days ahead of the crowd.',
+    title: 'Claim Founding Member Package.',
   },
   {
     icon: MapPinned,
@@ -29,9 +29,10 @@ export default function RealtorHubHero() {
             Be first through the door.
           </h1>
           <p className="mt-6 max-w-md text-base leading-relaxed text-white/70">
-            Vicinus goes live to all Vancouver Realtors on launch day. Founding members get in 10
-            days early, giving you first dibs on just 5 expert spots in each of 112 Greater
-            Vancouver neighbourhoods.
+            Vicinus Pro launches soon across Greater Vancouver! We&rsquo;re offering our Founding
+            Member Package to the first 200 realtors only. You&rsquo;ll get $1,000 in credits, 3
+            months free on your neighbourhood spot, and a close partnership with our founding team.
+            Only 5 spots per neighbourhood&mdash;lock yours in now!
           </p>
           <a
             href="#claim-access"
