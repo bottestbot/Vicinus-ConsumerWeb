@@ -11,8 +11,8 @@ import Logo from '@/components/brand/Logo'
  * Single, consistent navbar used across every screen (BUG-04).
  *
  * Centre links:
- *   • Signed out: Home · Buy · Sell · Realtor Hub · Neighbourhoods  → Sign In / Get Started
- *   • Signed in:  Home · Buy · Sell · Neighbourhoods                → Dashboard + avatar
+ *   • Signed out: Home · Buy · Rent · Realtor Hub · Neighbourhoods  → Sign In / Get Started
+ *   • Signed in:  Home · Buy · Rent · Neighbourhoods                → Dashboard + avatar
  *
  * `overHero` renders the transparent-over-hero variant (landing / sell / realtor-hub)
  * that turns solid on scroll. Otherwise the navbar is solid + sticky.
@@ -31,9 +31,8 @@ interface NavLink {
 
 const CENTER_LINKS: NavLink[] = [
   { label: 'Home', href: '/', match: '/' },
-  // Reads "Search" until the Buy/Rent split ships — the screen currently covers
-  // both, and `listingType` is chosen on the filter bar, not here.
-  { label: 'Search', href: '/search?listingType=For+Sale', match: '/search' },
+  { label: 'Buy', href: '/buy', match: '/buy' },
+  { label: 'Rent', href: '/rent', match: '/rent' },
   // Sell is hidden for this launch — restore this entry when the flow ships.
   // { label: 'Sell', href: '/sell', match: '/sell' },
   { label: 'Neighbourhoods', href: '/neighbourhoods', match: '/neighbourhoods' },

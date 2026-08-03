@@ -1,86 +1,36 @@
-import type { Metadata } from 'next'
-import SearchPageClient, { type InitialSearch } from './SearchPageClient'
+import { permanentRedirect } from 'next/navigation'
+import type { SearchParamsInput } from '@/lib/searchParams'
 
-export const metadata: Metadata = {
-  title: 'Search Properties',
-  description: 'Search luxury Canadian real estate listings — filter by city, price, bedrooms, and more.',
-}
-
-type SearchParams = Record<string, string | string[] | undefined>
-
-const first = (v: string | string[] | undefined): string | undefined =>
-  Array.isArray(v) ? v[0] : v
-
-function toNum(v: string | string[] | undefined): number | null {
-  const s = first(v)
-  if (!s) return null
-  const n = Number(s)
-  return Number.isFinite(n) && n > 0 ? n : null
-}
-
-// Hero form submits `priceRange=min-max` (e.g. "1000000-2000000", "5000000-")
-function parsePriceRange(v: string | undefined): { minPrice: number | null; maxPrice: number | null } {
-  if (!v) return { minPrice: null, maxPrice: null }
-  const [min, max] = v.split('-')
-  const num = (s: string | undefined) => {
-    const n = Number(s)
-    return s && Number.isFinite(n) && n > 0 ? n : null
-  }
-  return { minPrice: num(min), maxPrice: num(max) }
-}
-
-// NBHDCTA-02: box the search around a neighbourhood centroid when the
-// "Explore Listings" CTA sends `lat`/`lng`. Mirrors the tightened radius used
-// server-side for the neighbourhood detail page's own live-listings query
-// (buildLocationClauses, NBHDCTA-04) so both surfaces agree on how wide a
-// "neighbourhood" is.
-// A signed parser is required here — `toNum` above rejects negatives (fine for
-// price/beds/baths), but longitude in Canada is always negative.
-function toSignedNum(v: string | string[] | undefined): number | null {
-  const s = first(v)
-  if (!s) return null
-  const n = Number(s)
-  return Number.isFinite(n) ? n : null
-}
-
-const NEIGHBOURHOOD_RADIUS_KM = 3
-function bboxAroundNeighbourhood(lat: number, lng: number): string {
-  const latDelta = NEIGHBOURHOOD_RADIUS_KM / 111
-  const lngDelta = NEIGHBOURHOOD_RADIUS_KM / (111 * Math.cos((lat * Math.PI) / 180) || 111)
-  return `${lng - lngDelta},${lat - latDelta},${lng + lngDelta},${lat + latDelta}`
-}
-
+// /search predates the Buy/Rent split. Fifteen internal call sites linked here
+// (homepage CTA, hero bar, neighbourhood CTAs, dashboard saved/recent searches),
+// plus any bookmarked or indexed links, so the route stays as a redirect rather
+// than being deleted.
+//
+// 308 (permanentRedirect) rather than 307: a temporary redirect would split
+// search rank between /search and /buy.
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<SearchParams>
+  searchParams: Promise<SearchParamsInput>
 }) {
   const sp = await searchParams
-  const range = parsePriceRange(first(sp.priceRange))
-  const type = first(sp.type)
 
-  // NBHDCTA-02: the neighbourhood CTA sends lat/lng (+ name) instead of a text
-  // query — a neighbourhood name rarely matches DDF's City/address fields, so a
-  // bbox around the centroid is the reliable way to scope results to it.
-  const lat = toSignedNum(sp.lat)
-  const lng = toSignedNum(sp.lng)
-  const neighbourhoodBbox = lat != null && lng != null ? bboxAroundNeighbourhood(lat, lng) : null
-  const neighbourhoodName = first(sp.neighbourhood) ? first(sp.name) : undefined
-
-  const initial: InitialSearch = {
-    query: first(sp.q) ?? first(sp.city) ?? '',
-    minPrice: toNum(sp.minPrice) ?? range.minPrice,
-    maxPrice: toNum(sp.maxPrice) ?? range.maxPrice,
-    beds: toNum(sp.beds),
-    baths: toNum(sp.baths),
-    propertyType: type ? type.split(',').map((t) => t.trim()).filter(Boolean) : [],
-    bbox: neighbourhoodBbox,
-    locationLabel: neighbourhoodName,
-    // The homepage hero bar forwards the picked suggestion's DDF-queryable
-    // municipality here (see HeroSearchBar) — RecentSearches also sends `city`
-    // directly since it's already an exact DDF city, not a sub-area label.
-    city: first(sp.city),
+  // Forward every param through untouched — /buy parses the same vocabulary.
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(sp)) {
+    if (Array.isArray(value)) value.forEach((v) => params.append(key, v))
+    else if (value !== undefined) params.set(key, value)
   }
 
-  return <SearchPageClient initial={initial} />
+  // `listingType=For Rent` was never parsed here, but it has always been
+  // written into saved-search and RecentSearches URLs — honour it now that the
+  // two listing types have their own routes.
+  // Case-insensitive: every value the app writes is exactly "For Rent", but this
+  // also has to survive hand-typed and third-party links.
+  const target =
+    params.get('listingType')?.trim().toLowerCase() === 'for rent' ? '/rent' : '/buy'
+  params.delete('listingType')
+
+  const qs = params.toString()
+  permanentRedirect(qs ? `${target}?${qs}` : target)
 }

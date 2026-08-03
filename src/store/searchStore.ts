@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { SearchFiltersExtended, SavedSearch, ViewMode } from '@/types/search'
+import type { ListingType, SearchFiltersExtended, SavedSearch, ViewMode } from '@/types/search'
 import { saveSearch as saveSearchApi, getSavedSearches, deleteSavedSearch } from '@/lib/api/search'
 import { filtersToSearchParams } from '@/lib/searchFilters'
 
@@ -56,7 +56,11 @@ interface SearchStore {
   setMapCity: (city: string | null) => void
   setHoveredProperty: (id: string | null) => void
   setSelectedProperty: (id: string | null) => void
-  saveSearch: (name: string) => Promise<void>
+  /** `listingType` comes from the route (/buy vs /rent), not from filter
+   *  state — the store has no idea which one the user is on, and a saved rent
+   *  search MUST persist "For Rent" or the backend alert matcher treats it as
+   *  a sale search (saved-search-matcher.util.ts defaults to "For Sale"). */
+  saveSearch: (name: string, listingType: ListingType) => Promise<void>
   removeSavedSearch: (id: string) => Promise<void>
   loadSavedSearches: () => Promise<void>
 }
@@ -71,7 +75,6 @@ const defaultFilters: SearchFiltersExtended = {
   propertyType: [],
   structureType: [],
   status: 'Active',
-  listingType: 'For Sale',
   minSqft: null,
   maxSqft: null,
   // Advanced
@@ -134,9 +137,9 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
 
   setSelectedProperty: (id) => set({ selectedPropertyId: id }),
 
-  saveSearch: async (name) => {
+  saveSearch: async (name, listingType) => {
     const state = get()
-    const filters = filtersToSearchParams(state.filters, state.query)
+    const filters = filtersToSearchParams(state.filters, state.query, listingType)
     const res = await saveSearchApi({ name, filters })
     const saved = res.data as { id: string; name: string | null; filters: unknown; createdAt: string }
     const search: SavedSearch = {

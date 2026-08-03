@@ -151,7 +151,7 @@ function EmptyState() {
         Start exploring and save the listings you love — they&apos;ll appear here.
       </p>
       <Link
-        href="/search"
+        href="/buy"
         className="mt-4 text-sm font-semibold text-[#1C3829] hover:underline"
       >
         Start exploring →

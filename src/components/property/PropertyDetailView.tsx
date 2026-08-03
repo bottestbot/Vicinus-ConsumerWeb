@@ -97,7 +97,7 @@ function ListingUnavailable() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/search"
+            href="/buy"
             className="rounded-xl bg-[#1C3829] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#16301F]"
           >
             Browse listings

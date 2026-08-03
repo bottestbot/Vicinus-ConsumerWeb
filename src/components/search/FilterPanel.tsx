@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
-import { HOME_TYPES, type SearchFiltersExtended } from '@/types/search'
+import { HOME_TYPES, type ListingType, type SearchFiltersExtended } from '@/types/search'
 import { searchProperties, type SearchParams } from '@/lib/api/search'
 import { filtersToSearchParams } from '@/lib/searchFilters'
 import { formatNumber } from '@/lib/format'
@@ -92,12 +92,12 @@ function ToggleRow({
 // Mirrors the Feed's param mapping (city-scoped, Active by default) so the count
 // tracks what the Feed/Map will actually show. bbox is intentionally omitted —
 // this is a coarse "how many match these filters" number, not a map query.
-function useResultCount(): number | null {
+function useResultCount(listingType: ListingType): number | null {
   const { filters, query, userCity } = useSearchStore()
 
   const params: SearchParams = {
     // Same mapping as the live search — shared so the two can't drift.
-    ...filtersToSearchParams(filters, query),
+    ...filtersToSearchParams(filters, query, listingType),
     status: filters.status || 'Active',
     city: query ? undefined : userCity || 'Vancouver',
     limit: 1,
@@ -116,9 +116,17 @@ function useResultCount(): number | null {
 
 // ─── Combined filters dropdown (Basic + Advanced) ─────────────────────────────
 
-function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () => void }) {
+function FiltersDropdown({
+  theme,
+  listingType,
+  onClose,
+}: {
+  theme: GlassTheme
+  listingType: ListingType
+  onClose: () => void
+}) {
   const { filters, setFilter: setFilterRaw, resetFilters } = useSearchStore()
-  const count = useResultCount()
+  const count = useResultCount(listingType)
   const t = glass(theme)
   const inputCls = `w-full rounded-lg px-2.5 py-2 text-sm ${t.input}`
 
@@ -318,7 +326,16 @@ function FiltersDropdown({ theme, onClose }: { theme: GlassTheme; onClose: () =>
 
 // ─── Main FilterPanel — floating glass bar ────────────────────────────────────
 
-export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) {
+export default function FilterPanel({
+  theme = 'dark',
+  listingType,
+}: {
+  theme?: GlassTheme
+  /** From the route (/buy vs /rent). Threaded down to every control that has
+   *  to know sale-vs-rent (price ladder, result count, Save Search) — it is
+   *  deliberately not in the filter store any more. */
+  listingType: ListingType
+}) {
   const { filters } = useSearchStore()
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -357,11 +374,13 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
           they become direct children of the bar again and the desktop layout
           is unchanged. */}
       <div className="flex flex-wrap items-center gap-2 @min-[700px]:contents">
-        {/* Buy / Rent — top-level listing-type toggle (RENT-02) */}
-        <ListingTypeToggle theme={theme} />
+        {/* Buy / Rent — top-level listing-type toggle (RENT-02). Reads its
+            active side from the pathname; the prop is only the fallback for a
+            host route that isn't /buy or /rent, so the two can never disagree. */}
+        <ListingTypeToggle theme={theme} listingType={listingType} />
 
         {/* Price — its own pill + popover */}
-        <PriceFilterPopover theme={theme} />
+        <PriceFilterPopover theme={theme} listingType={listingType} />
 
         {/* Filter button + combined dropdown */}
         <div ref={wrapRef} className="relative shrink-0">
@@ -385,13 +404,13 @@ export default function FilterPanel({ theme = 'dark' }: { theme?: GlassTheme }) 
           </button>
 
           <ResponsivePopover open={open} onClose={() => setOpen(false)} theme={theme} anchorRef={wrapRef}>
-            <FiltersDropdown theme={theme} onClose={() => setOpen(false)} />
+            <FiltersDropdown theme={theme} listingType={listingType} onClose={() => setOpen(false)} />
           </ResponsivePopover>
         </div>
 
         {/* Save search — hidden on the narrowest screens to keep the bar compact */}
         <div className="hidden sm:block shrink-0">
-          <SaveSearch theme={theme} />
+          <SaveSearch theme={theme} listingType={listingType} />
         </div>
 
         {/* Divider */}

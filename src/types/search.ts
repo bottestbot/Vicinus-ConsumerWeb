@@ -17,6 +17,13 @@ export interface OpenHouseSummary {
   endTime: string | null
 }
 
+/**
+ * Sale vs lease. Owned by the route (/buy vs /rent) and threaded down as a
+ * prop — deliberately NOT part of `SearchFiltersExtended`, so there is no
+ * second copy in the store that can drift out of step with the URL.
+ */
+export type ListingType = 'For Sale' | 'For Rent'
+
 export interface Property {
   id: string
   address: string
@@ -30,7 +37,7 @@ export interface Property {
   propertyType: string
   status: 'Active' | 'Sold' | 'Coming Soon' | 'Open House'
   daysOnMarket: number
-  listingType: 'For Sale' | 'For Rent'
+  listingType: ListingType
   /** DDF LeaseAmountFrequency (Monthly/Yearly…) — set on rentals so the price
    *  renders with its period instead of reading as a sale price. */
   leaseFrequency?: string | null
@@ -71,7 +78,9 @@ export interface SearchFiltersExtended {
   /** DDF StructureType values (dwelling form) — powers the Home Type filter. */
   structureType: string[]
   status: string
-  listingType: string
+  // No `listingType` here on purpose — see the ListingType doc comment above.
+  // It comes from the route and is supplied at the call site of
+  // filtersToSearchParams / saveSearch instead of living in filter state.
   minSqft: number | null
   maxSqft: number | null
   // Advanced

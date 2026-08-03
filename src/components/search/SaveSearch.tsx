@@ -5,9 +5,18 @@ import { Bookmark, BookmarkCheck, X, Bell } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import { useUser } from '@clerk/nextjs'
 import { track } from '@/lib/analytics/capture'
+import type { ListingType } from '@/types/search'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
 
-export default function SaveSearch({ theme = 'dark' }: { theme?: GlassTheme }) {
+export default function SaveSearch({
+  theme = 'dark',
+  listingType,
+}: {
+  theme?: GlassTheme
+  /** From the route (/buy vs /rent). Persisted into the saved search's filter
+   *  blob so email alerts keep matching rentals against rentals. */
+  listingType: ListingType
+}) {
   const { saveSearch, removeSavedSearch, loadSavedSearches, savedSearches, query, filters } = useSearchStore()
   const { isSignedIn } = useUser()
   const [isOpen, setIsOpen] = useState(false)
@@ -28,11 +37,11 @@ export default function SaveSearch({ theme = 'dark' }: { theme?: GlassTheme }) {
     setSaving(true)
     setError(false)
     try {
-      await saveSearch(name.trim())
+      await saveSearch(name.trim(), listingType)
       setSaved(true)
       setIsOpen(false)
       setName('')
-      track('saved_search_created', { filters })
+      track('saved_search_created', { filters: { ...filters, listingType } })
       setTimeout(() => setSaved(false), 3000)
     } catch {
       setError(true)

@@ -123,7 +123,7 @@ export default function LocalEssentials({ localEssentials, neighbourhood, housin
               : 'Green spaces and trails around the area.'}
           </p>
           <Link
-            href={`/search?neighbourhood=${slug}`}
+            href={`/buy?neighbourhood=${slug}`}
             className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#A3E635] px-3 py-1.5 text-xs font-semibold text-[#1C3829] transition-colors hover:bg-[#b6ee54]"
           >
             Explore atlas
