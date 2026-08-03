@@ -44,10 +44,10 @@ export default function LocalInfoTiles({
   // need no API key of their own.
   const mapHref = hasCoords
     ? `https://www.google.com/maps/@?api=1&map_action=map&center=${centroidLat},${centroidLng}&zoom=15`
-    : `/search?neighbourhood=${slug}`
+    : `/buy?neighbourhood=${slug}`
   const streetViewHref = hasCoords
     ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${centroidLat},${centroidLng}`
-    : `/search?neighbourhood=${slug}`
+    : `/buy?neighbourhood=${slug}`
 
   // Thumbnails come from Mapbox (already used for every other map in the app),
   // so the tiles don't depend on Google's Static Maps / Street View Static APIs.
@@ -89,7 +89,7 @@ export default function LocalInfoTiles({
       // it really means we have no POI snapshot for it yet. Say that instead,
       // and don't present an empty tile as something worth tapping.
       sublabel: schoolsCount > 0 ? `${schoolsCount} nearby` : DATA_PENDING,
-      // /search ignores a `neighbourhood` param, so linking there dropped the
+      // The listings screen ignores a `neighbourhood` param, so linking there dropped the
       // user on an unfiltered listing page. The schools are already listed in
       // Local essentials above — jump there instead.
       href: '#local-essentials',

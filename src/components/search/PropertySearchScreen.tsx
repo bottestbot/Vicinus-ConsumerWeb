@@ -9,6 +9,7 @@ import type { Property, MapPinResponse, OpenHouseSummary } from '@/types/search'
 import { propertyTypeLabel } from '@/types/search'
 import { searchProperties, getMapPins, type SearchParams } from '@/lib/api/search'
 import { filtersToSearchParams } from '@/lib/searchFilters'
+import type { InitialSearch } from '@/lib/searchParams'
 import { geocodeCity, geocodeAddress, parseAddress } from '@/lib/geocode'
 import FilterPanel from '@/components/search/FilterPanel'
 import ResultsList from '@/components/search/ResultsList'
@@ -88,27 +89,9 @@ function toFrontendProperty(p: ApiProperty): Property {
   }
 }
 
-export interface InitialSearch {
-  query: string
-  minPrice: number | null
-  maxPrice: number | null
-  beds: number | null
-  baths: number | null
-  propertyType: string[]
-  // NBHDCTA-02: set when arriving from a neighbourhood's "Explore Listings" CTA
-  // — a bbox around that neighbourhood's centroid, and its name for the results
-  // header (a neighbourhood name isn't a searchable city/address `q`).
-  bbox?: string | null
-  locationLabel?: string
-  // The DDF-queryable municipality behind `query`, when it came from picking a
-  // homepage-hero autocomplete suggestion rather than typed free text — mirrors
-  // SearchBar's own selectedCity (see AutocompleteSuggestion.city). Without
-  // this, a sub-area/neighbourhood label like "South Surrey" or "Ambleside"
-  // never substring-matches DDF's City field, and re-geocoding the bare label
-  // (no city/province qualifier) can resolve to a same-named place elsewhere
-  // in Canada.
-  city?: string
-}
+// Which side (Buy or Rent) the user was last on, across route changes. Module
+// scope on purpose — see the price re-seed effect below.
+let lastListingType: 'For Sale' | 'For Rent' | null = null
 
 // Vancouver fallback (BUG-03 / BUY-03): used to scope default results when no
 // city is searched and no device location is available. Matches the map's
@@ -121,7 +104,15 @@ function bboxAround(longitude: number, latitude: number): string {
   return `${longitude - dLng},${latitude - dLat},${longitude + dLng},${latitude + dLat}`
 }
 
-export default function SearchPageClient({ initial }: { initial?: InitialSearch }) {
+export default function PropertySearchScreen({
+  listingType,
+  initial,
+}: {
+  /** Owned by the route (/buy vs /rent), never by the URL or the store. There
+   *  is nothing to hydrate or reconcile, so it cannot drift or go stale. */
+  listingType: 'For Sale' | 'For Rent'
+  initial?: InitialSearch
+}) {
   const {
     viewMode,
     filters,
@@ -144,6 +135,32 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   // Map view (panning North Van → Kelowna and switching to Feed should show
   // Kelowna, not the device's real city).
   const effectiveCity = mapCity || userCity
+
+  // Re-seed the price band from the URL when the user crosses between Buy and
+  // Rent.
+  //
+  // Sale and rent live on different scales ($100Ks vs $1000s/mo), so the Buy↔Rent
+  // links deliberately drop minPrice/maxPrice from the query string. That alone
+  // isn't enough: the filter store is a module-level singleton, and the
+  // hydration effect below only *sets* params that are present — it never
+  // *clears* ones that are absent. A $800k floor set on Buy therefore survived
+  // into Rent, silently returning zero results while the pill read "$800k+/mo".
+  //
+  // The comparison deliberately lives at module scope, not in a ref: /buy and
+  // /rent are separate routes, so switching sides UNMOUNTS this component, and a
+  // ref would be re-initialised to the incoming value and never see the change.
+  // This has the same lifetime as the store it is correcting.
+  const initialMinPrice = initial?.minPrice ?? null
+  const initialMaxPrice = initial?.maxPrice ?? null
+  useEffect(() => {
+    const crossed = lastListingType !== null && lastListingType !== listingType
+    lastListingType = listingType
+    // Only on an actual crossing — a remount within the same side (returning
+    // from a property detail page) must keep the price the user set.
+    if (!crossed) return
+    setFilter('minPrice', initialMinPrice)
+    setFilter('maxPrice', initialMaxPrice)
+  }, [listingType, initialMinPrice, initialMaxPrice, setFilter])
 
   // Hydrate the store from URL params (e.g. the home-page hero search) once on
   // mount so a city/price/type from the URL drives the initial results.
@@ -250,7 +267,10 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
   // mapBoundsStr reflects the real target, so there's nothing to snap from.
   const addressBbox = isAddressQuery ? mapBoundsStr : null
 
-  const baseParams = filtersToSearchParams(filters, query)
+  // `listingType` is the route's, not the store's — supplied here so every
+  // downstream request (list, feed, map pins) is scoped to sale or rent
+  // without a filter field that could lag behind a /buy ↔ /rent navigation.
+  const baseParams = filtersToSearchParams(filters, query, listingType)
   const queryParams = {
     ...baseParams,
     // A picked suggestion's resolved city replaces the free-text `q` filter —
@@ -353,7 +373,7 @@ export default function SearchPageClient({ initial }: { initial?: InitialSearch 
           <div className="pointer-events-auto @container">
             {/* Adaptive glass: light frosted bar on the Map (light map + white
                 list), dark bar on the Feed (dark photo/video media). */}
-            <FilterPanel theme={viewMode === 'both' ? 'light' : 'dark'} />
+            <FilterPanel theme={viewMode === 'both' ? 'light' : 'dark'} listingType={listingType} />
           </div>
         </div>
 

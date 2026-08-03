@@ -28,7 +28,7 @@ export default function NeighbourhoodCTA({ name, slug, lat, lng }: Props) {
       </h2>
       <div className="flex items-center justify-center">
         <Link
-          href={`/search?${params.toString()}`}
+          href={`/buy?${params.toString()}`}
           className="inline-flex items-center justify-center px-7 py-3 bg-white text-[#1C3829] text-sm font-semibold rounded-xl hover:bg-[#FAF9F6] transition-colors"
         >
           Explore Listings

@@ -36,7 +36,7 @@ export default function HeroSearchBar({
     : 'bg-white/95 backdrop-blur-sm shadow-lg'
   const [inputValue, setInputValue] = useState('')
   // The picked suggestion's DDF-queryable municipality (e.g. "Surrey" for
-  // "South Surrey") — forwarded to /search as `city` so a sub-area label
+  // "South Surrey") — forwarded to /buy as `city` so a sub-area label
   // isn't left to substring-match DDF's City field, or re-geocoded bare and
   // risk resolving to a same-named place elsewhere in Canada. Cleared
   // whenever the field no longer reflects that exact pick (free typing).
@@ -75,7 +75,7 @@ export default function HeroSearchBar({
 
   const handleSelect = (s: AutocompleteSuggestion) => {
     // Only fill the field with the picked location — do NOT navigate.
-    // Navigation to /search happens exclusively on Discover (form submit).
+    // Navigation to /buy happens exclusively on Discover (form submit).
     setInputValue(s.label)
     setSelectedCity(s.city ?? null)
     setSuggestions([])
@@ -90,8 +90,8 @@ export default function HeroSearchBar({
     if (inputValue) params.set('q', inputValue)
     if (selectedCity) params.set('city', selectedCity)
     // Price is set on the search screen's filter bar, not here — the hero is
-    // location-only. `priceRange` is still parsed by /search for older links.
-    router.push(`/search?${params}`)
+    // location-only. `priceRange` is still parsed by /buy for older links.
+    router.push(`/buy?${params}`)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

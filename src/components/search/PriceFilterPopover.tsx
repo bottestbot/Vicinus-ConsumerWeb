@@ -13,6 +13,7 @@ import { useRef, useState } from 'react'
 import { Slider } from '@base-ui/react/slider'
 import { useSearchStore } from '@/store/searchStore'
 import { track } from '@/lib/analytics/capture'
+import type { ListingType } from '@/types/search'
 import { glass, PILL_ACTIVE, type GlassTheme } from './glassTheme'
 import ResponsivePopover from './ResponsivePopover'
 import { formatPrice } from '@/lib/format'
@@ -26,13 +27,20 @@ function parseAmount(raw: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-export default function PriceFilterPopover({ theme }: { theme: GlassTheme }) {
+export default function PriceFilterPopover({
+  theme,
+  listingType,
+}: {
+  theme: GlassTheme
+  /** From the route (/buy vs /rent) — selects the rent vs sale price ladder. */
+  listingType: ListingType
+}) {
   const { filters, setFilter } = useSearchStore()
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const t = glass(theme)
 
-  const isRent = filters.listingType === 'For Rent'
+  const isRent = listingType === 'For Rent'
   const stops = stopsFor(isRent)
   const lastIndex = stops.length - 1
 

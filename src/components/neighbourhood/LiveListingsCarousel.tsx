@@ -131,7 +131,7 @@ export default function LiveListingsCarousel({ liveListings, slug, name }: Props
           </>
         )}
         <Link
-          href={`/search?neighbourhood=${slug}`}
+          href={`/buy?neighbourhood=${slug}`}
           className="ml-1 text-sm font-semibold text-[#1C3829] hover:underline"
         >
           See all →

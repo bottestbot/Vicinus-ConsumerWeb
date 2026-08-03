@@ -4,7 +4,8 @@ import Logo from '@/components/brand/Logo'
 // Only real, existing routes are linked here so we never ship 404s.
 // About / Contact pages don't exist yet and are intentionally omitted.
 const EXPLORE_LINKS = [
-  { label: 'Search', href: '/search?listingType=For+Sale' },
+  { label: 'Buy', href: '/buy' },
+  { label: 'Rent', href: '/rent' },
   // Sell is hidden for this launch — restore alongside the Navbar entry.
   // { label: 'Sell', href: '/sell' },
   { label: 'Neighbourhoods', href: '/neighbourhoods' },

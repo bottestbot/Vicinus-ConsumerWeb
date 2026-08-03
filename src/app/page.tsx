@@ -216,7 +216,7 @@ export default async function LandingPage() {
                 </p>
               </div>
               <Link
-                href="/search"
+                href="/buy"
                 className="hidden sm:flex items-center gap-1 text-sm text-[#6B6B6B] hover:text-[#111111] transition-colors"
               >
                 {STRINGS.HOMEPAGE_HIGHLIGHTS_VIEWALL} <ChevronRight size={14} />

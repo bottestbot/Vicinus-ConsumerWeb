@@ -21,8 +21,13 @@ function buildSearchUrl(filters: Record<string, unknown>): string {
   if (filters.maxPrice) params.set('maxPrice', String(filters.maxPrice))
   if (filters.beds) params.set('beds', String(filters.beds))
   if (filters.propertyType) params.set('propertyType', String(filters.propertyType))
-  if (filters.listingType) params.set('listingType', String(filters.listingType))
-  return `/search?${params.toString()}`
+  // Buy/Rent is the route now, not a query param — a saved "For Rent" search
+  // opens /rent, everything else /buy.
+  const path = filters.listingType === 'For Rent' ? '/rent' : '/buy'
+  // A saved search with no narrowing filters yields an empty param set — don't
+  // navigate to a bare "/rent?".
+  const qs = params.toString()
+  return qs ? `${path}?${qs}` : path
 }
 
 function searchLabel(s: SavedSearch): string {
@@ -105,7 +110,7 @@ export default function RecentSearches() {
         <p className="text-sm text-[#6B6B6B]">
           No saved searches yet —{' '}
           <button
-            onClick={() => router.push('/search')}
+            onClick={() => router.push('/buy')}
             className="font-semibold text-[#1C3829] hover:underline"
           >
             start exploring

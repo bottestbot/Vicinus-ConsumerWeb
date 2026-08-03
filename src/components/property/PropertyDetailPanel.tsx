@@ -49,7 +49,7 @@ export default function PropertyDetailPanel({
     // listings instead so "Back" is never a dead button.
     const [nav] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[]
     if (nav?.type !== 'navigate' && window.history.length > 1) return router.back()
-    router.push('/search')
+    router.push('/buy')
   }
 
   useEffect(() => {
