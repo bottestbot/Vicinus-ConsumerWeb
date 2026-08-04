@@ -19,8 +19,35 @@ import type { MetadataRoute } from 'next'
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vicinus.ca'
 
 /** Private, thin, or non-HTML routes. Kept out of the index to preserve crawl
- *  budget for the neighbourhood and search surfaces that can actually rank. */
-const DISALLOW = ['/dashboard', '/feed', '/onboarding', '/sign-in', '/sign-up', '/api']
+ *  budget for the neighbourhood and search surfaces that can actually rank.
+ *
+ *  ⚠️ `/properties` is here for a COMPLIANCE reason, not an SEO one, and should
+ *  not be removed without SEO-05.
+ *
+ *  Property detail pages are server components rendering full DDF listing data
+ *  — address, price, beds/baths, brokerage, MLS® number — and always have, so
+ *  this is not a regression we introduced. But adding robots.txt at all changes
+ *  the posture: 404 meant "allow everything" by implication, whereas naming the
+ *  AI crawlers below with `allow: '/'` is an *affirmative* grant to crawl
+ *  listing detail. That is precisely the question SEO-05 is open on.
+ *
+ *  Everywhere else we took the cautious side of that question — no listing URLs
+ *  in the sitemap, no RealEstateListing JSON-LD, no DDF fields in the
+ *  neighbourhood SSR payload. Leaving `/properties` crawlable while explicitly
+ *  inviting GPTBot et al. would contradict all three.
+ *
+ *  Note this blocks *crawling*, not indexing of URLs discovered elsewhere —
+ *  true removal needs `noindex`, which in turn needs the page to be crawlable.
+ *  SEO-10 is where that trade-off gets resolved once SEO-05 lands. */
+const DISALLOW = [
+  '/dashboard',
+  '/feed',
+  '/onboarding',
+  '/sign-in',
+  '/sign-up',
+  '/api',
+  '/properties',
+]
 
 /** SEO-07 — explicitly allowlisted AI / answer-engine crawlers.
  *
