@@ -5,7 +5,11 @@ import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DdfAuthService } from './ddf-auth.service';
 import { SearchQueryDto } from '../search/dto/search-query.dto';
-import { isPhotoMedia } from './ddf-media.util';
+import {
+  extractListingVideo,
+  isPhotoMedia,
+  VIDEO_TOUR_CATEGORY,
+} from './ddf-media.util';
 
 export interface MapPin {
   id: string;
@@ -20,6 +24,8 @@ export interface SearchResult {
   page: number;
   limit: number;
   totalPages: number;
+  /** Whether DDF filled the scan — the pagination signal when results are trimmed. */
+  hasMore?: boolean;
 }
 
 export interface OpenHouseSlot {
@@ -74,7 +80,31 @@ export interface NearbyOpenHouse {
  * (the dwelling style lives in a separate field), so this short list covers all
  * residential stock.
  */
-export const RESIDENTIAL_SUBTYPES = ['Single Family', 'Multi-family', 'Recreational'];
+export const RESIDENTIAL_SUBTYPES = [
+  'Single Family',
+  'Multi-family',
+  'Recreational',
+];
+
+/**
+ * How long a videoOnly search may wait on DDF before falling back to the
+ * unfiltered query. Sized above the warm p99 (~900ms) but low enough that a
+ * cold city (1.2–4.5s) degrades instead of stalling — see raceVideoOnly. The
+ * genuinely pathological shapes never get here: usesVideoLambda keeps the
+ * filter off broad queries entirely.
+ */
+const VIDEO_ONLY_BUDGET_MS = 2_000;
+
+/**
+ * Hard ceiling on any single DDF search request. Without one, axios waits
+ * forever: a pathological filter (the 132s Ontario lambda) left the feed
+ * spinning with nothing to show and no way to recover. Paired with the budget
+ * above this bounds a videoOnly search at ~5s end to end.
+ */
+const DDF_REQUEST_TIMEOUT_MS = 3_000;
+
+/** DDF rejects `$top` above 100 with HTTP 400. */
+const DDF_MAX_TOP = 100;
 
 /**
  * DDF `StructureType` is the field that distinguishes dwelling form (House vs
@@ -137,6 +167,15 @@ export class DdfQueryService {
    * paginated list search and the map-pin query so the map always reflects the
    * same filters as the list.
    */
+  /**
+   * Whether the DDF-side video filter is worth pushing down for this query —
+   * see the cost table where the lambda is applied. Only an exact City or a
+   * bbox bounds the scan enough for it to be cheap.
+   */
+  private usesVideoLambda(dto: SearchQueryDto): boolean {
+    return !!dto.videoOnly && !!(dto.city || dto.bbox);
+  }
+
   private buildFilterParts(dto: SearchQueryDto): string[] {
     const filterParts: string[] = ['InternetEntireListingDisplayYN eq true'];
     // CREA removed StandardStatus from the DDF $filter-able fields (2026-07):
@@ -267,6 +306,27 @@ export class DdfQueryService {
       filterParts.push(`(${structureFilter})`);
     }
 
+    // Video feed supply. `Media` is a collection, so this needs the OData
+    // `any()` lambda — the same shape Basement uses above.
+    //
+    // Only pushed down when the query is ALREADY narrow. The lambda's cost
+    // scales with how many listings DDF has to walk, and it is catastrophic on
+    // a broad one (measured cold, $top=50):
+    //
+    //   City eq 'Toronto'          →     376ms      (40 listings to scan)
+    //   contains(…,'Toronto')      →  15,448ms   (9,732)
+    //   StateOrProvince 'Ontario'  → 131,908ms  (58,246)
+    //
+    // An exact City (or a bbox) bounds the scan; a free-text `q` or a bare
+    // province does not. On those we skip the lambda and let the caller's
+    // classification carry it — a ~14% yield instead of ~46%, but 2.6s instead
+    // of 2 minutes. Density is worth some latency; it is not worth that.
+    if (this.usesVideoLambda(dto)) {
+      filterParts.push(
+        `Media/any(m: m/MediaCategory eq '${VIDEO_TOUR_CATEGORY}')`,
+      );
+    }
+
     if (dto.bbox) {
       const coords = this.parseBbox(dto.bbox);
       if (coords) {
@@ -290,6 +350,51 @@ export class DdfQueryService {
     return filterParts;
   }
 
+  /**
+   * Run the videoOnly query, but never let a cold DDF cache stall the feed.
+   *
+   * The `Media/any()` lambda is fast once warm (170–400ms) but the FIRST call
+   * for a given filter shape can take 25s+ (measured: 25s Vancouver, 94s
+   * province-wide) — DDF appears to scan the Media collection uncached. That is
+   * a blank feed for the unlucky first viewer.
+   *
+   * So we give it a short budget and otherwise fall back to the unfiltered
+   * query, which is reliably sub-second. The feed still renders — just at the
+   * lower ~14% video density, since mapProperty classifies video either way and
+   * the client keeps only listings with a playable source.
+   *
+   * Crucially the abandoned request is NOT cancelled: letting it finish is what
+   * warms DDF's cache, so the next caller gets the fast path. The timeout is
+   * the warm-up.
+   */
+  private async raceVideoOnly(
+    fetchDdf: (u: string) => Promise<{ data: Record<string, unknown> }>,
+    videoUrl: string,
+    fallbackUrl: () => string,
+  ): Promise<{ data: Record<string, unknown> }> {
+    const inFlight = fetchDdf(videoUrl);
+    // The loser of the race must not surface as an unhandled rejection.
+    inFlight.catch(() => undefined);
+
+    let timer: NodeJS.Timeout | undefined;
+    const budget = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), VIDEO_ONLY_BUDGET_MS);
+    });
+
+    try {
+      const winner = await Promise.race([inFlight, budget]);
+      if (winner) return winner;
+    } finally {
+      clearTimeout(timer);
+    }
+
+    this.logger.warn(
+      `videoOnly search exceeded ${VIDEO_ONLY_BUDGET_MS}ms (cold DDF media index) — ` +
+        'serving the unfiltered query; the in-flight request continues to warm the cache',
+    );
+    return fetchDdf(fallbackUrl());
+  }
+
   async searchProperties(
     dto: SearchQueryDto,
     skip: number,
@@ -297,48 +402,105 @@ export class DdfQueryService {
   ): Promise<SearchResult> {
     const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
 
-    const filter = this.buildFilterParts(dto).join(' and ');
-    const url =
+    // Only ~46% of the listings DDF's video filter returns carry a URL we can
+    // actually play — the category also holds Matterport tours and agent
+    // landing pages, and DDF can't filter by host (see SearchQueryDto).
+    // So a videoOnly page over-fetches and trims, otherwise asking for 50 reels
+    // would yield ~23. Scanning is close to free: $top=100 measured *faster*
+    // than $top=50 (405ms vs 698ms) because cost is per-request, not per-row.
+    // Over-fetch only when the DDF-side filter is doing the heavy lifting.
+    // Without it (broad/free-text queries) a 100-row scan costs ~5.7s against
+    // the national feed and still yields a handful of reels — not worth it.
+    const scan =
+      dto.videoOnly && this.usesVideoLambda(dto)
+        ? Math.min(limit * 2, DDF_MAX_TOP)
+        : limit;
+    // Paging must advance by what we scanned, not by what survived the trim,
+    // or page 2 would re-serve listings page 1 already showed.
+    const scanSkip = dto.videoOnly ? ((dto.page ?? 1) - 1) * scan : skip;
+
+    const buildUrl = (d: SearchQueryDto) =>
       `${baseUrl}/Property` +
-      `?$top=${limit}` +
-      `&$skip=${skip}` +
-      `&$filter=${encodeURIComponent(filter)}` +
+      `?$top=${scan}` +
+      `&$skip=${scanSkip}` +
+      `&$filter=${encodeURIComponent(this.buildFilterParts(d).join(' and '))}` +
       `&$orderby=ModificationTimestamp%20desc` +
       `&$count=true`;
 
+    const url = buildUrl(dto);
+
     try {
       const token = await this.auth.getToken();
-      const response = await firstValueFrom(
-        this.http.get(url, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-          },
-        }),
-      );
+      const fetchDdf = (u: string) =>
+        firstValueFrom(
+          this.http.get(u, {
+            timeout: DDF_REQUEST_TIMEOUT_MS,
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json',
+            },
+          }),
+        );
 
-      const properties =
-        (response.data.value as Record<string, unknown>[]) ?? [];
+      // Only race when the lambda is actually in the filter — otherwise the
+      // "fallback" URL is the same query and a timeout would just re-run it.
+      const response = await (this.usesVideoLambda(dto)
+        ? this.raceVideoOnly(fetchDdf, url, () =>
+            buildUrl({ ...dto, videoOnly: false }),
+          )
+        : fetchDdf(url));
+
+      const scanned = (response.data.value as Record<string, unknown>[]) ?? [];
       const total =
-        (response.data['@odata.count'] as number | undefined) ??
-        properties.length;
+        (response.data['@odata.count'] as number | undefined) ?? scanned.length;
       const page = dto.page ?? 1;
-      const data = properties.map((p) => this.mapProperty(p));
+
+      // Drop the unplayable ones before mapping + enriching, so the agent-name
+      // and open-house joins only run on listings we're actually returning.
+      const kept = dto.videoOnly
+        ? scanned
+            .filter(
+              (p) =>
+                extractListingVideo(
+                  (p['Media'] as Record<string, unknown>[]) ?? [],
+                ) !== null,
+            )
+            .slice(0, limit)
+        : scanned;
+
+      const data = kept.map((p) => this.mapProperty(p));
       // Most live records carry only ListAgentKey / ListOfficeKey, so fill in
       // the realtor names from the synced Member / Office tables (cheap, batched).
       // The open-house join is a separate DDF resource, so it runs alongside.
       await Promise.all([
-        this.enrichRealtorNamesBatch(properties, data),
+        this.enrichRealtorNamesBatch(kept, data),
         this.enrichOpenHousesBatch(data),
       ]);
 
-      return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+      return {
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        // `data.length` can't drive pagination once we trim — a page that
+        // yielded few reels is not the end of the feed. Whether DDF filled the
+        // scan is the only honest "there is more" signal.
+        hasMore: scanned.length === scan,
+      };
     } catch (err) {
       const body = (err as { response?: { data?: unknown } }).response?.data;
       this.logger.error(
         `DDF search failed: ${(err as Error).message}${body ? ` — ${JSON.stringify(body)}` : ''}`,
       );
-      return { data: [], total: 0, page: dto.page ?? 1, limit, totalPages: 0 };
+      return {
+        data: [],
+        total: 0,
+        page: dto.page ?? 1,
+        limit,
+        totalPages: 0,
+        hasMore: false,
+      };
     }
   }
 
@@ -356,23 +518,28 @@ export class DdfQueryService {
     message?: string;
   }> {
     const baseUrl = this.config.get<string>('DDF_API_BASE_URL');
-    const filter = this.buildFilterParts({} as SearchQueryDto).join(' and ');
+    const filter = this.buildFilterParts({}).join(' and ');
     const url = `${baseUrl}/Property?$top=1&$count=true&$filter=${encodeURIComponent(filter)}`;
     try {
       const token = await this.auth.getToken();
       const response = await firstValueFrom(
         this.http.get(url, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
         }),
       );
       const total =
         (response.data['@odata.count'] as number | undefined) ??
-        ((response.data.value as unknown[])?.length ?? 0);
+        (response.data.value as unknown[])?.length ??
+        0;
       // A national feed always has active listings; total 0 means the query is
       // valid but matches nothing (a subtler regression than a 400), so flag it.
       return { ok: total > 0, total };
     } catch (err) {
-      const status = (err as { response?: { status?: number } }).response?.status;
+      const status = (err as { response?: { status?: number } }).response
+        ?.status;
       return { ok: false, status, message: (err as Error).message };
     }
   }
@@ -604,6 +771,7 @@ export class DdfQueryService {
     const media = (p['Media'] as Record<string, unknown>[]) ?? [];
     const agentName = this.resolveAgentName(p);
     const officeName = this.resolveOfficeName(p, media);
+    const video = extractListingVideo(media);
     return {
       id: String(p['ListingKey']),
       ddfListingKey: String(p['ListingKey']),
@@ -647,7 +815,9 @@ export class DdfQueryService {
       })),
       virtualTourUrl:
         p['VirtualTourURLBranded'] ?? p['VirtualTourURLUnbranded'] ?? null,
-      youtubeUrl: this.extractYoutubeUrl(media),
+      video,
+      // Kept for the PDP's VirtualTour section, which only ever handled YouTube.
+      youtubeUrl: video?.kind === 'youtube' ? video.url : null,
       photosCount: p['PhotosCount'] ?? null,
       taxAnnual: p['TaxAnnualAmount'] ?? null,
       taxYear: p['TaxYear'] ?? null,
@@ -1271,18 +1441,6 @@ export class DdfQueryService {
     }
     const [west, south, east, north] = parts;
     return { west, south, east, north };
-  }
-
-  /** Extract the first YouTube URL from a Media array (MediaCategory "Video Tour Website"). */
-  private extractYoutubeUrl(media: Record<string, unknown>[]): string | null {
-    for (const m of media) {
-      const cat = (m['MediaCategory'] as string | null) ?? '';
-      const url = (m['MediaURL'] as string | null) ?? '';
-      if (cat === 'Video Tour Website' && /youtu(\.be|be\.com)/i.test(url)) {
-        return url;
-      }
-    }
-    return null;
   }
 
   /** Escape single quotes to prevent OData filter injection. */
