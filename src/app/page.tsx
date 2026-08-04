@@ -1,4 +1,19 @@
-export const dynamic = 'force-dynamic'
+// SEO-06: this was `dynamic = 'force-dynamic'`, which rendered our single
+// most-crawled URL from scratch on every request and disabled the data cache
+// wholesale — the worst TTFB on the site, on the page Google samples most.
+//
+// Nothing here needs per-request freshness: the featured listings already
+// declare `revalidate: 600` on their own fetch, the neighbourhood list 1800,
+// and the city geocodes 86400. An hour at the route level is comfortably
+// inside normal refresh expectations for a curated homepage strip.
+//
+// Route Segment Config still applies because `cacheComponents` is off in
+// next.config.ts — under Cache Components this export is removed in v16.
+// Refs: node_modules/next/dist/docs/01-app/02-guides/caching-without-cache-components.md
+//       ("Route segment config `revalidate`") and
+//       node_modules/next/dist/docs/01-app/02-guides/incremental-static-regeneration.md.
+// Note the value must be statically analyzable — `3600`, not `60 * 60`.
+export const revalidate = 3600
 
 import type { Metadata } from 'next'
 import Image from 'next/image'
@@ -186,10 +201,21 @@ export default async function LandingPage() {
 
         {/* Hero content */}
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pt-24 pb-20 text-center">
-          <h1 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight tracking-tight max-w-4xl mx-auto mb-8">
-            {STRINGS.HOMEPAGE_HERO_TITLE_LEAD}{' '}
-            <span className="text-[#A3E635]">{STRINGS.HOMEPAGE_HERO_TITLE_ACCENT}</span>
-            {' '}{STRINGS.HOMEPAGE_HERO_TITLE_TRAIL}
+          {/* SEO-06: the H1 now carries two lines. The brand line is unchanged
+              and still the visual hero — same font, size, weight, accent and
+              spacing as before, just moved onto an inner <span> so a second,
+              keyword-bearing line can sit inside the same <h1>. That is what
+              gives the heading "homes for sale", "rent" and "Canada" without
+              rewriting the brand. */}
+          <h1 className="max-w-4xl mx-auto mb-8">
+            <span className="block font-heading text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight tracking-tight">
+              {STRINGS.HOMEPAGE_HERO_TITLE_LEAD}{' '}
+              <span className="text-[#A3E635]">{STRINGS.HOMEPAGE_HERO_TITLE_ACCENT}</span>
+              {' '}{STRINGS.HOMEPAGE_HERO_TITLE_TRAIL}
+            </span>
+            <span className="block mt-4 text-base sm:text-lg font-normal text-white/70 leading-relaxed max-w-2xl mx-auto">
+              {STRINGS.HOMEPAGE_HERO_TITLE_KEYWORD}
+            </span>
           </h1>
 
           {/* Search bar */}

@@ -9,6 +9,8 @@ import OnboardingGate from '@/components/onboarding/OnboardingGate'
 import OnboardingModal from '@/components/onboarding/OnboardingModal'
 import SavedPropertiesGate from '@/components/providers/SavedPropertiesGate'
 import ConsentBanner from '@/components/consent/ConsentBanner'
+import JsonLd from '@/components/seo/JsonLd'
+import { buildOrganizationSchema, buildWebSiteSchema } from '@/lib/schema'
 import './globals.css'
 
 const inter = Inter({
@@ -47,6 +49,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
         <body className="font-sans">
+          {/* SEO-04: sitewide identity graph — `Organization` (the publisher
+              every other node references by @id) and `WebSite` (name +
+              sitelinks search action). Emitted once here so no route has to
+              repeat it; page-level schemas merge with these by @id. */}
+          <JsonLd id="ld-site" schema={[buildOrganizationSchema(), buildWebSiteSchema()]} />
           <PostHogProvider>
             <QueryProvider>
               <LeadInquiryProvider>
