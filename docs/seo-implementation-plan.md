@@ -166,10 +166,25 @@ not requesting a crawl until the SSR work is live.
 
 The real test for the whole plan is **fetch with JavaScript disabled**:
 
-- `/neighbourhoods` → 41 `<a href="/neighbourhoods/...">` present in raw HTML
-- `/neighbourhoods/<slug>` → bio, livability composite, percentile, all four sub-scores, and
-  local essentials present in raw HTML; listing grid and market snapshot **absent** (expected)
-- `/robots.txt` and `/sitemap.xml` → 200, sitemap lists 41 neighbourhood URLs + static routes
+- `/neighbourhoods` → ~112 `<a href="/neighbourhoods/...">` present in raw HTML (see note below)
+- `/neighbourhoods/<slug>` → livability sub-scores, region/percentile/weights version, and all
+  local essentials present in raw HTML; listing grid and market snapshot **absent** (expected).
+  ⚠️ **Not `bio`** — see SEO-17: every row's bio is null, so there is no prose to render.
+- `/robots.txt` and `/sitemap.xml` → 200, sitemap lists ~112 neighbourhood URLs + 9 static routes
+- **Production build** confirms `/neighbourhoods` is not opted out of prerendering — `next dev`
+  renders on demand and cannot reproduce a bailout, so dev verification is insufficient here
+
+> **~112, and don't hardcode it.** Earlier drafts said 41, then 31. Both were estimates replayed
+> against `metro-vancouver-neighbourhoods.ts` alone; the database actually holds ~416 rows because
+> `bc-neighbourhoods.ts` seeds province-wide. Measured live against the prod API, `LAUNCH_CITIES`
+> yields **112**.
+>
+> The number does not need to be right anywhere in code: both the sitemap and the index grid
+> filter on `isLaunchCity` at runtime, so they agree by construction and track the data as it
+> changes. Rows outside `LAUNCH_CITIES` sit on unverified centroids and, per the filter's own
+> comment, "would show collapsed or wrong scores" — indexing those would contradict the
+> methodology pages shipping in the same branch, and the risk is asymmetric: bad pages take weeks
+> to clear from an index, while widening `LAUNCH_CITIES` widens both surfaces automatically.
 - `/methodology/*` → full text in raw HTML
 - Every JSON-LD block passes Google's Rich Results Test
 - No `noindex` on any indexable route; `noindex` present on all five private routes
