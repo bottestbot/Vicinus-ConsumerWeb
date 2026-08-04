@@ -1,18 +1,17 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
+import { Suspense, useCallback, useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 import { useSearchStore } from '@/store/searchStore'
 import type { Neighbourhood } from '@/types/neighbourhood'
-import { formatPrice } from '@/types/search'
-import { getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
+import NeighbourhoodGrid, {
+  ALL_CITIES,
+  browsableNeighbourhoods,
+  defaultProvince,
+  filterNeighbourhoods,
+} from './NeighbourhoodGrid'
 
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1548656848-c80e1d02d05a?w=800&q=80'
-
-const ALL_CITIES = 'all-cities'
 // Cities shown as pills before the "Show all" affordance reveals the full list.
 const COLLAPSED_CITY_LIMIT = 8
 
@@ -63,13 +62,6 @@ function deriveFilters(all: Neighbourhood[], selectedProvince: string): {
     .map(([city, count]) => ({ label: city, key: city, count }))
 
   return { provinceOptions, cityOptions }
-}
-
-function filterNeighbourhoods(all: Neighbourhood[], province: string, city: string): Neighbourhood[] {
-  let result = all
-  if (province !== 'all') result = result.filter((n) => n.province === province)
-  if (city !== ALL_CITIES) result = result.filter((n) => n.city === city)
-  return result
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -123,17 +115,6 @@ function rankByQuery(matches: Neighbourhood[], query: string): Neighbourhood[] {
   })
 }
 
-// ── NBR-02: default province ──────────────────────────────────────────────────
-
-function defaultProvince(all: Neighbourhood[]): string {
-  const provinces = [...new Set(all.map((n) => n.province))]
-  if (provinces.length === 1) return provinces[0]
-  if (provinces.includes('BC')) return 'BC'
-  const counts = new Map<string, number>()
-  for (const n of all) counts.set(n.province, (counts.get(n.province) ?? 0) + 1)
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'all'
-}
-
 // ── NBR-03: context-aware selection ──────────────────────────────────────────
 
 function contextMatch(all: Neighbourhood[], query: string | null, userCity: string | null): { province: string; city: string } | null {
@@ -144,49 +125,24 @@ function contextMatch(all: Neighbourhood[], query: string | null, userCity: stri
   return null
 }
 
-// ── Cards ─────────────────────────────────────────────────────────────────────
+// ── ?city= reader (SEO-02) ────────────────────────────────────────────────────
+//
+// `useSearchParams` opts the calling Client Component tree out of prerendering up
+// to the nearest Suspense boundary — and this route's `loading.tsx` is that
+// boundary, so calling it in the main component pushed the ENTIRE index to
+// client-side rendering. That is why prod served nav + footer with zero links to
+// the 41 detail pages. Isolating it in a null-rendering child behind its own
+// Suspense boundary confines the opt-out to something that renders nothing, and
+// lets the grid above it prerender into the HTML.
+function CityParamReader({ onCity }: { onCity: (city: string | null) => void }) {
+  const searchParams = useSearchParams()
+  const city = searchParams.get('city')
 
-// NBR-05: showCityTag is false when a specific city is selected
-function NeighbourhoodCard({ neighbourhood, showCityTag }: { neighbourhood: Neighbourhood; showCityTag: boolean }) {
-  const imageSrc =
-    neighbourhood.lat && neighbourhood.lng
-      ? getNeighbourhoodMapImageUrl(neighbourhood.lat, neighbourhood.lng)
-      : FALLBACK_IMAGE
+  useEffect(() => {
+    onCity(city)
+  }, [city, onCity])
 
-  return (
-    <Link href={`/neighbourhoods/${neighbourhood.slug}`} className="group">
-      <article className="bg-white rounded-2xl border border-[#E8E6E1] overflow-hidden hover:border-[#1C3829]/40 hover:shadow-lg transition-all duration-300">
-        <div className="relative h-52 overflow-hidden bg-[#F2F0EB]">
-          <Image
-            src={imageSrc}
-            alt={neighbourhood.name}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          <div className="absolute bottom-4 left-4 right-4">
-            <p className="font-heading text-xl font-bold text-white leading-tight">{neighbourhood.name}</p>
-            {showCityTag && (
-              <p className="text-xs text-white/70 mt-0.5">{neighbourhood.city}</p>
-            )}
-          </div>
-        </div>
-        <div className="p-4 flex items-center justify-between">
-          <p className="text-sm text-[#6B6B6B]">
-            {neighbourhood.city},{' '}
-            <span className="font-medium text-[#111111]">{neighbourhood.province}</span>
-          </p>
-          {neighbourhood.medianPrice && (
-            <p className="text-sm font-semibold text-[#111111]">
-              {formatPrice(neighbourhood.medianPrice)}
-              <span className="text-[10px] text-[#6B6B6B] font-normal ml-0.5">med.</span>
-            </p>
-          )}
-        </div>
-      </article>
-    </Link>
-  )
+  return null
 }
 
 // ── Pill ──────────────────────────────────────────────────────────────────────
@@ -463,31 +419,23 @@ function SearchBar({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) {
+export default function NeighbourhoodsClient({
+  all,
+  children,
+}: {
+  all: Neighbourhood[]
+  /** SEO-02: the server-rendered default grid. Rendered as-is while the view is
+   *  in its initial state, so the anchors in the HTML are the ones the visitor
+   *  sees — the client only takes over the grid once a filter or search runs. */
+  children: React.ReactNode
+}) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  // A `?city=` param (e.g. from the homepage "Understand the vicinity" cards)
-  // takes precedence over the ambient search-store context for pre-selection.
-  const cityParam = searchParams.get('city')
   const query = useSearchStore((s) => s.query)
   const userCity = useSearchStore((s) => s.userCity)
 
-  // Index shows genuine neighbourhoods only. Rows where name === city are bare
-  // municipalities (seeded so cities are searchable); they aren't places to
-  // browse into, so they're excluded here. Also dedupe by name+city to guard
-  // against legacy duplicate rows (e.g. kitsilano / kitsilano-vancouver).
-  const data = useMemo(() => {
-    const seen = new Set<string>()
-    const out: Neighbourhood[] = []
-    for (const n of all) {
-      if (n.name === n.city) continue
-      const key = `${n.province}|${n.city}|${n.name}`.toLowerCase()
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push(n)
-    }
-    return out
-  }, [all])
+  // Index shows genuine neighbourhoods only — see browsableNeighbourhoods. The
+  // server page derives the default grid from the same helper.
+  const data = useMemo(() => browsableNeighbourhoods(all), [all])
 
   const initialProvince = useMemo(() => defaultProvince(data), [data])
   const [selectedProvince, setSelectedProvince] = useState(initialProvince)
@@ -525,15 +473,23 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
     setIsSearchOpen(false)
   }
 
-  // NBR-03: context-aware pre-selection on mount. An explicit `?city=` param
-  // wins over the ambient search-store query/userCity.
-  useEffect(() => {
-    const ctx = contextMatch(data, cityParam || query, userCity)
-    if (ctx) {
-      setSelectedProvince(ctx.province)
-      setSelectedCity(ctx.city)
-    }
-  }, []) // intentionally run once on mount
+  // NBR-03: context-aware pre-selection, applied once. An explicit `?city=` param
+  // (e.g. from the homepage "Understand the vicinity" cards) wins over the ambient
+  // search-store query/userCity. The param arrives from <CityParamReader> rather
+  // than a direct useSearchParams call — see the note on that component.
+  const contextApplied = useRef(false)
+  const applyContext = useCallback(
+    (cityParam: string | null) => {
+      if (contextApplied.current) return
+      contextApplied.current = true
+      const ctx = contextMatch(data, cityParam || query, userCity)
+      if (ctx) {
+        setSelectedProvince(ctx.province)
+        setSelectedCity(ctx.city)
+      }
+    },
+    [data, query, userCity],
+  )
 
   // NBR-07: detect when filter bar is in sticky state
   useEffect(() => {
@@ -562,6 +518,12 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
     () => filterNeighbourhoods(data, selectedProvince, selectedCity),
     [data, selectedProvince, selectedCity],
   )
+
+  // SEO-02: while nothing has been filtered or searched, keep showing the grid the
+  // server rendered instead of re-rendering an identical one on the client. This
+  // is the state a crawler (and every cold page load) sees.
+  const isDefaultView =
+    !searchActive && selectedProvince === initialProvince && selectedCity === ALL_CITIES
 
   const provinceLabel = PROVINCE_LABELS[selectedProvince] ?? selectedProvince
   const cityAllCount = useMemo(
@@ -601,6 +563,10 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
   return (
     <>
       <FilterStyles />
+
+      <Suspense fallback={null}>
+        <CityParamReader onCity={applyContext} />
+      </Suspense>
 
       <SearchBar
         query={searchText}
@@ -681,11 +647,7 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
                 {searchResults.length}
               </span>
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {searchResults.map((n) => (
-                <NeighbourhoodCard key={n.slug} neighbourhood={n} showCityTag />
-              ))}
-            </div>
+            <NeighbourhoodGrid neighbourhoods={searchResults} showCityTag />
           </>
         )
       ) : activeCity && filtered.length === 0 ? (
@@ -727,11 +689,11 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
             All Neighbourhoods
             <span className="ml-2 text-[#999] font-normal normal-case tracking-normal">{filtered.length}</span>
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((n) => (
-              <NeighbourhoodCard key={n.slug} neighbourhood={n} showCityTag={showCityTag} />
-            ))}
-          </div>
+          {isDefaultView ? (
+            children
+          ) : (
+            <NeighbourhoodGrid neighbourhoods={filtered} showCityTag={showCityTag} />
+          )}
         </>
       )}
     </>
