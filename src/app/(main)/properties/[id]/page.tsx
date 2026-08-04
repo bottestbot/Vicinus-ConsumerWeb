@@ -11,6 +11,20 @@ import PropertyDetailView from '@/components/property/PropertyDetailView'
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
+/** SEO-05 / SEO-18(c) — DDF listing detail may NOT be indexed at our REAW tier.
+ *
+ *  `robots.txt` already disallows `/properties`, but Disallow only stops
+ *  *crawling* — a URL discovered through an inbound link can still be indexed
+ *  (URL-only, no snippet). `noindex` is the authoritative directive, and it
+ *  costs nothing to serve even while the path is disallowed: if crawl is ever
+ *  re-opened (which requires CREA-09 first, since Googlebot executes JS and
+ *  would fire `view` events to CREA), this is already in place rather than
+ *  being remembered at that moment.
+ *
+ *  ⚠️ Do not remove without re-reading SEO-05 — the answer was an unqualified
+ *  no, not a "not yet". */
+const NOINDEX = { index: false, follow: false } as const
+
 export async function generateMetadata({
   params,
 }: {
@@ -18,7 +32,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params
   const property = await getPropertyDetail(id)
-  if (!property) return { title: 'Property not found' }
+  if (!property) return { title: 'Property not found', robots: NOINDEX }
   // Rentals price in the $1000s/mo — the millions formatter rendered "$0.00M".
   const price = property.price
     ? property.listingType === 'For Rent'
@@ -31,6 +45,7 @@ export async function generateMetadata({
   return {
     title,
     description: `${property.beds} bed · ${property.baths} bath · ${property.sqft.toLocaleString()} sqft — ${property.city}. Listed by ${property.brokerageName}.`,
+    robots: NOINDEX,
   }
 }
 
