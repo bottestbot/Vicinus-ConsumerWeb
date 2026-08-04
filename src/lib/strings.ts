@@ -38,6 +38,19 @@ export const STRINGS = {
     'Listing data is provided by the Canadian Real Estate Association (CREA) Data Distribution Facility (DDF®). REALTOR®, MLS®, and the associated logos are trademarks owned by CREA and identify real estate professionals who are members of CREA.',
   FOOTER_COPYRIGHT: '© {year} Vicinus. All rights reserved.',
 
+  // ─── Global · Structured data (JSON-LD) ─────────────────────────────────────
+  // Copy that ships inside the schema.org graph (src/lib/schema.ts). Not shown
+  // in the UI, but it IS user-facing: this is what a search engine or an AI
+  // answer engine quotes when it describes Vicinus. Keep it factual — a claim
+  // made here is a claim made publicly.
+  SCHEMA_ORGANIZATION_NAME: 'Vicinus',
+  SCHEMA_ORGANIZATION_DESCRIPTION:
+    'Vicinus is a Canadian real estate platform combining MLS® listings with original neighbourhood livability scoring — walkability, schools, amenities and transit — so buyers and renters can compare places, not just properties.',
+  SCHEMA_ORGANIZATION_SLOGAN: 'Bringing you closer to home.',
+  SCHEMA_WEBSITE_NAME: 'Vicinus',
+  SCHEMA_WEBSITE_DESCRIPTION:
+    'Search homes for sale and for rent across Canada, and explore neighbourhoods with livability scores built from open transit, school and amenity data.',
+
   // ─── Homepage · Metadata ────────────────────────────────────────────────────
   HOMEPAGE_META_TITLE: 'Vicinus | Canadian Real Estate & Smart Market Data',
   HOMEPAGE_META_DESCRIPTION:
@@ -48,6 +61,12 @@ export const STRINGS = {
   HOMEPAGE_HERO_TITLE_LEAD: 'Bringing',
   HOMEPAGE_HERO_TITLE_ACCENT: 'You',
   HOMEPAGE_HERO_TITLE_TRAIL: 'Closer to Home.',
+  // SEO-06: the brand line above carries no search terms — no "Canada", no
+  // "real estate", no "homes for sale". This second line lives INSIDE the same
+  // <h1> so the H1 gains keyword weight without demoting or restyling the
+  // brand line, which stays the visual hero exactly as designed.
+  // ⚠️ Brand copy — pending sign-off.
+  HOMEPAGE_HERO_TITLE_KEYWORD: 'Homes for sale and rent across Canada, neighbourhood by neighbourhood.',
 
   // ─── Homepage · Hero search bar ─────────────────────────────────────────────
   HOMEPAGE_HEROSEARCH_LABEL: 'Find your home',
