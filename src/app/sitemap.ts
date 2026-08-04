@@ -2,9 +2,9 @@
 //
 // ⚠️ Build it, do not submit it. The SEO plan (docs/seo-implementation-plan.md,
 // "Sequencing trap") gates Search Console submission on Phase 3, after the
-// neighbourhood pages actually server-render their content. A 41-URL sitemap
-// discovered while those pages are still empty shells spends our one good
-// first-crawl impression on thin pages.
+// neighbourhood pages actually server-render their content. URLs discovered
+// while those pages are still empty shells spend our one good first-crawl
+// impression on thin pages.
 //
 // ⚠️ No property/listing URLs. Vicinus is a Real Estate Advertising Website on
 // the CREA DDF National Shared Pool and CREA has historically restricted

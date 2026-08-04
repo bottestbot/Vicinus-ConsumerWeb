@@ -1,12 +1,16 @@
 // Sitemap data source (SEO-01).
 //
-// Deliberately a standalone module rather than an addition to
-// `src/lib/api/neighbourhoods.ts`: that file is the neighbourhood *page's*
-// client and carries launch-city display filters, mock fallbacks and shape
-// mappers that a sitemap must not inherit. The sitemap needs exactly one thing
-// — the canonical set of neighbourhood slugs, straight from the DB via the API,
+// A standalone module rather than an addition to `src/lib/api/neighbourhoods.ts`
+// so this file and the neighbourhood-page work stay on disjoint files (see the
+// track table in docs/seo-implementation-plan.md). It needs exactly one thing —
+// the set of neighbourhood slugs that should be indexed, read live from the API,
 // never a hardcoded list (a hardcoded list drifts silently the moment a row is
-// added).
+// seeded).
+//
+// It does share one rule with the page client: `isLaunchCity`. See
+// `getNeighbourhoodSitemapEntries` below for why the sitemap honours it.
+
+import { isLaunchCity } from '@/lib/api/neighbourhoods'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'
 
@@ -23,6 +27,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'
  *  up with no further change. */
 interface ApiNeighbourhoodRow {
   slug?: string | null
+  city?: string | null
   livabilityComputedAt?: string | null
   createdAt?: string | null
 }
@@ -40,12 +45,23 @@ function parseDate(value: string | null | undefined): Date | undefined {
 }
 
 /**
- * Every neighbourhood slug that has a live `/neighbourhoods/<slug>` page.
+ * The neighbourhood slugs that belong in the sitemap.
  *
- * Note this intentionally does **not** apply the `LAUNCH_CITIES` display filter
- * used by `getNeighbourhoods()` — that filter governs which cards the index
- * grid renders, not which URLs exist. Every seeded row resolves at
- * `/neighbourhoods/<slug>`, and the SEO plan specifies the full set.
+ * ⚠️ Filtered by `isLaunchCity`, deliberately — this is not an oversight, and
+ * the `/neighbourhoods/<slug>` route resolves for the excluded rows too.
+ *
+ * The rows outside `LAUNCH_CITIES` sit on unverified centroids, so their
+ * livability scores render collapsed or simply wrong (see the comment on
+ * `LAUNCH_CITIES` in `neighbourhoods.ts`). Submitting them would put known-bad
+ * scores in front of Google while we publish methodology pages claiming
+ * scoring rigor — and it would contradict the index grid, which renders only
+ * launch cities, leaving the rest as sitemap-only orphans with no crawl path.
+ * The risk is asymmetric: badly-indexed pages take weeks to clear, whereas
+ * widening coverage later costs nothing.
+ *
+ * So: **widening `LAUNCH_CITIES` automatically widens the sitemap.** Once a
+ * city's centroids are verified, add it there and this file follows — there is
+ * nothing to change here. Do not "fix" this by dropping the filter.
  *
  * Degrades to `[]` on any API failure so a sitemap of static routes still
  * builds rather than the whole route 500ing.
@@ -70,6 +86,7 @@ export async function getNeighbourhoodSitemapEntries(): Promise<SitemapNeighbour
   for (const row of rows) {
     const slug = row?.slug?.trim()
     if (!slug || seen.has(slug)) continue
+    if (!isLaunchCity(row.city)) continue
     seen.add(slug)
 
     // `livabilityComputedAt` first: it marks when the page's substantive
