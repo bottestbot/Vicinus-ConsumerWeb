@@ -62,8 +62,21 @@ export interface Property {
   features?: string[]
   virtualTourUrl?: string | null
   youtubeUrl?: string | null
+  /** Playable video for the feed, classified by the API (see ddf-media.util). */
+  video?: ListingVideo | null
   /** Soonest upcoming open house, when the listing has one. */
   openHouse?: OpenHouseSummary | null
+}
+
+/** Mirrors the API's ListingVideo — the only media the feed can play inline. */
+export interface ListingVideo {
+  kind: 'youtube' | 'vimeo' | 'file'
+  /** YouTube's 11-char id, or Vimeo's numeric id. Unset for `file`. */
+  id?: string
+  /** Vimeo unlisted-video hash — required to embed those. */
+  hash?: string
+  /** Playable URL; for `file`, already rewritten to a streamable host. */
+  url: string
 }
 
 export interface SearchFiltersExtended {
