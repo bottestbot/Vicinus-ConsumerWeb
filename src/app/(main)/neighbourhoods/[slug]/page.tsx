@@ -1,12 +1,16 @@
 // FE-501 / NBHD-16 / NBHD-D10: Neighbourhood Detail Page
-// Server shell — owns metadata + page chrome. The redesigned section spine (split
+// Server shell — owns metadata + page chrome. SEO-03: the section spine (split
 // hero → narrative → AI fit card → essentials → livability → info tiles → live
-// listings) is rendered by the client <NeighbourhoodDetailBody>, which fetches the
-// aggregate /detail payload via TanStack Query. The forest CTA banner closes the page.
+// listings) is now rendered by the *server* <NeighbourhoodDetailBody>, so the bio,
+// livability sub-scores and OSM local essentials are present in the raw HTML for
+// crawlers that execute no JavaScript. The DDF-derived sections keep their own
+// client fetch inside that tree. The forest CTA banner closes the page.
 // NOTE: params is a Promise<{ slug }> in Next.js 16 App Router — must be awaited.
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { getNeighbourhood } from '@/lib/api/neighbourhoods'
 import NeighbourhoodDetailBody from '@/components/neighbourhood/NeighbourhoodDetailBody'
+import NeighbourhoodDetailSkeleton from '@/components/neighbourhood/NeighbourhoodDetailSkeleton'
 import NeighbourhoodCTA from '@/components/neighbourhood/NeighbourhoodCTA'
 
 interface PageProps {
@@ -32,7 +36,13 @@ export default async function NeighbourhoodDetailPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-[#FAF9F6] pb-16 pt-16 font-ui">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <NeighbourhoodDetailBody slug={slug} province={neighbourhood.province} />
+        {/* The aggregate /detail call is the slow one on this route, and the API
+            has a known cold-start. Streaming it behind Suspense means a slow
+            upstream costs a skeleton, not a blank page — the shell and the CTA
+            flush immediately. */}
+        <Suspense fallback={<NeighbourhoodDetailSkeleton />}>
+          <NeighbourhoodDetailBody slug={slug} province={neighbourhood.province} />
+        </Suspense>
         <NeighbourhoodCTA
           name={neighbourhood.name}
           slug={slug}

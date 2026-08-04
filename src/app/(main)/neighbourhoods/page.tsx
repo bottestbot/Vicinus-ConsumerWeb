@@ -1,9 +1,22 @@
 // Neighbourhoods index page
+//
+// SEO-02: the default card grid is rendered HERE, in the server component, so the
+// raw HTML carries a real `<a href="/neighbourhoods/{slug}">` for every
+// neighbourhood. It is the only crawl path to the detail pages (there is no
+// sitemap yet — SEO-01), and crawlers that execute no JavaScript were previously
+// served nav + footer and nothing else. NeighbourhoodsClient layers search and the
+// province/city filters on top and only takes over the grid once one is used.
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
 import NeighbourhoodsClient from '@/components/neighbourhood/NeighbourhoodsClient'
+import NeighbourhoodGrid, {
+  ALL_CITIES,
+  browsableNeighbourhoods,
+  defaultProvince,
+  filterNeighbourhoods,
+} from '@/components/neighbourhood/NeighbourhoodGrid'
 
 export const metadata: Metadata = {
   title: 'Explore Neighbourhoods',
@@ -12,6 +25,12 @@ export const metadata: Metadata = {
 
 export default async function NeighbourhoodsPage() {
   const neighbourhoods = await getNeighbourhoods()
+
+  // Must match NeighbourhoodsClient's initial state exactly — it renders this tree
+  // verbatim until a filter or search is applied, so any divergence would show up
+  // as a hydration mismatch. Both sides derive it from the same helpers.
+  const browsable = browsableNeighbourhoods(neighbourhoods)
+  const initialGrid = filterNeighbourhoods(browsable, defaultProvince(browsable), ALL_CITIES)
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-20 font-ui">
@@ -53,8 +72,10 @@ export default async function NeighbourhoodsPage() {
           </Link>
         </div>
 
-        {/* Dynamic filters + featured + grid — all client-side */}
-        <NeighbourhoodsClient all={neighbourhoods} />
+        {/* Filters + search are client-side; the default grid below is server-rendered */}
+        <NeighbourhoodsClient all={neighbourhoods}>
+          <NeighbourhoodGrid neighbourhoods={initialGrid} showCityTag />
+        </NeighbourhoodsClient>
       </div>
     </div>
   )
