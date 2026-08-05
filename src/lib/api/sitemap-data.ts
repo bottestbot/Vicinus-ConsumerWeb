@@ -27,6 +27,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'
  *  up with no further change. */
 interface ApiNeighbourhoodRow {
   slug?: string | null
+  /** Needed only to drop bare-municipality rows — see `name === city` below. */
+  name?: string | null
   city?: string | null
   livabilityComputedAt?: string | null
   createdAt?: string | null
@@ -87,6 +89,18 @@ export async function getNeighbourhoodSitemapEntries(): Promise<SitemapNeighbour
     const slug = row?.slug?.trim()
     if (!slug || seen.has(slug)) continue
     if (!isLaunchCity(row.city)) continue
+
+    // Drop bare-municipality rows (`name === city`, e.g. "Vancouver" in
+    // Vancouver). They exist so cities are searchable, not as places to browse
+    // into, and `browsableNeighbourhoods()` excludes them from the index grid.
+    // Without this the sitemap volunteered 10 URLs nothing on the site links
+    // to — orphans with no crawl path, which is the exact problem the
+    // launch-city filter above exists to avoid. Mirrors that helper's rule;
+    // kept as a local check because this module only fetches the two fields it
+    // needs rather than the full `Neighbourhood` shape.
+    const name = row?.name?.trim()
+    if (name && row.city && name.toLowerCase() === row.city.trim().toLowerCase()) continue
+
     seen.add(slug)
 
     // `livabilityComputedAt` first: it marks when the page's substantive

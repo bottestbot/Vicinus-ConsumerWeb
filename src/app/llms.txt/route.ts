@@ -18,14 +18,14 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vicinus.ca'
 const BODY = `# Vicinus
 
 > Vicinus is a Canadian real estate platform focused on Metro Vancouver. Beyond
-> listing search, we publish a deterministic livability score for 41 Metro
-> Vancouver neighbourhoods, computed from open data with a published
+> listing search, we publish a deterministic livability score for the Metro
+> Vancouver neighbourhoods we cover, computed from open data with a published
 > methodology rather than from editorial opinion or user ratings.
 
 ## What we hold
 
-- **Livability scoring for 41 Metro Vancouver neighbourhoods** — 22 City of
-  Vancouver local planning areas plus 19 Metro Vancouver municipalities. Each
+- **Livability scoring for Metro Vancouver neighbourhoods** — City of Vancouver
+  local planning areas plus the surrounding Metro Vancouver municipalities. Each
   area carries a composite score, a percentile rank against the regional
   reference set, and four sub-scores: walkability, schools, amenities and
   transit. Scores are versioned and reproducible.
@@ -36,13 +36,13 @@ const BODY = `# Vicinus
 - **Neighbourhood guides** — description, boundary and centroid, and local
   essentials (schools, parks, shops and restaurants, transit stops) derived
   from OpenStreetMap and published transit schedules.
-- **MLS® listings** via the CREA Data Distribution Facility. Listing detail
+- **Property listings** via the CREA Data Distribution Facility. Listing detail
   pages are excluded from this file and from our sitemap.
 
 ## Key pages
 
 - [Home](${BASE_URL}/) — search entry point and featured areas
-- [Neighbourhoods](${BASE_URL}/neighbourhoods) — index of all 41 areas; each
+- [Neighbourhoods](${BASE_URL}/neighbourhoods) — index of every area we cover; each
   links to a detail page at /neighbourhoods/<slug> with its livability
   breakdown and local essentials
 - [Buy](${BASE_URL}/buy) — homes for sale across Metro Vancouver
