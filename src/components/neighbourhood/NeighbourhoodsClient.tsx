@@ -136,8 +136,8 @@ function defaultProvince(all: Neighbourhood[]): string {
 
 // ── NBR-03: context-aware selection ──────────────────────────────────────────
 
-function contextMatch(all: Neighbourhood[], query: string | null, userCity: string | null): { province: string; city: string } | null {
-  const q = (query || userCity || '').toLowerCase().trim()
+function contextMatch(all: Neighbourhood[], query: string | null, contextCity: string | null): { province: string; city: string } | null {
+  const q = (query || contextCity || '').toLowerCase().trim()
   if (!q) return null
   const match = all.find((n) => n.city.toLowerCase() === q)
   if (match) return { province: match.province, city: match.city }
@@ -470,7 +470,7 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
   // takes precedence over the ambient search-store context for pre-selection.
   const cityParam = searchParams.get('city')
   const query = useSearchStore((s) => s.query)
-  const userCity = useSearchStore((s) => s.userCity)
+  const mapCity = useSearchStore((s) => s.mapCity)
 
   // Index shows genuine neighbourhoods only. Rows where name === city are bare
   // municipalities (seeded so cities are searchable); they aren't places to
@@ -526,9 +526,9 @@ export default function NeighbourhoodsClient({ all }: { all: Neighbourhood[] }) 
   }
 
   // NBR-03: context-aware pre-selection on mount. An explicit `?city=` param
-  // wins over the ambient search-store query/userCity.
+  // wins over the ambient search-store query/map city.
   useEffect(() => {
-    const ctx = contextMatch(data, cityParam || query, userCity)
+    const ctx = contextMatch(data, cityParam || query, mapCity)
     if (ctx) {
       setSelectedProvince(ctx.province)
       setSelectedCity(ctx.city)

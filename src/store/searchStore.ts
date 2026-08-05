@@ -21,19 +21,15 @@ interface SearchStore {
   filters: SearchFiltersExtended
   viewMode: ViewMode
 
-  // User location (set once on app load via geolocation)
-  userCity: string | null
-  userCoords: { latitude: number; longitude: number } | null
-
   // Map state
   mapBounds: MapBounds | null
   mapCenter: { longitude: number; latitude: number; zoom: number }
   // `zoom` lets a full street-address geocode zoom in tighter than a city-level one.
   geocodedCenter: { longitude: number; latitude: number; zoom?: number } | null
   // City the map is currently panned to (reverse-geocoded, debounced on
-  // moveend). Distinct from userCity — that's the device's real location and
-  // must stay stable — this is "wherever the user is currently browsing" and
-  // takes priority for the Feed/location label so Map↔Feed stays in sync.
+  // moveend) — "wherever the user is currently browsing". Drives the
+  // Feed/location label so Map↔Feed stays in sync. Since device geolocation was
+  // removed, this is the only source of a user-facing city.
   mapCity: string | null
 
   // UI state
@@ -52,7 +48,6 @@ interface SearchStore {
   setMapBounds: (b: MapBounds) => void
   setMapCenter: (c: { longitude: number; latitude: number; zoom: number }) => void
   setGeocodedCenter: (c: { longitude: number; latitude: number; zoom?: number } | null) => void
-  setUserLocation: (city: string | null, coords: { latitude: number; longitude: number } | null) => void
   setMapCity: (city: string | null) => void
   setHoveredProperty: (id: string | null) => void
   setSelectedProperty: (id: string | null) => void
@@ -99,12 +94,11 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   selectedCity: null,
   filters: defaultFilters,
   viewMode: 'both', // Search opens on the Map (split-pane) by default; 'list' = Feed.
-  userCity: null,
-  userCoords: null,
   mapBounds: null,
-  // Default fallback = Vancouver (BUG-03). LocationProvider overwrites this with
-  // the user's own location once geolocation resolves; Vancouver is only used
-  // when geolocation is unavailable/denied.
+  // Vancouver is the map's home position. It used to be a fallback that device
+  // geolocation overwrote, but we no longer ask the browser for location — an
+  // unprompted permission dialog on first load was a poor first impression —
+  // so this is now simply where the map starts.
   mapCenter: { longitude: -123.1207, latitude: 49.2827, zoom: 11 },
   geocodedCenter: null,
   mapCity: null,
@@ -128,8 +122,6 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   setMapCenter: (c) => set({ mapCenter: c }),
 
   setGeocodedCenter: (c) => set({ geocodedCenter: c }),
-
-  setUserLocation: (city, coords) => set({ userCity: city, userCoords: coords }),
 
   setMapCity: (city) => set({ mapCity: city }),
 
