@@ -94,6 +94,22 @@ export class SearchQueryDto {
   @IsString()
   bbox?: string
 
+  /**
+   * Restrict to listings carrying a video tour — the feed's supply.
+   *
+   * Narrows to `MediaCategory: 'Video Tour Website'` at DDF, which is ~34% of
+   * the feed and ~40% playable video once hosts are classified (vs ~14%
+   * unfiltered) — a 2.9x density gain for the feed's fetch amplification.
+   * DDF cannot filter finer: `contains(m/MediaURL, …)` and a bare
+   * `Media/any()` both return HTTP 500, so host classification stays in
+   * mapProperty via extractListingVideo.
+   */
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  videoOnly?: boolean
+
   @ApiPropertyOptional({ type: Number, default: 1 })
   @IsOptional()
   @Type(() => Number)

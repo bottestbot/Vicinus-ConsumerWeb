@@ -27,6 +27,8 @@ export interface SearchParams {
   /** Listed within the last N days. */
   maxDaysListed?: number
   bbox?: string
+  /** Restrict to listings with a video tour — the feed's supply. */
+  videoOnly?: boolean
   page?: number
   limit?: number
 }

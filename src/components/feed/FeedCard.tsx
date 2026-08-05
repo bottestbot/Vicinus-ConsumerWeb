@@ -11,7 +11,7 @@ import {
   Pause,
   ChevronUp,
 } from 'lucide-react'
-import type { Property } from '@/types/search'
+import type { Property, ListingVideo } from '@/types/search'
 import { formatNumber, formatPrice as formatPriceCA, formatLeaseFrequency, realtorHref } from '@/lib/format'
 import { logListingClick } from '@/lib/api/analytics'
 import { track } from '@/lib/analytics/capture'
@@ -22,6 +22,8 @@ import { STRINGS } from '@/lib/strings'
 interface Props {
   property: Property
   isActive: boolean
+  /** Within one card of the viewport — see `mountPlayer`. */
+  isNear?: boolean
   viewMode?: 'full' | 'portrait'
   onSave?: (id: string) => void
   isSaved?: boolean
@@ -68,9 +70,23 @@ function ActionBtn({
   )
 }
 
+/** Stand-in shown until a card comes close enough to mount its real player. */
+function PosterFrame({ src }: { src: string | null }) {
+  if (!src) return null
+  return (
+    <img
+      src={src}
+      alt=""
+      aria-hidden="true"
+      className="absolute inset-0 w-full h-full object-contain z-10"
+      draggable={false}
+    />
+  )
+}
+
 // ─── Main card ────────────────────────────────────────────────────────────────
 
-export default function FeedCard({ property, isActive, viewMode = 'full', onSave, isSaved = false }: Props) {
+export default function FeedCard({ property, isActive, isNear = true, viewMode = 'full', onSave, isSaved = false }: Props) {
   const { openInquiry } = useLeadInquiry()
   const videoRef = useRef<HTMLVideoElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -85,7 +101,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
   // User-initiated pause of the native video (tap-to-pause). Lets buyers dwell
   // on a frame instead of being carried along by autoplay.
   const [paused, setPaused] = useState(false)
-  // Playback position of whichever video is on screen (native or YouTube).
+  // Playback position of whichever video is on screen (file or embedded).
   // Drives the scrubbable seekbar under the bottom info stack.
   const [videoTime, setVideoTime] = useState({ current: 0, duration: 0 })
   // Bottom info stack starts collapsed to just the address; tapping it reveals
@@ -93,9 +109,19 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
   const [infoExpanded, setInfoExpanded] = useState(false)
 
   const images = property.images?.length ? property.images : property.imageUrl ? [property.imageUrl] : []
-  const youtubeUrl = property.youtubeUrl ?? null
-  // If the native video URL is dead, fall back to the image/YouTube slides.
-  const hasVideo = !!property.virtualTourUrl && !videoFailed
+  // The API classifies each listing's playable media (see ddf-media.util):
+  // YouTube and Vimeo get an embedded player on slide 0; a direct file plays
+  // full-bleed with no slides. If a file URL is dead we fall back to the photos.
+  const video = property.video ?? null
+  const fileVideo = video?.kind === 'file' && !videoFailed ? video : null
+  const embedVideo = video?.kind === 'youtube' || video?.kind === 'vimeo' ? video : null
+
+  // Now that every card in the feed carries video, mounting them all would boot
+  // a player per listing — dozens of YouTube/Vimeo iframes and video streams
+  // competing on first paint. Only the active card and its immediate
+  // neighbours get a real player; the rest show the listing photo until they
+  // come into range, which keeps the next reel warm without the stampede.
+  const mountPlayer = isNear
 
   // Full address: street line + "City, Province" on a single line. Falls back
   // gracefully when any part is missing so we never render a stray comma.
@@ -120,66 +146,105 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
   // viewports) with a soft version of the frame instead of flat black.
   const backdropSrc = images[0] ?? null
 
-  // slides: 0 = YouTube iframe (if present), 1+ = images
+  // slides: 0 = embedded player (YouTube/Vimeo, if present), 1+ = images
   // imgIndex tracks position across all slides
-  const totalSlides = (youtubeUrl ? 1 : 0) + images.length
-  const isOnYoutube = youtubeUrl ? imgIndex === 0 : false
-  const imageSlideIndex = youtubeUrl ? imgIndex - 1 : imgIndex
+  const totalSlides = (embedVideo ? 1 : 0) + images.length
+  const isOnEmbed = embedVideo ? imgIndex === 0 : false
+  const imageSlideIndex = embedVideo ? imgIndex - 1 : imgIndex
 
-  // Convert any YouTube URL to an embed URL (controls=0 hides YouTube chrome)
-  const youtubeEmbedUrl = useCallback((url: string, active: boolean): string => {
-    let id = ''
-    try {
-      const u = new URL(url)
-      if (u.hostname === 'youtu.be') id = u.pathname.slice(1).split('?')[0]
-      else if (u.pathname.startsWith('/shorts/')) id = u.pathname.split('/shorts/')[1].split('?')[0]
-      else id = u.searchParams.get('v') ?? ''
-    } catch { /* ignore */ }
+  // Embed URL for whichever player this listing uses. Both are stripped of
+  // player chrome so the card reads as one continuous video surface, and both
+  // start muted — autoplay with sound is blocked on every mobile browser.
+  const embedSrc = useCallback((v: ListingVideo, active: boolean): string => {
+    if (v.kind === 'vimeo') {
+      return (
+        `https://player.vimeo.com/video/${v.id}` +
+        // Unlisted videos 401 without their hash — see parseVimeo in the API.
+        `?${v.hash ? `h=${v.hash}&` : ''}autoplay=${active ? 1 : 0}` +
+        `&muted=1&loop=1&controls=0&playsinline=1&title=0&byline=0&portrait=0&dnt=1`
+      )
+    }
     return (
-      `https://www.youtube.com/embed/${id}` +
+      `https://www.youtube.com/embed/${v.id}` +
       `?autoplay=${active ? 1 : 0}&mute=1&playsinline=1` +
       `&controls=0&disablekb=1&modestbranding=1&rel=0` +
-      `&loop=1&playlist=${id}&enablejsapi=1`
+      `&loop=1&playlist=${v.id}&enablejsapi=1`
     )
   }, [])
 
-  // Send a player command to the YouTube iframe via postMessage
-  const sendYoutubeCommand = useCallback((func: 'mute' | 'unMute' | 'seekTo', args: unknown[] = []) => {
-    iframeRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: 'command', func, args }),
-      '*',
-    )
-  }, [])
-
-  const toggleYoutubeMute = useCallback(() => {
-    setMuted((m) => {
-      const next = !m
-      sendYoutubeCommand(next ? 'mute' : 'unMute')
-      return next
-    })
-  }, [sendYoutubeCommand])
-
-  // Stream playback time out of the YouTube iframe: the "listening" handshake
-  // makes the player post `infoDelivery` messages with currentTime/duration,
-  // which is what lets the seekbar track (and scrub) an embedded video.
-  useEffect(() => {
-    if (!isOnYoutube) return
-    const listen = () =>
-      iframeRef.current?.contentWindow?.postMessage(
-        JSON.stringify({ event: 'listening', id: 'feed-seekbar' }),
+  // Player control via postMessage. The two players speak different dialects:
+  // YouTube takes {event:'command',func,args}, Vimeo takes {method,value}.
+  const sendPlayerCommand = useCallback(
+    (action: 'mute' | 'unMute' | 'seekTo', value?: number) => {
+      const win = iframeRef.current?.contentWindow
+      if (!win || !embedVideo) return
+      if (embedVideo.kind === 'vimeo') {
+        const msg =
+          action === 'seekTo'
+            ? { method: 'setCurrentTime', value }
+            : { method: 'setVolume', value: action === 'mute' ? 0 : 1 }
+        win.postMessage(JSON.stringify(msg), 'https://player.vimeo.com')
+        return
+      }
+      win.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: action,
+          args: action === 'seekTo' ? [value, true] : [],
+        }),
         '*',
       )
+    },
+    [embedVideo],
+  )
+
+  const toggleEmbedMute = useCallback(() => {
+    setMuted((m) => {
+      const next = !m
+      sendPlayerCommand(next ? 'mute' : 'unMute')
+      return next
+    })
+  }, [sendPlayerCommand])
+
+  // Stream playback time out of the embedded player so the seekbar can track
+  // (and scrub) it. Each player needs its own handshake before it will report:
+  // YouTube wants an {event:'listening'} ping and answers with `infoDelivery`;
+  // Vimeo wants an explicit addEventListener and answers with `timeupdate`.
+  useEffect(() => {
+    if (!isOnEmbed || !embedVideo) return
+    const isVimeo = embedVideo.kind === 'vimeo'
+    const listen = () => {
+      const win = iframeRef.current?.contentWindow
+      if (!win) return
+      if (!isVimeo) {
+        win.postMessage(JSON.stringify({ event: 'listening', id: 'feed-seekbar' }), '*')
+        return
+      }
+      // Vimeo's embed answers `timeupdate` under its modern name and
+      // `playProgress` under the legacy one, depending on player build — both
+      // carry the same {seconds, duration} payload, so subscribe to both and
+      // read whichever arrives.
+      for (const value of ['timeupdate', 'playProgress']) {
+        win.postMessage(
+          JSON.stringify({ method: 'addEventListener', value }),
+          'https://player.vimeo.com',
+        )
+      }
+    }
     const onMessage = (e: MessageEvent) => {
       if (e.source !== iframeRef.current?.contentWindow) return
       try {
         const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
-        const info = data?.info
-        if (typeof info?.currentTime === 'number') {
-          // infoDelivery doesn't always carry `duration` — keep the last known
+        // Vimeo: {event:'timeupdate', data:{seconds, duration}}
+        // YouTube: {info:{currentTime, duration}}
+        const current = isVimeo ? data?.data?.seconds : data?.info?.currentTime
+        const duration = isVimeo ? data?.data?.duration : data?.info?.duration
+        if (typeof current === 'number') {
+          // Neither player sends `duration` on every tick — keep the last known
           // one, otherwise the seekbar zeroes out mid-playback.
           setVideoTime((v) => ({
-            current: info.currentTime,
-            duration: typeof info.duration === 'number' && info.duration > 0 ? info.duration : v.duration,
+            current,
+            duration: typeof duration === 'number' && duration > 0 ? duration : v.duration,
           }))
         }
       } catch { /* non-JSON message from the player — ignore */ }
@@ -195,30 +260,30 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
       clearInterval(t)
       clearTimeout(stop)
     }
-  }, [isOnYoutube, isActive])
+  }, [isOnEmbed, embedVideo, isActive])
 
   // Scrub whichever video is on screen to a fraction of its duration.
   const seekTo = useCallback((fraction: number) => {
-    const duration = hasVideo ? videoRef.current?.duration : videoTime.duration
+    const duration = fileVideo ? videoRef.current?.duration : videoTime.duration
     if (!duration || !isFinite(duration)) return
     const target = fraction * duration
-    if (hasVideo && videoRef.current) {
+    if (fileVideo && videoRef.current) {
       videoRef.current.currentTime = target
     } else {
-      sendYoutubeCommand('seekTo', [target, true])
+      sendPlayerCommand('seekTo', target)
     }
     setVideoTime({ current: target, duration })
-  }, [hasVideo, videoTime.duration, sendYoutubeCommand])
+  }, [fileVideo, videoTime.duration, sendPlayerCommand])
 
-  // Auto-advance images every 4s when active and showing images (not YouTube slide)
+  // Auto-advance images every 4s when active and showing images (not the embed slide)
   useEffect(() => {
-    if (!isActive || isOnYoutube || hasVideo || images.length <= 1) return
+    if (!isActive || isOnEmbed || fileVideo || images.length <= 1) return
     const t = setInterval(() => setImgIndex((i) => {
       const next = i + 1
-      return next >= totalSlides ? (youtubeUrl ? 1 : 0) : next
+      return next >= totalSlides ? (embedVideo ? 1 : 0) : next
     }), 4000)
     return () => clearInterval(t)
-  }, [isActive, isOnYoutube, hasVideo, images.length, totalSlides, youtubeUrl])
+  }, [isActive, isOnEmbed, fileVideo, images.length, totalSlides, embedVideo])
 
   // Play/pause native video based on active state + user tap-to-pause
   useEffect(() => {
@@ -280,20 +345,29 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
         )}
 
         {/* ── Media ─────────────────────────────────── */}
-        {hasVideo ? (
-          /* Legacy native video (VirtualTourURLBranded) */
+        {fileVideo ? (
+          /* Direct video file — mostly agent-uploaded Dropbox reels, rewritten
+             to a streamable host by the API. Plays full-bleed, no slides. */
           <>
-            <video
-              ref={videoRef}
-              src={property.virtualTourUrl!}
-              className="absolute inset-0 w-full h-full object-contain"
-              loop muted={muted} playsInline autoPlay={isActive}
-              onError={() => setVideoFailed(true)}
-              onTimeUpdate={(e) => {
-                const v = e.currentTarget
-                setVideoTime({ current: v.currentTime, duration: v.duration || 0 })
-              }}
-            />
+            {mountPlayer ? (
+              <video
+                ref={videoRef}
+                src={fileVideo.url}
+                className="absolute inset-0 w-full h-full object-contain"
+                poster={backdropSrc ?? undefined}
+                // Only the card in view is worth buffering ahead; neighbours
+                // fetch metadata so they can start instantly on arrival.
+                preload={isActive ? 'auto' : 'metadata'}
+                loop muted={muted} playsInline autoPlay={isActive}
+                onError={() => setVideoFailed(true)}
+                onTimeUpdate={(e) => {
+                  const v = e.currentTarget
+                  setVideoTime({ current: v.currentTime, duration: v.duration || 0 })
+                }}
+              />
+            ) : (
+              <PosterFrame src={backdropSrc} />
+            )}
             {/* Tap anywhere on the video to pause/resume so buyers can dwell */}
             <button
               onClick={() => setPaused((p) => !p)}
@@ -309,17 +383,20 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
           </>
         ) : (
           <>
-            {/* YouTube iframe slide — scaled up to bleed outside card so YouTube
-                logo (bottom-right) and title bar (top) are off-screen */}
-            {youtubeUrl && (
+            {/* Embedded player slide. The YouTube embed is scaled to bleed
+                outside the card so its logo (bottom-right) and title bar (top)
+                land off-screen; Vimeo's chrome is fully suppressed by embed
+                params, so it sits flush and keeps its full frame. */}
+            {embedVideo && !mountPlayer && isOnEmbed && <PosterFrame src={backdropSrc} />}
+            {embedVideo && mountPlayer && (
               <div
-                className={`absolute transition-opacity duration-300 ${isOnYoutube ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'}`}
-                style={{ inset: '-10% -2%' }}
+                className={`absolute transition-opacity duration-300 ${isOnEmbed ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'}`}
+                style={embedVideo.kind === 'youtube' ? { inset: '-10% -2%' } : { inset: 0 }}
               >
                 <iframe
                   ref={iframeRef}
                   key={isActive ? 'active' : 'idle'}
-                  src={youtubeEmbedUrl(youtubeUrl, isActive && isOnYoutube)}
+                  src={embedSrc(embedVideo, isActive && isOnEmbed)}
                   className="w-full h-full"
                   allow="autoplay; fullscreen"
                   title="Property video tour"
@@ -330,11 +407,13 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             {/* Image slides */}
             {images.map((src, i) => (
               <img
-                key={src}
+                // Index-suffixed: DDF listings sometimes repeat a media URL, and
+                // a bare `src` key collides when they do.
+                key={`${src}-${i}`}
                 src={src}
                 alt=""
                 className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-700 ${
-                  !isOnYoutube && i === imageSlideIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                  !isOnEmbed && i === imageSlideIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
                 }`}
                 draggable={false}
                 onError={(e) => {
@@ -359,20 +438,20 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             )}
 
             {/* Tap zones for prev/next (skip when on YouTube so iframe gets touches) */}
-            {totalSlides > 1 && !isOnYoutube && (
+            {totalSlides > 1 && !isOnEmbed && (
               <>
                 <button onClick={prevImg} className="absolute left-0 top-0 h-full w-1/3 z-10" aria-label="Previous" />
                 <button onClick={nextImg} className="absolute right-0 top-0 h-full w-1/3 z-10" aria-label="Next" />
               </>
             )}
             {/* On YouTube slide: narrow right-edge zone to swipe to next image */}
-            {totalSlides > 1 && isOnYoutube && (
+            {totalSlides > 1 && isOnEmbed && (
               <button onClick={nextImg} className="absolute right-0 top-0 h-full w-10 z-30" aria-label="Next" />
             )}
 
             {/* Fallback image when a listing has no photos or YouTube slide
                 (e.g. a video-only listing whose native video failed to load) */}
-            {images.length === 0 && !youtubeUrl && (
+            {images.length === 0 && !embedVideo && (
               <img
                 src={FALLBACK_IMAGE}
                 alt=""
@@ -387,9 +466,9 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
             Top-left, below the floating search bar (mirrors the Phone view
             toggle's offset on the right, which the search bar clears — the
             bar stacks to ~98px below md, hence top-32 there). */}
-        {(hasVideo || isOnYoutube) && (
+        {(fileVideo || isOnEmbed) && (
           <button
-            onClick={isOnYoutube ? toggleYoutubeMute : () => setMuted((m) => !m)}
+            onClick={isOnEmbed ? toggleEmbedMute : () => setMuted((m) => !m)}
             className="absolute top-32 md:top-20 left-3 sm:left-4 z-40 p-2 rounded-full bg-black/50 backdrop-blur-sm text-white"
             aria-label={muted ? 'Unmute' : 'Mute'}
           >
@@ -549,7 +628,7 @@ export default function FeedCard({ property, isActive, viewMode = 'full', onSave
           {/* Seekbar — video slides only (photos rely on the top slide dots).
               A styled range input so the position is scrubbable: drag/click to
               seek the native video or the YouTube embed. */}
-          {(hasVideo || isOnYoutube) && (
+          {(fileVideo || isOnEmbed) && (
             <input
               type="range"
               min={0}
