@@ -2,14 +2,13 @@
 // rows it shows.
 //
 // Deliberately server-safe (no 'use client', no hooks): the index page renders the
-// default grid as a Server Component so the 41 `<a href="/neighbourhoods/...">`
+// default grid as a Server Component so the ~112 `<a href="/neighbourhoods/...">`
 // anchors exist in the raw HTML, which is the only crawl path to the detail pages.
 // NeighbourhoodsClient imports the same component for its filtered and search
 // grids, so the two views can never drift apart.
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Neighbourhood } from '@/types/neighbourhood'
-import { formatPrice } from '@/types/search'
 import { getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1548656848-c80e1d02d05a?w=800&q=80'
@@ -88,21 +87,22 @@ export function NeighbourhoodCard({
             {showCityTag && <p className="text-xs text-white/70 mt-0.5">{neighbourhood.city}</p>}
           </div>
         </div>
-        <div className="p-4 flex items-center justify-between">
+        {/* SEO-18(b): the median price was removed from this card, not moved.
+            `Neighbourhood.medianPrice` is backfilled from live DDF prices, and
+            SEO-05 confirmed derived aggregates count as DDF data — so it must
+            not appear in server-rendered, crawlable HTML.
+
+            ⚠️ Do not re-add it here. This card is rendered by a Server
+            Component, so anything shown becomes cached HTML. If the price is
+            wanted back, it has to be fetched client-side (as the neighbourhood
+            detail page does with its market snapshot) — note that passing it
+            server→client as a prop does NOT work, since props serialize into
+            the RSC flight payload, which ships inside the HTML. */}
+        <div className="p-4">
           <p className="text-sm text-[#6B6B6B]">
             {neighbourhood.city},{' '}
             <span className="font-medium text-[#111111]">{neighbourhood.province}</span>
           </p>
-          {/* ⚠️ SEO-05: `medianPrice` on the Neighbourhood row is backfilled from
-              live DDF prices. It was already on this card, but it now reaches
-              server-rendered HTML — if the compliance decision says no DDF-derived
-              figure may be indexed, deleting this block is the whole fix. */}
-          {neighbourhood.medianPrice && (
-            <p className="text-sm font-semibold text-[#111111]">
-              {formatPrice(neighbourhood.medianPrice)}
-              <span className="text-[10px] text-[#6B6B6B] font-normal ml-0.5">med.</span>
-            </p>
-          )}
         </div>
       </article>
     </Link>

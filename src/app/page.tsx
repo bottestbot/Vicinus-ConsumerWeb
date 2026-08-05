@@ -2,10 +2,15 @@
 // most-crawled URL from scratch on every request and disabled the data cache
 // wholesale — the worst TTFB on the site, on the page Google samples most.
 //
-// Nothing here needs per-request freshness: the featured listings already
-// declare `revalidate: 600` on their own fetch, the neighbourhood list 1800,
-// and the city geocodes 86400. An hour at the route level is comfortably
-// inside normal refresh expectations for a curated homepage strip.
+// Nothing here needs per-request freshness: the neighbourhood list declares
+// `revalidate: 1800` on its own fetch and the city geocodes 86400, so 30
+// minutes is the effective window. An hour at the route level is simply the
+// ceiling.
+//
+// SEO-18(a): this page no longer renders DDF listing data at all (the featured
+// strip was removed), so nothing CREA-licensed reaches the CDN-cached HTML.
+// That is what makes caching this route safe — re-adding any listing content
+// here would put it back into a cached, crawlable document. Don't.
 //
 // Route Segment Config still applies because `cacheComponents` is off in
 // next.config.ts — under Cache Components this export is removed in v16.
@@ -18,18 +23,12 @@ export const revalidate = 3600
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ChevronRight, Bed, Bath, Square } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import HeroSearchBar from '@/components/landing/HeroSearchBar'
 import GetInTouchButton from '@/components/landing/GetInTouchButton'
 import Footer from '@/components/layout/Footer'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
-import { getFeaturedProperties, type FeaturedProperty } from '@/lib/api/properties'
-import { ListingAttribution } from '@/components/property/PropertyCell'
-import OpenHouseTag from '@/components/property/OpenHouseTag'
-// CREA-05: reports the DDF `Click` event on card → detail navigation.
-import ListingLink from '@/components/property/ListingLink'
-import { formatPrice } from '@/types/search'
 import { STRINGS } from '@/lib/strings'
 import { geocodeCity, getNeighbourhoodMapImageUrl } from '@/lib/neighbourhood-images'
 
@@ -50,69 +49,6 @@ const CITY_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=900&q=80'
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
-function PropertyCard({ p }: { p: FeaturedProperty }) {
-  return (
-    <article className="group shrink-0 w-72 sm:w-auto bg-white rounded-2xl overflow-hidden border border-[#E8E6E1] hover:shadow-lg transition-shadow">
-      {/* The attribution block below carries its own REALTOR.ca <a>, so the
-          card link must not wrap it — nested anchors are invalid HTML and
-          break hydration. */}
-      <ListingLink href={p.href} className="block">
-        <div className="relative h-52 overflow-hidden bg-[#F2F0EB]">
-          {p.image && (
-            <Image
-              src={p.image}
-              alt={p.name}
-              fill
-              sizes="288px"
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          )}
-          <div className="absolute top-3 left-3">
-            <span className="bg-[#1C3829] text-white text-[10px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider">
-              {p.badge}
-            </span>
-          </div>
-        </div>
-        <div className="p-4">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="font-heading text-base font-semibold text-[#111111] leading-tight truncate">
-              {p.name}
-            </p>
-            {p.price != null && (
-              <p className="font-semibold text-[#111111] text-sm shrink-0">
-                {formatPrice(p.price)}
-              </p>
-            )}
-          </div>
-          <p className="text-[#6B6B6B] text-xs mb-3">{p.location}</p>
-          <OpenHouseTag openHouse={p.openHouse} compact className="mb-2" />
-          <div className="flex items-center gap-3 text-xs text-[#6B6B6B]">
-            <span className="flex items-center gap-1">
-              <Bed size={12} /> {p.beds ?? '—'} Beds
-            </span>
-            <span className="flex items-center gap-1">
-              <Bath size={12} /> {p.baths ?? '—'} Baths
-            </span>
-            <span className="flex items-center gap-1">
-              <Square size={12} /> {p.sqft != null ? p.sqft.toLocaleString() : '—'} sqft
-            </span>
-          </div>
-        </div>
-      </ListingLink>
-
-      {/* DDF attribution — required wherever listing data is displayed. */}
-      <ListingAttribution
-        className="px-4 pb-4"
-        agentName={p.agentName}
-        brokerageName={p.brokerageName}
-        mlsNumber={p.mlsNumber}
-        realtorUrl={p.realtorUrl}
-        listingKey={p.id}
-      />
-    </article>
-  )
-}
 
 interface CityCardData {
   name: string
@@ -158,10 +94,7 @@ function CityCard({ c }: { c: CityCardData }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function LandingPage() {
-  const [neighbourhoods, highlights] = await Promise.all([
-    getNeighbourhoods(),
-    getFeaturedProperties(),
-  ])
+  const neighbourhoods = await getNeighbourhoods()
   // "Contextual Living" cities (not neighbourhoods). Image + province sourced
   // from a representative neighbourhood in each city when available, else a safe
   // fallback; each card links to a city-scoped search.
@@ -228,39 +161,11 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── Curated Highlights ────────────────────────────────────────────── */}
-      {highlights.length > 0 && (
-        <section className="pt-16 pb-20 px-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <h2 className="font-heading text-3xl font-bold text-[#111111]">
-                  {STRINGS.HOMEPAGE_HIGHLIGHTS_TITLE}
-                </h2>
-                <p className="text-[#6B6B6B] text-sm mt-1">
-                  {STRINGS.HOMEPAGE_HIGHLIGHTS_SUBTITLE}
-                </p>
-              </div>
-              <Link
-                href="/buy"
-                className="hidden sm:flex items-center gap-1 text-sm text-[#6B6B6B] hover:text-[#111111] transition-colors"
-              >
-                {STRINGS.HOMEPAGE_HIGHLIGHTS_VIEWALL} <ChevronRight size={14} />
-              </Link>
-            </div>
-
-            <div className="flex sm:grid sm:grid-cols-3 gap-5 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 -mx-6 px-6 sm:mx-0 sm:px-0">
-              {highlights.slice(0, 3).map((p) => (
-                <PropertyCard key={p.id} p={p} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* ── Contextual Living ─────────────────────────────────────────────── */}
       {cities.length > 0 && (
-        <section className="pb-20 px-6">
+        // SEO-18(a): `pt-16` moved here from the removed featured-listings
+        // section, which used to supply the gap below the hero.
+        <section className="pt-16 pb-20 px-6">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="font-heading text-4xl font-bold text-[#111111] mb-3">
