@@ -234,6 +234,18 @@ export interface AggregateRatingInput {
   name?: string
 }
 
+/** ⚠️ DELIBERATELY UNWIRED — decided 2026-08-04 (SEO-09).
+ *
+ *  Nothing calls this, and that is intentional: the livability composite is
+ *  **not** published as a machine-readable rating. Kept rather than deleted
+ *  because it is written and tested, and reversing the decision should be a
+ *  one-line wire-up rather than a rebuild.
+ *
+ *  Do not wire it into `buildPlaceSchema` (or anywhere else) without sign-off.
+ *  Note the decision is defensible independently of preference: this rating is
+ *  algorithmic, not user-generated, which sits awkwardly with Google's
+ *  review-snippet guidance — and it would be the one place we hand answer
+ *  engines a *rating* rather than a fact. */
 export function buildAggregateRatingSchema(input: AggregateRatingInput): AggregateRatingSchema {
   return {
     '@type': 'AggregateRating',
