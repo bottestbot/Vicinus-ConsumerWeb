@@ -10,6 +10,7 @@ import {
   VolumeX,
   Pause,
   ChevronUp,
+  Check,
 } from 'lucide-react'
 import type { Property, ListingVideo } from '@/types/search'
 import { formatNumber, formatPrice as formatPriceCA, formatLeaseFrequency, realtorHref } from '@/lib/format'
@@ -107,6 +108,13 @@ export default function FeedCard({ property, isActive, isNear = true, viewMode =
   // Bottom info stack starts collapsed to just the address; tapping it reveals
   // price, stats, attribution and the full-listing link.
   const [infoExpanded, setInfoExpanded] = useState(false)
+  // Flips the Share rail button to "Copied" after the clipboard fallback,
+  // which is otherwise silent — see handleShare.
+  const [linkCopied, setLinkCopied] = useState(false)
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (copiedTimer.current) clearTimeout(copiedTimer.current)
+  }, [])
 
   const images = property.images?.length ? property.images : property.imageUrl ? [property.imageUrl] : []
   // The API classifies each listing's playable media (see ddf-media.util):
@@ -141,6 +149,46 @@ export default function FeedCard({ property, isActive, isNear = true, viewMode =
     property.brokerageName,
     property.mlsNumber ? `MLS® ${property.mlsNumber}` : null,
   ].filter(Boolean).join(' · ')
+
+  // Share the *reel*, not the listing page: /reel/[id] opens this card in the
+  // feed (video playing, swipe onwards), which is what was on screen when the
+  // button was tapped. The old link went to /properties/[id], so the recipient
+  // landed on a static detail page and never saw the video at all.
+  //
+  // Absolute, because Web Share rejects a relative URL on some engines, and the
+  // string is also what gets pasted by the clipboard fallback below.
+  async function handleShare() {
+    const url = `${window.location.origin}/reel/${property.id}`
+    track('reel_shared', { listing_key: property.id, surface: 'feed_card' })
+
+    const priceLabel = property.price > 0 ? formatPriceCA(property.price) : null
+    const text = [priceLabel, ...statsParts].filter(Boolean).join(' · ')
+
+    // Web Share is the good path — the native sheet, with Messages/WhatsApp.
+    // It exists on mobile and on Windows Chrome, but NOT on macOS Chrome or
+    // Firefox, where the button used to do nothing at all.
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: streetLine, text, url })
+        return
+      } catch (err) {
+        // Dismissing the sheet is a deliberate "no", not a failure to route
+        // around — copying to the clipboard anyway would be a second action the
+        // user just declined. Any other error is a real one: fall through.
+        if ((err as Error)?.name === 'AbortError') return
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url)
+      setLinkCopied(true)
+      if (copiedTimer.current) clearTimeout(copiedTimer.current)
+      copiedTimer.current = setTimeout(() => setLinkCopied(false), 2000)
+    } catch {
+      // Clipboard denied (insecure origin / permission) — nothing further we
+      // can do from here without hijacking the card with a modal.
+    }
+  }
 
   // Blurred backdrop source — fills any letterbox gap (esp. on wide desktop
   // viewports) with a soft version of the frame instead of flat black.
@@ -492,13 +540,9 @@ export default function FeedCard({ property, isActive, isNear = true, viewMode =
           />
 
           <ActionBtn
-            icon={<Share2 size={19} className="text-white" />}
-            label="Share"
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({ title: streetLine, url: `/properties/${property.id}` }).catch(() => {})
-              }
-            }}
+            icon={linkCopied ? <Check size={19} className="text-white" /> : <Share2 size={19} className="text-white" />}
+            label={linkCopied ? STRINGS.FEED_CARD_SHARE_COPIED : STRINGS.FEED_CARD_SHARE}
+            onClick={handleShare}
           />
 
           <ActionBtn

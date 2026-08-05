@@ -107,11 +107,19 @@ function bboxAround(longitude: number, latitude: number): string {
 export default function PropertySearchScreen({
   listingType,
   initial,
+  initialViewMode,
+  pinnedReelId,
 }: {
   /** Owned by the route (/buy vs /rent), never by the URL or the store. There
    *  is nothing to hydrate or reconcile, so it cannot drift or go stale. */
   listingType: 'For Sale' | 'For Rent'
   initial?: InitialSearch
+  /** Forces the opening view instead of the store's default (Map). Set to
+   *  'list' by /reel/[id], which must open on the Feed — the store is a
+   *  singleton and would otherwise still be on whatever the last view was. */
+  initialViewMode?: 'both' | 'list'
+  /** Passed through to the Feed — see FeedView's `pinnedReelId`. */
+  pinnedReelId?: string
 }) {
   const {
     viewMode,
@@ -158,6 +166,17 @@ export default function PropertySearchScreen({
     setFilter('minPrice', initialMinPrice)
     setFilter('maxPrice', initialMaxPrice)
   }, [listingType, initialMinPrice, initialMaxPrice, setFilter])
+
+  // Open on the view the route asked for. Separate from the hydration effect
+  // below because that one bails when there's no `initial`, and because the
+  // store is a module-level singleton: a reel link opened after the user had
+  // switched to the Map earlier in the session would otherwise land on the Map.
+  const viewHydrated = useRef(false)
+  useEffect(() => {
+    if (viewHydrated.current || !initialViewMode) return
+    viewHydrated.current = true
+    setViewMode(initialViewMode)
+  }, [initialViewMode, setViewMode])
 
   // Hydrate the store from URL params (e.g. the home-page hero search) once on
   // mount so a city/price/type from the URL drives the initial results.
@@ -373,7 +392,7 @@ export default function PropertySearchScreen({
         {viewMode === 'list' ? (
           /* Feed view — full-width vertical listing feed */
           <div className="w-full h-full">
-            <FeedView params={feedParams} />
+            <FeedView params={feedParams} pinnedReelId={pinnedReelId} />
           </div>
         ) : (
           <>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useUser } from '@clerk/nextjs'
@@ -148,6 +148,10 @@ export interface FeedViewProps {
   /** Search params derived from the shared Buy filters (FilterPanel + store).
    *  The feed reloads whenever these change. */
   params: SearchParams
+  /** Set when arriving from a shared reel link (/reel/[id]) — that listing is
+   *  hoisted to the front so the recipient lands on the reel that was shared
+   *  rather than wherever it happens to sort. See `listings` below. */
+  pinnedReelId?: string
 }
 
 /**
@@ -156,7 +160,7 @@ export interface FeedViewProps {
  * portrait/full toggle; the navbar and filter bar are owned by the Buy shell,
  * and filters flow in via `params` so switching Feed↔Map keeps the same query.
  */
-export default function FeedView({ params }: FeedViewProps) {
+export default function FeedView({ params, pinnedReelId }: FeedViewProps) {
   const [viewMode, setViewMode] = useState<'full' | 'portrait'>('full')
   const [activeIndex, setActiveIndex] = useState(0)
 
@@ -214,7 +218,21 @@ export default function FeedView({ params }: FeedViewProps) {
     staleTime: 60_000,
   })
 
-  const listings: Property[] = data?.pages.flatMap((p) => p.items) ?? []
+  // Hoist a shared reel to the front. The pin is a reorder of what the feed
+  // already loaded, not a separate fetch: `video` only comes back on search
+  // results (the detail endpoint doesn't carry it), so there is no way to
+  // materialise one reel on its own. In practice the reel is nearly always
+  // here — the reel page scopes the feed to that listing's own city and a page
+  // is PAGE_SIZE listings deep. When it genuinely isn't (filtered out, or sorted
+  // past the first page), the recipient still gets that city's feed rather than
+  // an error, and the page's "See full listing" link still reaches the listing.
+  const listings: Property[] = useMemo(() => {
+    const all = data?.pages.flatMap((p) => p.items) ?? []
+    if (!pinnedReelId) return all
+    const i = all.findIndex((p) => p.id === pinnedReelId)
+    if (i <= 0) return all
+    return [all[i], ...all.slice(0, i), ...all.slice(i + 1)]
+  }, [data, pinnedReelId])
 
   // A new city/filter search should start fresh at the top, not leave the
   // viewer scrolled to wherever they were in the previous city's feed.

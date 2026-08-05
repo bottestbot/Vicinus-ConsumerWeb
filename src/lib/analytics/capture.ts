@@ -35,6 +35,9 @@ export type VicinusEvent =
   // Feed & property
   | 'feed_card_impression'
   | 'feed_card_clicked'
+  /** Feed Share tapped — fires on intent, before the native sheet resolves,
+   *  since a dismissed sheet reports nothing back. */
+  | 'reel_shared'
   | 'property_viewed'
   | 'property_saved'
   | 'property_unsaved'

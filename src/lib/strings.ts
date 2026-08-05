@@ -534,6 +534,8 @@ export const STRINGS = {
   // ─── Feed card (vertical listing feed) ──────────────────────────────────────
   FEED_CARD_SAVE: 'Save',
   FEED_CARD_SHARE: 'Share',
+  /** Swapped in for ~2s after the clipboard fallback, which is otherwise silent. */
+  FEED_CARD_SHARE_COPIED: 'Copied',
   FEED_CARD_INQUIRE: 'Inquire',
   FEED_CARD_INQUIRE_ARIA: 'Inquire about {address}',
   FEED_CARD_SEE_FULL: 'See full listing',
