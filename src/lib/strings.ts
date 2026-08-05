@@ -44,12 +44,26 @@ export const STRINGS = {
   // answer engine quotes when it describes Vicinus. Keep it factual — a claim
   // made here is a claim made publicly.
   SCHEMA_ORGANIZATION_NAME: 'Vicinus',
+  // ⚠️ Approved copy — do not reword without sign-off. Two constraints are
+  // baked in and are easy to undo by accident:
+  //  1. No "MLS®". It is a CREA trademark and Vicinus holds DDF access at REAW
+  //     tier — an advertising website, explicitly not a Member Website — so our
+  //     right to use the mark in a public self-description is unconfirmed
+  //     (SEO-05 came back restrictive on all four questions put alongside it).
+  //  2. No geography on the neighbourhood clause. Livability currently covers
+  //     10 Metro Vancouver cities, so "neighbourhoods across Canada" would be
+  //     false; naming Metro Vancouver would need rewriting the moment coverage
+  //     widens to BC and Ontario. Claiming no scope is true either way.
   SCHEMA_ORGANIZATION_DESCRIPTION:
-    'Vicinus is a Canadian real estate platform combining MLS® listings with original neighbourhood livability scoring — walkability, schools, amenities and transit — so buyers and renters can compare places, not just properties.',
+    'Vicinus is a Canadian real estate platform for buying and renting homes, with neighbourhood guides.',
   SCHEMA_ORGANIZATION_SLOGAN: 'Bringing you closer to home.',
   SCHEMA_WEBSITE_NAME: 'Vicinus',
+  // ⚠️ Approved copy — see the note on SCHEMA_ORGANIZATION_DESCRIPTION.
+  // "across Canada" attaches to the search clause only; listings are national
+  // (the DDF feed is), neighbourhood coverage is not, and the second clause
+  // deliberately claims no geography.
   SCHEMA_WEBSITE_DESCRIPTION:
-    'Search homes for sale and for rent across Canada, and explore neighbourhoods with livability scores built from open transit, school and amenity data.',
+    'Search homes for sale and for rent across Canada, and explore neighbourhoods.',
 
   // ─── Homepage · Metadata ────────────────────────────────────────────────────
   HOMEPAGE_META_TITLE: 'Vicinus | Canadian Real Estate & Smart Market Data',
