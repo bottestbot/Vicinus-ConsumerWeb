@@ -7,6 +7,7 @@
 // served nav + footer and nothing else. NeighbourhoodsClient layers search and the
 // province/city filters on top and only takes over the grid once one is used.
 import type { Metadata } from 'next'
+import type { Neighbourhood } from '@/types/neighbourhood'
 import Link from 'next/link'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
@@ -23,8 +24,32 @@ export const metadata: Metadata = {
   description: "Explore Canada's most prestigious neighbourhoods — curated for discerning buyers.",
 }
 
+/**
+ * SEO-18(b) — strip `medianPrice` before any of this reaches the client tree.
+ *
+ * ⚠️ Removing the price from the *card* is not enough, and this is the trap:
+ * every row is handed to `<NeighbourhoodsClient>` as a prop, and props to a
+ * Client Component serialize into the RSC flight payload, which ships inside
+ * the HTML. So the value stayed in the served document (122 occurrences)
+ * despite nothing rendering it. It has to be dropped from the *data*, here, at
+ * the one boundary where the server hands rows to the client.
+ *
+ * `medianPrice` is backfilled from live DDF prices, and SEO-05 confirmed
+ * derived aggregates count as DDF data — so it must not appear in
+ * server-rendered, crawlable HTML.
+ *
+ * Verify with: `grep -c medianPrice .next/server/app/neighbourhoods.html` → 0.
+ */
+function stripDdfFields(rows: Neighbourhood[]): Neighbourhood[] {
+  return rows.map((row) => {
+    const copy = { ...row }
+    delete copy.medianPrice
+    return copy
+  })
+}
+
 export default async function NeighbourhoodsPage() {
-  const neighbourhoods = await getNeighbourhoods()
+  const neighbourhoods = stripDdfFields(await getNeighbourhoods())
 
   // Must match NeighbourhoodsClient's initial state exactly — it renders this tree
   // verbatim until a filter or search is applied, so any divergence would show up
