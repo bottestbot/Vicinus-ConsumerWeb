@@ -79,7 +79,9 @@ export const STRINGS = {
   // "real estate", no "homes for sale". This second line lives INSIDE the same
   // <h1> so the H1 gains keyword weight without demoting or restyling the
   // brand line, which stays the visual hero exactly as designed.
-  // ⚠️ Brand copy — pending sign-off.
+  // ✅ Brand copy — approved 2026-08-04. Reword only with sign-off.
+  // "neighbourhood by neighbourhood" describes the approach, not coverage —
+  // it is deliberately not a geographic claim (cf. the schema copy above).
   HOMEPAGE_HERO_TITLE_KEYWORD: 'Homes for sale and rent across Canada, neighbourhood by neighbourhood.',
 
   // ─── Homepage · Hero search bar ─────────────────────────────────────────────
