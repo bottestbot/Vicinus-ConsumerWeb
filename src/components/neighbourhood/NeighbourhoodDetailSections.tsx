@@ -59,8 +59,8 @@ export default function NeighbourhoodDetailSections({ slug, detail, province }: 
       <LocalInfoTiles
         neighbourhood={neighbourhood}
         localInfoTiles={localInfoTiles}
-        schoolsCount={localEssentials.schools.length}
-        shopCount={localEssentials.shopAndEat.length}
+        schoolsCount={localEssentials.schoolsCount}
+        shopCount={localEssentials.shopAndEatCount}
       />
 
       <LiveListingsIsland slug={slug} name={neighbourhood.name} />

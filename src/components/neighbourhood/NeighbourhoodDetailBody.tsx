@@ -22,7 +22,11 @@
 import { getNeighbourhoodDetail } from '@/lib/api/neighbourhoods'
 import NeighbourhoodDetailSections from './NeighbourhoodDetailSections'
 import NeighbourhoodDetailClientBody from './NeighbourhoodDetailClientBody'
-import { hasServerRenderableContent, toNonDdfDetail } from './nonDdfDetail'
+import {
+  hasServerRenderableContent,
+  toNonDdfDetail,
+  type NonDdfNeighbourhoodDetail,
+} from './nonDdfDetail'
 import type { NeighbourhoodDetailResponse } from '@/types/neighbourhood-detail'
 
 interface Props {
@@ -35,24 +39,29 @@ export default async function NeighbourhoodDetailBody({ slug, province }: Props)
   // than throwing, but a malformed upstream body can still reject the JSON parse —
   // and an uncaught throw here would 500 the whole route. One API hiccup must not
   // take the page down.
-  let detail: NeighbourhoodDetailResponse | null = null
+  //
+  // N-08: the guard and the projection run INSIDE the try, not after it. Both walk
+  // nested fields of an unvalidated upstream body (`detail.localEssentials.schools`,
+  // `detail.livability.breakdown`), so a body that keeps `neighbourhood` but drops
+  // or renames `localEssentials` used to throw from the guard itself — 500ing the
+  // exact route this try/catch was added to protect. The guard is now defensive on
+  // its own (see nonDdfDetail.ts) and belt-and-braces wrapped here: any throw on
+  // this path degrades to the client fallback rather than to an error page.
+  let sections: NonDdfNeighbourhoodDetail | null = null
   try {
-    detail = await getNeighbourhoodDetail(slug)
+    const detail: NeighbourhoodDetailResponse = await getNeighbourhoodDetail(slug)
+    if (hasServerRenderableContent(detail)) sections = toNonDdfDetail(detail)
   } catch {
-    detail = null
+    sections = null
   }
 
-  // Nothing of ours came back (cold start / outage / unknown slug). Hand the render
-  // to the browser, which can retry — see NeighbourhoodDetailClientBody.
-  if (!detail || !hasServerRenderableContent(detail)) {
+  // Nothing of ours came back (cold start / outage / malformed body). Hand the
+  // render to the browser, which can retry — see NeighbourhoodDetailClientBody.
+  // Note this is NOT the unknown-slug path any more: an unknown slug 404s in the
+  // page before this component is ever rendered (N-01).
+  if (!sections) {
     return <NeighbourhoodDetailClientBody slug={slug} province={province} />
   }
 
-  return (
-    <NeighbourhoodDetailSections
-      slug={slug}
-      detail={toNonDdfDetail(detail)}
-      province={province}
-    />
-  )
+  return <NeighbourhoodDetailSections slug={slug} detail={sections} province={province} />
 }

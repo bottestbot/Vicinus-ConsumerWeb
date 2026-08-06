@@ -13,11 +13,14 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { formatDistance } from '@/lib/format'
-import { bucketShopAndEat } from '@/lib/poi'
-import type { NeighbourhoodDetailResponse, PoiItem } from '@/types/neighbourhood-detail'
+import type { NeighbourhoodDetailResponse } from '@/types/neighbourhood-detail'
+import type { LocalEssentialsSummary } from './nonDdfDetail'
 
 interface Props {
-  localEssentials: NeighbourhoodDetailResponse['localEssentials']
+  /** Counts + example names only — NOT the POI arrays. See nonDdfDetail.ts (N-02):
+   *  this component sits behind a client island, so every field here is serialised
+   *  into the HTML. The full `shopAndEat` array alone was ~80 KB. */
+  localEssentials: LocalEssentialsSummary
   neighbourhood: NeighbourhoodDetailResponse['neighbourhood']
   housingAge?: NeighbourhoodDetailResponse['housingAge']
 }
@@ -48,20 +51,23 @@ function CardHeader({
 }
 
 // Bucketing lives in src/lib/poi.ts so the PDP "Life around" section and this
-// card always group identically.
+// card always group identically. It now runs server-side, in
+// `toLocalEssentialsSummary`, so the POIs it counts never cross to the client.
 
 export default function LocalEssentials({ localEssentials, neighbourhood, housingAge }: Props) {
-  const { schools, healthcare, parks, shopAndEat, transit = [], transitBus = [] } = localEssentials
-  // Rail leads, then the nearest bus stop — same split as the PDP Transit tile,
-  // so a bus-only area still names something concrete instead of reading empty.
-  // Unnamed OSM stops are dropped: the API coerces a null name to "Unnamed",
-  // which reads as a place name in a list of stations.
-  const named = (list: PoiItem[]) => list.filter((p) => p.name && p.name !== 'Unnamed')
-  const transitRows = [...named(transit).slice(0, 2), ...named(transitBus).slice(0, 1)].sort(
-    (a, b) => a.distanceM - b.distanceM,
-  )
+  const {
+    schools,
+    schoolsCount,
+    healthcare,
+    healthcareCount,
+    parksCount,
+    parkNames,
+    shopBuckets,
+    transitCount,
+    transitBusCount,
+    transitRows,
+  } = localEssentials
   const { name, city, slug } = neighbourhood
-  const shopBuckets = bucketShopAndEat(shopAndEat)
 
   return (
     <section id="local-essentials" className="py-10 border-b border-[#E8E6E1]">
@@ -76,11 +82,11 @@ export default function LocalEssentials({ localEssentials, neighbourhood, housin
         {/* Schools */}
         <div className={cardBase}>
           <CardHeader icon={<GraduationCap size={15} />} title="Schools" />
-          {schools.length === 0 ? (
+          {schoolsCount === 0 ? (
             <p className="text-xs text-[#6B6B6B]">No schools found nearby yet.</p>
           ) : (
             <ul className="space-y-2">
-              {schools.slice(0, 3).map((s) => (
+              {schools.map((s) => (
                 <li key={s.id} className="flex items-baseline justify-between gap-3">
                   <span className="truncate text-sm text-[#111111]">{s.name}</span>
                   <span className="shrink-0 text-xs text-[#6B6B6B]">{formatDistance(s.distanceM)}</span>
@@ -96,11 +102,11 @@ export default function LocalEssentials({ localEssentials, neighbourhood, housin
         {/* Healthcare */}
         <div className={cardBase}>
           <CardHeader icon={<HeartPulse size={15} />} title="Healthcare" />
-          {healthcare.length === 0 ? (
+          {healthcareCount === 0 ? (
             <p className="text-xs text-[#6B6B6B]">No facilities found nearby yet.</p>
           ) : (
             <ul className="space-y-2">
-              {healthcare.slice(0, 3).map((h) => (
+              {healthcare.map((h) => (
                 <li key={h.id} className="truncate text-sm text-[#111111]">
                   {h.name}
                 </li>
@@ -115,11 +121,17 @@ export default function LocalEssentials({ localEssentials, neighbourhood, housin
         {/* Nature & parks — dark highlight card */}
         <div className="rounded-xl bg-[#1C3829] p-4 text-white">
           <CardHeader icon={<TreePine size={15} />} title="Nature & parks" dark />
+          {/* N-03: `parkNames` carries only genuinely NAMED parks. Most nearby
+              green space in OSM is an unnamed polygon, and the API renders a null
+              name as the literal "Unnamed" — which read as a place name here
+              ("including Unnamed and Unnamed") on kitsilano, vancouver, burnaby,
+              tsawwassen and bowen-island. Unnamed parks still count; they just
+              cannot be cited, so the sentence degrades to the bare count. */}
           <p className="text-sm leading-relaxed text-white/90">
-            {parks.length > 0
-              ? `${parks.length} green ${parks.length === 1 ? 'space' : 'spaces'} nearby${
-                  parks[0] ? `, including ${parks[0].name}` : ''
-                }${parks[1] ? ` and ${parks[1].name}` : ''}.`
+            {parksCount > 0
+              ? `${parksCount} green ${parksCount === 1 ? 'space' : 'spaces'} nearby${
+                  parkNames.length > 0 ? `, including ${parkNames.join(' and ')}` : ''
+                }.`
               : 'Green spaces and trails around the area.'}
           </p>
           <Link
@@ -156,7 +168,7 @@ export default function LocalEssentials({ localEssentials, neighbourhood, housin
         {/* Transit — rail stations first, then the nearest bus stop. */}
         <div className={cardBase}>
           <CardHeader icon={<TrainFront size={15} />} title="Transit" />
-          {transit.length === 0 && transitBus.length === 0 ? (
+          {transitCount === 0 && transitBusCount === 0 ? (
             <p className="text-xs text-[#6B6B6B]">No transit stops mapped yet.</p>
           ) : (
             <ul className="space-y-2">
@@ -171,16 +183,16 @@ export default function LocalEssentials({ localEssentials, neighbourhood, housin
               {/* Counts are measured data, so they sit in the list with the
                   named stops — not in the muted footnote, which is reserved for
                   the "what this card means" line every card carries. */}
-              {transit.length > 0 && (
+              {transitCount > 0 && (
                 <li className="flex items-baseline justify-between gap-3">
                   <span className="truncate text-sm text-[#111111]">Rail stations nearby</span>
-                  <span className="shrink-0 text-xs text-[#6B6B6B]">{transit.length}</span>
+                  <span className="shrink-0 text-xs text-[#6B6B6B]">{transitCount}</span>
                 </li>
               )}
-              {transitBus.length > 0 && (
+              {transitBusCount > 0 && (
                 <li className="flex items-baseline justify-between gap-3">
                   <span className="truncate text-sm text-[#111111]">Bus stops nearby</span>
-                  <span className="shrink-0 text-xs text-[#6B6B6B]">{transitBus.length}</span>
+                  <span className="shrink-0 text-xs text-[#6B6B6B]">{transitBusCount}</span>
                 </li>
               )}
             </ul>
