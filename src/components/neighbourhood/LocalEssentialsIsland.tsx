@@ -8,13 +8,20 @@
 // DDF LISTINGS — DDF-derived, so it is fed from the client query and appears only
 // after hydration. `LocalEssentials` already hides that card when `housingAge` is
 // absent, which is exactly the pre-hydration state, so the grid needs no change.
+//
+// ⚠️ N-02: `localEssentials` below is the REDUCED summary, not the POI arrays.
+// Props on this boundary are paid for twice — once serialised into the HTML, once
+// again when this island refetches the same payload — so the full arrays cost
+// ~103 KB + ~107 KB on kitsilano for six counts and nine names. Keep the trim in
+// `toLocalEssentialsSummary`; do not widen this prop back to the raw shape.
 import { useNeighbourhoodDetail } from '@/hooks/useNeighbourhoodDetail'
 import LocalEssentials from './LocalEssentials'
 import type { NeighbourhoodDetailResponse } from '@/types/neighbourhood-detail'
+import type { LocalEssentialsSummary } from './nonDdfDetail'
 
 interface Props {
   slug: string
-  localEssentials: NeighbourhoodDetailResponse['localEssentials']
+  localEssentials: LocalEssentialsSummary
   neighbourhood: NeighbourhoodDetailResponse['neighbourhood']
 }
 

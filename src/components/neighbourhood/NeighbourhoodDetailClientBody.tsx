@@ -10,10 +10,18 @@
 // fact. Handing the render back to the browser instead means the visitor still
 // gets skeletons and a retry that can succeed once the API is warm — and a crawler
 // gets a thin page rather than a confidently wrong one.
+//
+// ⚠️ N-01: this component must apply `hasServerRenderableContent` too. The server
+// guard declining is what routes the render here, so without the same check the
+// fallback cheerfully renders the very page the guard exists to prevent —
+// on an empty composed payload that is a fabricated "Schools access 75" (from
+// `gradeToScore(null)`), zeros on every other bar, and "No schools found nearby
+// yet" stated as fact. Declining twice is the point: an empty payload is an
+// outage to retry, not a neighbourhood with nothing in it.
 import { useNeighbourhoodDetail } from '@/hooks/useNeighbourhoodDetail'
 import NeighbourhoodDetailSections from './NeighbourhoodDetailSections'
 import NeighbourhoodDetailSkeleton from './NeighbourhoodDetailSkeleton'
-import { toNonDdfDetail } from './nonDdfDetail'
+import { hasServerRenderableContent, toNonDdfDetail } from './nonDdfDetail'
 
 interface Props {
   slug: string
@@ -25,7 +33,7 @@ export default function NeighbourhoodDetailClientBody({ slug, province }: Props)
 
   if (isPending) return <NeighbourhoodDetailSkeleton />
 
-  if (isError || !data) {
+  if (isError || !data || !hasServerRenderableContent(data)) {
     return (
       <div className="pt-6">
         <div className="rounded-2xl border border-[#E8E6E1] bg-white p-10 text-center">
