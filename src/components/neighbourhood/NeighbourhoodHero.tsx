@@ -23,7 +23,20 @@ export default function NeighbourhoodHero({
   province,
 }: Props) {
   const { name, city, heroImageUrl, centroidLat, centroidLng, boundary } = neighbourhood
-  const locationLabel = [city, province].filter(Boolean).join(' · ')
+  // N-09/N-10 — the pill sits directly above the <h1>. On a bare-municipality row
+  // (`name === city`, e.g. /neighbourhoods/vancouver) repeating the city just
+  // echoes the heading, so only the province survives; with no city at all there
+  // is nothing worth chipping, so the pill goes away rather than reading "BC".
+  const cityDuplicatesName = city.trim().toLowerCase() === name.trim().toLowerCase()
+  const locationLabel = city
+    ? [cityDuplicatesName ? null : city, province].filter(Boolean).join(' · ')
+    : ''
+  // The image alt has the same duplication problem ("Vancouver, Vancouver").
+  const placeLabel = city && !cityDuplicatesName ? `${name}, ${city}` : name
+  // N-07 — Walk/Transit reach the hero as one-decimal sub-scores. Round here so
+  // the hero and the livability panel, which rounds the same values, agree.
+  const walkScoreDisplay = walkScore == null ? null : Math.round(walkScore)
+  const transitScoreDisplay = transitScore == null ? null : Math.round(transitScore)
   const heroMapUrl = getNeighbourhoodHeroMapUrl(centroidLat, centroidLng, boundary)
   // When we have the boundary polygon, show the map with the area drawn on it —
   // that's the point of the hero here. Otherwise prefer an editorial photo, then
@@ -38,7 +51,7 @@ export default function NeighbourhoodHero({
         {photoUrl ? (
           <Image
             src={photoUrl}
-            alt={`${name}, ${city}`}
+            alt={placeLabel}
             fill
             priority
             sizes="(max-width: 768px) 100vw, 50vw"
@@ -47,7 +60,7 @@ export default function NeighbourhoodHero({
         ) : mapUrl ? (
           <Image
             src={mapUrl}
-            alt={`Map of ${name}, ${city}`}
+            alt={`Map of ${placeLabel}`}
             fill
             priority
             sizes="(max-width: 768px) 100vw, 50vw"
@@ -75,7 +88,11 @@ export default function NeighbourhoodHero({
 
       {/* Right — market snapshot */}
       <div className="flex flex-col gap-5 p-6 sm:p-7">
-        <MarketSnapshot marketSnapshot={marketSnapshot} walkScore={walkScore} transitScore={transitScore} />
+        <MarketSnapshot
+          marketSnapshot={marketSnapshot}
+          walkScore={walkScoreDisplay}
+          transitScore={transitScoreDisplay}
+        />
       </div>
     </section>
   )
