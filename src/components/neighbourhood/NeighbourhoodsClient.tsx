@@ -146,6 +146,13 @@ function CityParamReader({ onCity }: { onCity: (city: string | null) => void }) 
 }
 
 // ── Pill ──────────────────────────────────────────────────────────────────────
+//
+// NBR-11: these are toggle buttons, not links or plain buttons — `aria-pressed`
+// is what tells assistive tech which province/city is currently selected.
+// Without it the only signal is the green fill, i.e. colour alone, which a
+// screen reader conveys not at all. The pills live inside labelled `role="group"`
+// wrappers (see the sticky filter bar) so the selection is announced in the
+// context of what it filters.
 
 function Pill({
   label, count, active, onClick, compact = false,
@@ -154,6 +161,8 @@ function Pill({
 }) {
   return (
     <button
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={`rounded-full border text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
         compact ? 'px-3 py-1' : 'px-4 py-1.5'
@@ -194,20 +203,34 @@ function FilterStyles() {
 
 // ── Scrollable pill row with fade mask (NBR-08) ───────────────────────────────
 
-function PillRow({ children, animate = false }: { children: React.ReactNode; animate?: boolean }) {
+function PillRow({
+  children,
+  animate = false,
+  label,
+}: {
+  children: React.ReactNode
+  animate?: boolean
+  /** NBR-11: names the set of toggle pills for assistive tech. */
+  label: string
+}) {
   return (
     <div
       className="relative overflow-hidden"
       style={animate ? { animation: 'nbr-slide-in 160ms ease-out both' } : undefined}
     >
       <div
+        role="group"
+        aria-label={label}
         className="nbr-pill-row flex gap-2 overflow-x-auto pb-0.5"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {children}
       </div>
       {/* 24px right-edge fade mask */}
-      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-[#FAF9F6]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-[#FAF9F6]"
+      />
     </div>
   )
 }
@@ -224,6 +247,7 @@ function CityFilter({
   onSelect,
   allLabel,
   allCount,
+  groupLabel,
   compact = false,
 }: {
   cityOptions: FilterOption[]
@@ -231,6 +255,8 @@ function CityFilter({
   onSelect: (key: string) => void
   allLabel: string
   allCount: number
+  /** NBR-11: names this pill group for assistive tech. */
+  groupLabel: string
   compact?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -250,6 +276,8 @@ function CityFilter({
 
   return (
     <div
+      role="group"
+      aria-label={groupLabel}
       // Expanded, the full city list runs to five rows — on a narrow viewport that
       // would fill the sticky bar with the whole screen, so cap it and let it scroll.
       className={`flex flex-wrap items-center gap-2 ${expanded ? 'max-h-[45vh] overflow-y-auto' : ''}`}
@@ -274,6 +302,8 @@ function CityFilter({
       ))}
       {expanded ? (
         <button
+          type="button"
+          aria-expanded={true}
           onClick={() => setExpanded(false)}
           className="whitespace-nowrap px-2 py-1 text-xs font-semibold text-[#1C3829] hover:underline"
         >
@@ -282,6 +312,8 @@ function CityFilter({
       ) : (
         hiddenCount > 0 && (
           <button
+            type="button"
+            aria-expanded={false}
             onClick={() => setExpanded(true)}
             className="whitespace-nowrap px-2 py-1 text-xs font-semibold text-[#1C3829] hover:underline"
           >
@@ -594,7 +626,7 @@ export default function NeighbourhoodsClient({
         {/* Level 1: Province pills */}
         {multiProvince && (
           <div className="mb-2">
-            <PillRow>
+            <PillRow label="Filter neighbourhoods by province">
               {provinceOptions.map((opt) => (
                 <Pill
                   key={opt.key}
@@ -617,6 +649,7 @@ export default function NeighbourhoodsClient({
             onSelect={selectCity}
             allLabel={`All ${provinceLabel}`}
             allCount={cityAllCount}
+            groupLabel={`Filter neighbourhoods by city in ${provinceLabel}`}
             compact={isSticky}
           />
         )}
