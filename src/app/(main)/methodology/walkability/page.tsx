@@ -18,6 +18,8 @@ import {
   SubSection,
   TextLink,
 } from '../_components/prose'
+import JsonLd from '@/components/seo/JsonLd'
+import { buildTechArticleSchema } from '@/lib/schema'
 
 export const metadata: Metadata = {
   title: 'Walkability Score Methodology',
@@ -38,8 +40,22 @@ const CATEGORIES: [string, string, string][] = [
 ]
 
 export default function WalkabilityMethodologyPage() {
+  // SEO-08 — TechArticle marks this as original methodology rather than
+  // marketing prose, which is the distinction answer engines use when
+  // deciding what is citable. Dates are omitted deliberately: a wrong
+  // datePublished is worse than none (see TechArticleInput).
+  const article = buildTechArticleSchema({
+    headline: 'Walkability Score Methodology',
+    description: metadata.description as string,
+    url: '/methodology/walkability',
+    articleSection: 'Methodology',
+    keywords: ['walkability score', 'walk score', 'distance decay', 'OpenStreetMap', 'points of interest'],
+    proficiencyLevel: 'Expert',
+  })
+
   return (
     <article>
+      <JsonLd id="ld-methodology" schema={article} />
       <PageHeader
         eyebrow="Methodology"
         title="Walkability score."
@@ -67,10 +83,20 @@ export default function WalkabilityMethodologyPage() {
             Every destination comes from <strong>OpenStreetMap</strong>, queried
             through the{' '}
             <TextLink href="https://overpass-api.de/">Overpass API</TextLink>.
-            Points of interest are pulled within a 1,500 m radius of the
-            neighbourhood centre and stored locally with a dated quarterly
-            snapshot tag, so a score can always be recomputed against the exact
-            data that produced it.
+            Points of interest are pulled within a 1,500 m{' '}
+            <strong>straight-line</strong> radius of the neighbourhood centre
+            and stored locally with a dated quarterly snapshot tag, so a score
+            can always be recomputed against the exact data that produced it.
+          </p>
+          <p className="mt-3">
+            That radius is worth holding onto, because the decay bands below are
+            quoted in <em>walking</em>{' '}
+            metres, not straight-line ones. A
+            destination 1,500 m away in a straight line sits at 2,100 m once the
+            ×1.4 detour factor is applied — so in practice nothing ever lands in
+            the last stretch of the decay curve. The 2,400 m cut-off is the
+            formula&rsquo;s zero point, not a distance any counted destination
+            reaches.
           </p>
           <p className="mt-3">
             We build this from open data rather than licensing a commercial
@@ -144,6 +170,13 @@ export default function WalkabilityMethodologyPage() {
                 <strong>Beyond 2,400 m</strong> — no credit.
               </li>
             </Bullets>
+            <p className="mt-3 text-sm">
+              These thresholds are <em>walking</em>{' '}
+              metres — straight-line
+              distance multiplied by the ×1.4 detour factor. Since ingestion
+              stops at a 1,500 m straight-line radius (2,100 m walking), the
+              2,100&ndash;2,400 m band of this curve is unreachable in practice.
+            </p>
           </SubSection>
 
           <SubSection title="3. Diminishing returns">
@@ -166,8 +199,11 @@ export default function WalkabilityMethodologyPage() {
 
 maxAttainable = log(1 + 10) × 9.1 ≈ 21.82`}</Formula>
             <p className="mt-4">
-              The anchor is <em>derived</em> from the ceiling rather than
-              hand-tuned. A walkability score is therefore &ldquo;what fraction of
+              {/* {' '} is load-bearing — see the note on the livability page:
+                  a following text node containing a newline loses its leading
+                  space, rendering "derivedfrom". */}
+              The anchor is <em>derived</em>{' '}
+              from the ceiling rather than hand-tuned. A walkability score is therefore &ldquo;what fraction of
               the best possible outcome this neighbourhood achieves&rdquo;, and
               changing the weights or the cap cannot silently re-scale the index
               underneath it.

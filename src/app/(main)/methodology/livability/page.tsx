@@ -20,6 +20,8 @@ import {
   SubSection,
   TextLink,
 } from '../_components/prose'
+import JsonLd from '@/components/seo/JsonLd'
+import { buildTechArticleSchema } from '@/lib/schema'
 
 export const metadata: Metadata = {
   title: 'Livability Score Methodology',
@@ -28,8 +30,22 @@ export const metadata: Metadata = {
 }
 
 export default function LivabilityMethodologyPage() {
+  // SEO-08 — TechArticle marks this as original methodology rather than
+  // marketing prose, which is the distinction answer engines use when
+  // deciding what is citable. Dates are omitted deliberately: a wrong
+  // datePublished is worse than none (see TechArticleInput).
+  const article = buildTechArticleSchema({
+    headline: 'Livability Score Methodology',
+    description: metadata.description as string,
+    url: '/methodology/livability',
+    articleSection: 'Methodology',
+    keywords: ['livability score', 'walkability', 'neighbourhood scoring', 'OpenStreetMap', 'GTFS', 'Metro Vancouver'],
+    proficiencyLevel: 'Expert',
+  })
+
   return (
     <article>
+      <JsonLd id="ld-methodology" schema={article} />
       <PageHeader
         eyebrow="Methodology"
         title="Livability score."
@@ -205,7 +221,11 @@ export default function LivabilityMethodologyPage() {
               </li>
             </Bullets>
             <p className="mt-4">
-              <strong>Coverage.</strong> A transit sub-score is only produced for
+              {/* {' '} is load-bearing: the text node that follows contains a
+                  newline, so JSX trims its leading whitespace and the sentence
+                  renders as "Coverage.A transit". */}
+              <strong>Coverage.</strong>{' '}
+              A transit sub-score is only produced for
               neighbourhoods inside the area an available feed actually covers —
               currently TransLink&rsquo;s Metro Vancouver service area: Vancouver,
               Burnaby, Richmond, Surrey, Coquitlam, Port Moody, Port Coquitlam,
@@ -217,19 +237,31 @@ export default function LivabilityMethodologyPage() {
           </SubSection>
         </Section>
 
-        <Section id="healthcare" title="Why healthcare is not in the blend">
+        <Section id="healthcare" title="Why healthcare is not its own dimension">
           <p>
-            Hospitals and pharmacies are ingested and shown on the neighbourhood
-            page as local information. They are deliberately excluded from the
-            livability blend.
+            Healthcare is not one of the four dimensions blended into the
+            composite. There is no healthcare sub-score sitting alongside
+            walkability, schools, amenities and transit, and no weight assigned
+            to one.
           </p>
           <p className="mt-3">
-            Proximity to a hospital is not the same as access to healthcare. That
-            depends on catchment, referral pathways, specialty, and wait times,
-            none of which exist in the underlying map data. And living next to a
-            hospital is frequently a negative for noise and traffic. Scoring it
-            as a positive would be misleading, so it stays context rather than
-            score.
+            It is not absent from the model, though, and it would be misleading
+            to imply otherwise. Clinics and pharmacies are one of the nine
+            everyday-destination categories counted by the walkability and
+            amenities sub-scores, carrying the same weight there as banks or
+            entertainment. So healthcare presence does reach the composite —
+            just as one ordinary category among nine, rather than as a pillar of
+            its own.
+          </p>
+          <p className="mt-3">
+            The reason it is not a pillar: proximity to a hospital is not the
+            same as access to healthcare. That depends on catchment, referral
+            pathways, specialty and wait times, none of which exist in the
+            underlying map data. Living next to a hospital is also frequently a
+            negative for noise and traffic. Elevating it to a top-level
+            dimension would assert a precision we do not have, so hospitals
+            appear on the neighbourhood page as local information rather than as
+            a score.
           </p>
         </Section>
 

@@ -62,7 +62,16 @@ export function SubSection({ title, children }: { title: string; children: React
 /** A formula or code-shaped block, set apart from the prose. */
 export function Formula({ children }: { children: ReactNode }) {
   return (
-    <pre className="mt-4 overflow-x-auto rounded-lg border border-[#E5E3DC] bg-white px-4 py-3 text-[13px] leading-relaxed text-[#1C3829] font-mono">
+    // tabIndex={0} makes the scroll region keyboard-reachable (WCAG 2.1.1).
+    // Two of these formulas genuinely overflow at 375px, and without it a
+    // keyboard-only user cannot scroll to read the rest. `role="region"` plus a
+    // label is what stops the tab stop being announced as an unnamed element.
+    <pre
+      tabIndex={0}
+      role="region"
+      aria-label="Formula, scrollable"
+      className="mt-4 overflow-x-auto rounded-lg border border-[#E5E3DC] bg-white px-4 py-3 text-[13px] leading-relaxed text-[#1C3829] font-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1C3829]"
+    >
       {children}
     </pre>
   )
@@ -87,7 +96,14 @@ export function DataTable({
 }) {
   return (
     <figure className="mt-4">
-      <div className="overflow-x-auto rounded-lg border border-[#E5E3DC] bg-white">
+      {/* tabIndex={0} — same reason as Formula: a scrollable region that a
+          keyboard user cannot reach fails WCAG 2.1.1. */}
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Table, scrollable"
+        className="overflow-x-auto rounded-lg border border-[#E5E3DC] bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1C3829]"
+      >
         <table className="w-full border-collapse text-[14px]">
           <thead>
             <tr className="border-b border-[#E5E3DC] bg-[#F7F6F1]">

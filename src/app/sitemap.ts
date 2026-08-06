@@ -43,6 +43,13 @@ const STATIC_ROUTES: Array<{
   { path: '/sell', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/vibe', changeFrequency: 'monthly', priority: 0.6 },
   { path: '/realtor-hub', changeFrequency: 'monthly', priority: 0.5 },
+  // SEO-08 — the published scoring methodology. High priority despite low
+  // traffic: it is original, citable work and the evidence base for every
+  // livability claim elsewhere on the site, which is exactly what AI answer
+  // engines link to.
+  { path: '/methodology', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/methodology/livability', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/methodology/walkability', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/privacy', changeFrequency: 'yearly', priority: 0.2 },
   { path: '/terms', changeFrequency: 'yearly', priority: 0.2 },
 ]
