@@ -1,17 +1,61 @@
 // Neighbourhoods index page
+//
+// SEO-02: the default card grid is rendered HERE, in the server component, so the
+// raw HTML carries a real `<a href="/neighbourhoods/{slug}">` for every
+// neighbourhood. It is the only crawl path to the detail pages (there is no
+// sitemap yet — SEO-01), and crawlers that execute no JavaScript were previously
+// served nav + footer and nothing else. NeighbourhoodsClient layers search and the
+// province/city filters on top and only takes over the grid once one is used.
 import type { Metadata } from 'next'
+import type { Neighbourhood } from '@/types/neighbourhood'
 import Link from 'next/link'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { getNeighbourhoods } from '@/lib/api/neighbourhoods'
 import NeighbourhoodsClient from '@/components/neighbourhood/NeighbourhoodsClient'
+import NeighbourhoodGrid, {
+  ALL_CITIES,
+  browsableNeighbourhoods,
+  defaultProvince,
+  filterNeighbourhoods,
+} from '@/components/neighbourhood/NeighbourhoodGrid'
 
 export const metadata: Metadata = {
   title: 'Explore Neighbourhoods',
   description: "Explore Canada's most prestigious neighbourhoods — curated for discerning buyers.",
 }
 
+/**
+ * SEO-18(b) — strip `medianPrice` before any of this reaches the client tree.
+ *
+ * ⚠️ Removing the price from the *card* is not enough, and this is the trap:
+ * every row is handed to `<NeighbourhoodsClient>` as a prop, and props to a
+ * Client Component serialize into the RSC flight payload, which ships inside
+ * the HTML. So the value stayed in the served document (122 occurrences)
+ * despite nothing rendering it. It has to be dropped from the *data*, here, at
+ * the one boundary where the server hands rows to the client.
+ *
+ * `medianPrice` is backfilled from live DDF prices, and SEO-05 confirmed
+ * derived aggregates count as DDF data — so it must not appear in
+ * server-rendered, crawlable HTML.
+ *
+ * Verify with: `grep -c medianPrice .next/server/app/neighbourhoods.html` → 0.
+ */
+function stripDdfFields(rows: Neighbourhood[]): Neighbourhood[] {
+  return rows.map((row) => {
+    const copy = { ...row }
+    delete copy.medianPrice
+    return copy
+  })
+}
+
 export default async function NeighbourhoodsPage() {
-  const neighbourhoods = await getNeighbourhoods()
+  const neighbourhoods = stripDdfFields(await getNeighbourhoods())
+
+  // Must match NeighbourhoodsClient's initial state exactly — it renders this tree
+  // verbatim until a filter or search is applied, so any divergence would show up
+  // as a hydration mismatch. Both sides derive it from the same helpers.
+  const browsable = browsableNeighbourhoods(neighbourhoods)
+  const initialGrid = filterNeighbourhoods(browsable, defaultProvince(browsable), ALL_CITIES)
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] pt-16 pb-20 font-ui">
@@ -53,8 +97,10 @@ export default async function NeighbourhoodsPage() {
           </Link>
         </div>
 
-        {/* Dynamic filters + featured + grid — all client-side */}
-        <NeighbourhoodsClient all={neighbourhoods} />
+        {/* Filters + search are client-side; the default grid below is server-rendered */}
+        <NeighbourhoodsClient all={neighbourhoods}>
+          <NeighbourhoodGrid neighbourhoods={initialGrid} showCityTag />
+        </NeighbourhoodsClient>
       </div>
     </div>
   )

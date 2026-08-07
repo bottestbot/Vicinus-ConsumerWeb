@@ -38,6 +38,33 @@ export const STRINGS = {
     'Listing data is provided by the Canadian Real Estate Association (CREA) Data Distribution Facility (DDF®). REALTOR®, MLS®, and the associated logos are trademarks owned by CREA and identify real estate professionals who are members of CREA.',
   FOOTER_COPYRIGHT: '© {year} Vicinus. All rights reserved.',
 
+  // ─── Global · Structured data (JSON-LD) ─────────────────────────────────────
+  // Copy that ships inside the schema.org graph (src/lib/schema.ts). Not shown
+  // in the UI, but it IS user-facing: this is what a search engine or an AI
+  // answer engine quotes when it describes Vicinus. Keep it factual — a claim
+  // made here is a claim made publicly.
+  SCHEMA_ORGANIZATION_NAME: 'Vicinus',
+  // ⚠️ Approved copy — do not reword without sign-off. Two constraints are
+  // baked in and are easy to undo by accident:
+  //  1. No "MLS®". It is a CREA trademark and Vicinus holds DDF access at REAW
+  //     tier — an advertising website, explicitly not a Member Website — so our
+  //     right to use the mark in a public self-description is unconfirmed
+  //     (SEO-05 came back restrictive on all four questions put alongside it).
+  //  2. No geography on the neighbourhood clause. Livability currently covers
+  //     10 Metro Vancouver cities, so "neighbourhoods across Canada" would be
+  //     false; naming Metro Vancouver would need rewriting the moment coverage
+  //     widens to BC and Ontario. Claiming no scope is true either way.
+  SCHEMA_ORGANIZATION_DESCRIPTION:
+    'Vicinus is a Canadian real estate platform for buying and renting homes, with neighbourhood guides.',
+  SCHEMA_ORGANIZATION_SLOGAN: 'Bringing you closer to home.',
+  SCHEMA_WEBSITE_NAME: 'Vicinus',
+  // ⚠️ Approved copy — see the note on SCHEMA_ORGANIZATION_DESCRIPTION.
+  // "across Canada" attaches to the search clause only; listings are national
+  // (the DDF feed is), neighbourhood coverage is not, and the second clause
+  // deliberately claims no geography.
+  SCHEMA_WEBSITE_DESCRIPTION:
+    'Search homes for sale and for rent across Canada, and explore neighbourhoods.',
+
   // ─── Homepage · Metadata ────────────────────────────────────────────────────
   HOMEPAGE_META_TITLE: 'Vicinus | Canadian Real Estate & Smart Market Data',
   HOMEPAGE_META_DESCRIPTION:
@@ -48,6 +75,14 @@ export const STRINGS = {
   HOMEPAGE_HERO_TITLE_LEAD: 'Bringing',
   HOMEPAGE_HERO_TITLE_ACCENT: 'You',
   HOMEPAGE_HERO_TITLE_TRAIL: 'Closer to Home.',
+  // SEO-06: the brand line above carries no search terms — no "Canada", no
+  // "real estate", no "homes for sale". This second line lives INSIDE the same
+  // <h1> so the H1 gains keyword weight without demoting or restyling the
+  // brand line, which stays the visual hero exactly as designed.
+  // ✅ Brand copy — approved 2026-08-04. Reword only with sign-off.
+  // "neighbourhood by neighbourhood" describes the approach, not coverage —
+  // it is deliberately not a geographic claim (cf. the schema copy above).
+  HOMEPAGE_HERO_TITLE_KEYWORD: 'Homes for sale and rent across Canada, neighbourhood by neighbourhood.',
 
   // ─── Homepage · Hero search bar ─────────────────────────────────────────────
   HOMEPAGE_HEROSEARCH_LABEL: 'Find your home',

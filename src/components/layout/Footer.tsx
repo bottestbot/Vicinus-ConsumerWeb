@@ -9,6 +9,10 @@ const EXPLORE_LINKS = [
   // Sell is hidden for this launch — restore alongside the Navbar entry.
   // { label: 'Sell', href: '/sell' },
   { label: 'Neighbourhoods', href: '/neighbourhoods' },
+  // SEO-08: the only internal link to the published methodology. Without it
+  // those pages are orphans — reachable via the sitemap but with no link
+  // equity, which is most of what makes a page rank.
+  { label: 'Methodology', href: '/methodology' },
   { label: 'REALTOR® Hub', href: '/realtor-hub' },
 ]
 
