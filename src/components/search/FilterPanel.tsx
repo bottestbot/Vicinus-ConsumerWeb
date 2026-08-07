@@ -93,13 +93,15 @@ function ToggleRow({
 // tracks what the Feed/Map will actually show. bbox is intentionally omitted —
 // this is a coarse "how many match these filters" number, not a map query.
 function useResultCount(listingType: ListingType): number | null {
-  const { filters, query, userCity } = useSearchStore()
+  const { filters, query, mapCity } = useSearchStore()
 
   const params: SearchParams = {
     // Same mapping as the live search — shared so the two can't drift.
     ...filtersToSearchParams(filters, query, listingType),
     status: filters.status || 'Active',
-    city: query ? undefined : userCity || 'Vancouver',
+    // Was the device's city; now wherever the map is panned to. Vancouver is
+    // the fallback before the map has reverse-geocoded anything.
+    city: query ? undefined : mapCity || 'Vancouver',
     limit: 1,
     page: 1,
   }

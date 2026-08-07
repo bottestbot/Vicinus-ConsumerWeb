@@ -117,8 +117,8 @@ function rankByQuery(matches: Neighbourhood[], query: string): Neighbourhood[] {
 
 // ── NBR-03: context-aware selection ──────────────────────────────────────────
 
-function contextMatch(all: Neighbourhood[], query: string | null, userCity: string | null): { province: string; city: string } | null {
-  const q = (query || userCity || '').toLowerCase().trim()
+function contextMatch(all: Neighbourhood[], query: string | null, contextCity: string | null): { province: string; city: string } | null {
+  const q = (query || contextCity || '').toLowerCase().trim()
   if (!q) return null
   const match = all.find((n) => n.city.toLowerCase() === q)
   if (match) return { province: match.province, city: match.city }
@@ -463,7 +463,7 @@ export default function NeighbourhoodsClient({
 }) {
   const router = useRouter()
   const query = useSearchStore((s) => s.query)
-  const userCity = useSearchStore((s) => s.userCity)
+  const mapCity = useSearchStore((s) => s.mapCity)
 
   // Index shows genuine neighbourhoods only — see browsableNeighbourhoods. The
   // server page derives the default grid from the same helper.
@@ -507,20 +507,29 @@ export default function NeighbourhoodsClient({
 
   // NBR-03: context-aware pre-selection, applied once. An explicit `?city=` param
   // (e.g. from the homepage "Understand the vicinity" cards) wins over the ambient
-  // search-store query/userCity. The param arrives from <CityParamReader> rather
-  // than a direct useSearchParams call — see the note on that component.
+  // search-store query/mapCity.
+  //
+  // ⚠️ Merge note (SEO-02): main's version of this read `cityParam` inside a
+  // mount `useEffect`, which requires a direct `useSearchParams()` call in this
+  // component — and that opts the whole client tree out of prerendering up to
+  // the nearest Suspense boundary, which for this segment is `loading.tsx`.
+  // That is what made production serve `/neighbourhoods` as nav + footer with
+  // zero links to any detail page. The param now arrives via the callback from
+  // <CityParamReader>, which isolates the hook behind its own Suspense — see
+  // the note on that component. Keep this shape; reverting to the useEffect
+  // form silently removes the crawl path to all 112 neighbourhood pages.
   const contextApplied = useRef(false)
   const applyContext = useCallback(
     (cityParam: string | null) => {
       if (contextApplied.current) return
       contextApplied.current = true
-      const ctx = contextMatch(data, cityParam || query, userCity)
+      const ctx = contextMatch(data, cityParam || query, mapCity)
       if (ctx) {
         setSelectedProvince(ctx.province)
         setSelectedCity(ctx.city)
       }
     },
-    [data, query, userCity],
+    [data, query, mapCity],
   )
 
   // NBR-07: detect when filter bar is in sticky state

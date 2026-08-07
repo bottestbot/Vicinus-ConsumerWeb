@@ -3,7 +3,6 @@ import { Inter, Space_Grotesk } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import QueryProvider from '@/components/providers/QueryProvider'
 import PostHogProvider from '@/components/providers/PostHogProvider'
-import LocationProvider from '@/components/providers/LocationProvider'
 import LeadInquiryProvider from '@/components/providers/LeadInquiryProvider'
 import OnboardingGate from '@/components/onboarding/OnboardingGate'
 import OnboardingModal from '@/components/onboarding/OnboardingModal'
@@ -57,7 +56,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PostHogProvider>
             <QueryProvider>
               <LeadInquiryProvider>
-                <LocationProvider />
                 <OnboardingGate />
                 <SavedPropertiesGate />
                 {children}

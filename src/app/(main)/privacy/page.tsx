@@ -8,7 +8,8 @@
 //   - Sell / valuation flow                    → §2(a)    (sell module)
 //   - CREA LogEvents view/Click/email_realtor  → §5       (analytics module)
 //   - vic_vid visitor cookie                   → §4       (visitor-id.util.ts)
-//   - Browser geolocation                      → §2(d)    (LocationProvider)
+//   - Map-view reverse geocoding               → §2(d)    (MapView)
+//     (device geolocation was removed — we no longer prompt for location)
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -170,13 +171,12 @@ export default function PrivacyPage() {
               (d) Location information
             </h3>
             <p>
-              The Platform asks your browser for your location so it can centre
-              the map and show nearby listings. This only happens if you grant
-              permission in your browser, and you can decline or revoke it at
-              any time in your browser settings. Your coordinates are sent to
-              the OpenStreetMap Nominatim service to look up the name of your
-              city; they are held in your browser for the session and are not
-              stored on our servers or attached to your account.
+              The Platform does not ask your browser for your location and does
+              not use device geolocation. When you pan or zoom the map, the
+              coordinates of the area you are viewing are sent to the
+              OpenStreetMap Nominatim service to look up the name of that place
+              — this describes the map view, not your device, and is not stored
+              on our servers or attached to your account.
             </p>
           </section>
 
@@ -345,8 +345,8 @@ export default function PrivacyPage() {
                 maps load.
               </li>
               <li>
-                <strong>OpenStreetMap</strong> — converting coordinates into a
-                city name when you share your location (section 2(d)).
+                <strong>OpenStreetMap</strong> — converting the coordinates of
+                the map area you are viewing into a place name (section 2(d)).
               </li>
             </ul>
 

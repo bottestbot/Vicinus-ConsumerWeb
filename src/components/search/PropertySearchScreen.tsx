@@ -107,11 +107,19 @@ function bboxAround(longitude: number, latitude: number): string {
 export default function PropertySearchScreen({
   listingType,
   initial,
+  initialViewMode,
+  pinnedReelId,
 }: {
   /** Owned by the route (/buy vs /rent), never by the URL or the store. There
    *  is nothing to hydrate or reconcile, so it cannot drift or go stale. */
   listingType: 'For Sale' | 'For Rent'
   initial?: InitialSearch
+  /** Forces the opening view instead of the store's default (Map). Set to
+   *  'list' by /reel/[id], which must open on the Feed — the store is a
+   *  singleton and would otherwise still be on whatever the last view was. */
+  initialViewMode?: 'both' | 'list'
+  /** Passed through to the Feed — see FeedView's `pinnedReelId`. */
+  pinnedReelId?: string
 }) {
   const {
     viewMode,
@@ -119,9 +127,7 @@ export default function PropertySearchScreen({
     query,
     selectedCity,
     mapBounds,
-    userCity,
     mapCity,
-    userCoords,
     geocodedCenter,
     setQuery,
     setFilter,
@@ -130,11 +136,10 @@ export default function PropertySearchScreen({
     setSelectedCity,
   } = useSearchStore()
 
-  // Wherever the user last panned the map takes priority over their actual
-  // device location, so Feed and the location label stay in sync with the
-  // Map view (panning North Van → Kelowna and switching to Feed should show
-  // Kelowna, not the device's real city).
-  const effectiveCity = mapCity || userCity
+  // Wherever the user last panned the map drives the Feed and the location
+  // label, so Map↔Feed stay in sync (panning North Van → Kelowna and switching
+  // to Feed shows Kelowna).
+  const effectiveCity = mapCity
 
   // Re-seed the price band from the URL when the user crosses between Buy and
   // Rent.
@@ -161,6 +166,17 @@ export default function PropertySearchScreen({
     setFilter('minPrice', initialMinPrice)
     setFilter('maxPrice', initialMaxPrice)
   }, [listingType, initialMinPrice, initialMaxPrice, setFilter])
+
+  // Open on the view the route asked for. Separate from the hydration effect
+  // below because that one bails when there's no `initial`, and because the
+  // store is a module-level singleton: a reel link opened after the user had
+  // switched to the Map earlier in the session would otherwise land on the Map.
+  const viewHydrated = useRef(false)
+  useEffect(() => {
+    if (viewHydrated.current || !initialViewMode) return
+    viewHydrated.current = true
+    setViewMode(initialViewMode)
+  }, [initialViewMode, setViewMode])
 
   // Hydrate the store from URL params (e.g. the home-page hero search) once on
   // mount so a city/price/type from the URL drives the initial results.
@@ -225,11 +241,7 @@ export default function PropertySearchScreen({
     ? `${mapBounds.west},${mapBounds.south},${mapBounds.east},${mapBounds.north}`
     : null
   const defaultBbox =
-    mapBoundsStr ??
-    lockedBbox ??
-    (userCoords
-      ? bboxAround(userCoords.longitude, userCoords.latitude)
-      : bboxAround(VANCOUVER.longitude, VANCOUVER.latitude))
+    mapBoundsStr ?? lockedBbox ?? bboxAround(VANCOUVER.longitude, VANCOUVER.latitude)
 
   // A full street address ("8760 No 5 Rd, Richmond, BC V6Y 2V4") will never
   // substring-match a DDF listing's UnparsedAddress/City/PostalCode field, so
@@ -258,11 +270,11 @@ export default function PropertySearchScreen({
     isSubAreaSelection && geocodedCenter ? bboxAround(geocodedCenter.longitude, geocodedCenter.latitude) : null
 
   // For an address query, scope strictly to the real (address-centred) map
-  // bounds once the flyTo lands — NEVER fall back to userCoords/Vancouver like
-  // `defaultBbox` does for plain browsing. Falling back to the user's own
-  // location here was the actual bug: on the first fetch (before mapBounds
-  // catches up with the flyTo), it would briefly search/fit near the user's
-  // real location instead of the searched address, reading as "search snaps
+  // bounds once the flyTo lands — NEVER fall back to Vancouver like
+  // `defaultBbox` does for plain browsing. Falling back here was the actual
+  // bug: on the first fetch (before mapBounds catches up with the flyTo), it
+  // would briefly search/fit near the fallback centre instead of the searched
+  // address, reading as "search snaps
   // back to my location". `enabled` below withholds the fetch entirely until
   // mapBoundsStr reflects the real target, so there's nothing to snap from.
   const addressBbox = isAddressQuery ? mapBoundsStr : null
@@ -337,8 +349,8 @@ export default function PropertySearchScreen({
   // firing both immediately keeps pins warm for an instant Feed→Map switch
   // (BUY-04). Any first-load slowness is API cold-start, not pin contention.
   // Same rule as queryParams above: an address query must never fall back to
-  // defaultBbox's userCoords/Vancouver chain, or pins would briefly show the
-  // user's own area instead of nothing while waiting for the real address bbox.
+  // defaultBbox's Vancouver centre, or pins would briefly show that area
+  // instead of nothing while waiting for the real address bbox.
   const bbox = isAddressQuery ? addressBbox : (mapBoundsStr ?? defaultBbox)
   const pinParams = { ...queryParams, bbox: bbox ?? undefined }
   const { data: pinsData } = useQuery({
@@ -380,7 +392,7 @@ export default function PropertySearchScreen({
         {viewMode === 'list' ? (
           /* Feed view — full-width vertical listing feed */
           <div className="w-full h-full">
-            <FeedView params={feedParams} />
+            <FeedView params={feedParams} pinnedReelId={pinnedReelId} />
           </div>
         ) : (
           <>
